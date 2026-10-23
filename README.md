@@ -69,7 +69,7 @@ Adding media to a local project does not submit it for cloud generation. Review 
 | Connect an editing assistant         | [Agent control](docs/agent-control.md)                                                                                    |
 | Build and test                       | [Development](docs/development.md)                                                                                        |
 | Resolve a problem                    | [Troubleshooting](docs/troubleshooting.md)                                                                                |
-| Review the current source release    | [Changes in 0.29.1](docs/release-0.29.md)                                                                                 |
+| Review the current source release    | [Changes in 0.29.2](docs/release-0.29.md)                                                                                 |
 
 ## Contribute
 

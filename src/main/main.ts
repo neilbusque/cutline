@@ -1728,7 +1728,6 @@ app.whenReady().then(async () => {
   store = new Store(path.join(data, "recovery.cutline"), (file) =>
     leases.claimFile(file),
   );
-  sessions.updateProject(store.project);
   library = new ProjectLibrary(
     projectsFolder,
     path.join(data, "recent-projects.json"),
@@ -1737,6 +1736,8 @@ app.whenReady().then(async () => {
     if (error) void warnSaveFailed(error);
   });
   if (pendingProject) await openFromFinder(pendingProject);
+  // Startup opens happen before the change listener below is attached.
+  sessions.updateProject(store.project);
   jobs = new Jobs((j) => send("job", j));
   media = new Media(path.join(data, "media-cache"), bin, jobs);
   // Older versions left raw audio dumps behind (about 115 MB per hour of media).

@@ -1,6 +1,10 @@
-# Changes in 0.29.1
+# Changes in 0.29.2
 
 Cutline now has a guided explainer workflow in **Story → Explainer**. Choose a direction, enter your authored script, review the outline and select **Create explainer**.
+
+## Fix in 0.29.2
+
+Opening a project from Finder or the command line now refreshes the session list immediately. The session name and project ID match the opened file before the first edit. A startup integration check covers this behavior.
 
 ## Fix in 0.29.1
 

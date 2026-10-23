@@ -41,9 +41,11 @@ const env = {
   ...process.env,
   CUTLINE_QA: "1",
   CUTLINE_DATA_DIR: data,
+  CUTLINE_SESSION_ROOT: data,
   CUTLINE_PROJECTS_DIR: path.join(work, "projects"),
 };
 delete env.ELECTRON_RUN_AS_NODE;
+delete env.CUTLINE_SESSION_ID;
 const report = {
   work,
   runtime: null,
@@ -666,6 +668,23 @@ try {
   });
   await page.waitForSelector(".titlebar", { timeout: 120000 });
   const state = await invoke("state");
+  assert.equal(state.snapshot.project.id, initial.id);
+  assert.equal(state.snapshot.project.name, initial.name);
+  assert.equal(state.snapshot.filePath, projectFile);
+  assert.equal(state.snapshot.canUndo, false);
+  const startupSessions = await invoke("sessions.list");
+  assert.equal(startupSessions.currentId, "main");
+  assert.equal(startupSessions.sessions.length, 1);
+  const startupSession = startupSessions.sessions.find(
+    (session) => session.id === startupSessions.currentId,
+  );
+  assert(startupSession?.current, "CLI-open project has a current session");
+  assert.equal(
+    startupSession.projectId,
+    initial.id,
+    "Session discovery must describe the CLI-open project before any edit",
+  );
+  assert.equal(startupSession.projectName, initial.name);
   assert.equal(
     state.settings.transcriptionReady,
     true,
@@ -679,6 +698,19 @@ try {
   mcp = new Client({ name: "Cutline Explainer QA", version: "1.0" });
   await mcp.connect(
     new StreamableHTTPClientTransport(new URL(state.settings.mcpUrl)),
+  );
+  const discovered = await call("cutline_sessions", { action: "list" });
+  const currentSession = discovered.sessions.find((session) => session.current);
+  assert.equal(currentSession?.id, startupSessions.currentId);
+  assert.equal(currentSession.projectId, initial.id);
+  assert.equal(currentSession.projectName, initial.name);
+  check(
+    "CLI-open project identity matches current session in the editor and external MCP before any edit",
+    {
+      sessionId: currentSession.id,
+      projectId: currentSession.projectId,
+      projectName: currentSession.projectName,
+    },
   );
   const advertised = (await mcp.listTools()).tools;
   for (const name of [
