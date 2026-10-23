@@ -38,6 +38,10 @@ import {
   vendorResourceFiles,
   verifiedFile,
 } from "../scripts/setup-support.mjs";
+import {
+  assertSelfContainedDirectory,
+  packageWithVendorResources,
+} from "../scripts/package-vendor.mjs";
 
 let directory;
 beforeEach(async () => {
@@ -285,6 +289,88 @@ describe("Source and package boundaries", () => {
       validateVendorResources(staged, speechFiles, linkedManifest),
     ).resolves.toContain(`${browserDirectory}/Current`);
   });
+
+  it("keeps the final app self-contained after deleting the temporary vendor stage", async () => {
+    const root = await vendorFixture();
+    const linkedManifest = {
+      files: [...chrome.files, { name: "Current", symlink: "gen" }],
+    };
+    await symlink("gen", path.join(root, browserDirectory, "Current"));
+    const output = path.join(directory, "release");
+    const app = path.join(output, "Cutline.app");
+    const createPackages = vi.fn(async () => {
+      await mkdir(path.join(app, "Contents/Resources"), { recursive: true });
+      return [output];
+    });
+    expect(
+      await packageWithVendorResources({
+        vendorRoot: root,
+        speechFiles,
+        createPackages,
+        chrome: linkedManifest,
+        temporaryRoot: directory,
+      }),
+    ).toEqual([output]);
+    expect(createPackages).toHaveBeenCalledOnce();
+    expect(
+      (await readdir(directory)).filter((name) =>
+        name.startsWith("cutline-package-"),
+      ),
+    ).toEqual([]);
+    // Remove the original cache too: neither source nor temporary resources
+    // should be necessary for a copied app's framework links to resolve.
+    await rm(root, { recursive: true });
+    const browser = path.join(
+      app,
+      "Contents/Resources/vendor",
+      browserDirectory,
+    );
+    expect(await readlink(path.join(browser, "Current"))).toBe("gen");
+    expect(
+      await readFile(path.join(browser, "Current/frontend.js"), "utf8"),
+    ).toBe(`required ${browserDirectory}/gen/frontend.js`);
+    await expect(assertSelfContainedDirectory(app)).resolves.toBeUndefined();
+    await expect(
+      validateVendorResources(
+        path.join(app, "Contents/Resources/vendor"),
+        speechFiles,
+        linkedManifest,
+      ),
+    ).resolves.toContain(`${browserDirectory}/Current`);
+  });
+
+  it.each(["dangling", "escaping"])(
+    "rejects a completed app with a %s link and cleans temporary resources",
+    async (kind) => {
+      const root = await vendorFixture();
+      const output = path.join(directory, "release");
+      const outside = path.join(directory, "outside.txt");
+      if (kind === "escaping") await writeFile(outside, "outside the app");
+      await expect(
+        packageWithVendorResources({
+          vendorRoot: root,
+          speechFiles,
+          chrome,
+          temporaryRoot: directory,
+          createPackages: async () => {
+            const app = path.join(output, "Cutline.app");
+            await mkdir(path.join(app, "Contents/Resources"), {
+              recursive: true,
+            });
+            await symlink(outside, path.join(app, "unexpected-link"));
+            return [output];
+          },
+        }),
+      ).rejects.toThrow(
+        kind === "dangling" ? "symlink is dangling" : "symlink escapes the app",
+      );
+      expect(
+        (await readdir(directory)).filter((name) =>
+          name.startsWith("cutline-package-"),
+        ),
+      ).toEqual([]);
+    },
+  );
 
   it.each(["gen/frontend.js", "/tmp", "../outside", "regular file"])(
     "rejects a reviewed framework link replaced by %s",

@@ -1,4 +1,8 @@
 import { browserRelativePath } from "./browser-config.mjs";
+import {
+  assertSelfContainedDirectory,
+  packageWithVendorResources,
+} from "./package-vendor.mjs";
 import { packager } from "@electron/packager";
 import { VERSION as remotionVersion } from "remotion/version";
 import path from "node:path";
@@ -11,7 +15,6 @@ import {
   packageIgnore,
   prepareMediaBinaries,
   speechNotices,
-  stageVendorResources,
   verifiedFile,
   whisperModel,
 } from "./setup-support.mjs";
@@ -24,8 +27,6 @@ import {
   symlinkSync,
   statSync,
 } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
-import os from "node:os";
 assertSupportedPlatform();
 assertChromeManifestVersion(remotionVersion);
 await prepareMediaBinaries();
@@ -78,56 +79,50 @@ for (const file of [
 ])
   if (!existsSync(file))
     throw Error(`Missing ${file}. Run vendor setup and npm run build.`);
-const staging = await mkdtemp(path.join(os.tmpdir(), "cutline-package-"));
-let out;
-try {
-  const stagedVendor = path.join(staging, "vendor");
-  await stageVendorResources(
-    path.resolve("vendor"),
-    stagedVendor,
-    speechModelFiles,
-  );
-  out = await packager({
-    dir: process.cwd(),
-    out: path.resolve("release"),
-    name: "Cutline",
-    icon: path.resolve("assets/Cutline.icns"),
-    platform: "darwin",
-    arch: "arm64",
-    overwrite: true,
-    asar: false,
-    prune: true,
-    appBundleId: "local.cutline.editor",
-    appCategoryType: "public.app-category.video",
-    appVersion: JSON.parse(readFileSync("package.json", "utf8")).version,
-    executableName: "Cutline",
-    extraResource: [stagedVendor],
-    ignore: packageIgnore,
-    extendInfo: {
-      NSHighResolutionCapable: true,
-      CFBundleDocumentTypes: [
-        {
-          CFBundleTypeName: "Cutline Project",
-          CFBundleTypeRole: "Editor",
-          LSHandlerRank: "Owner",
-          LSItemContentTypes: ["local.cutline.project"],
-        },
-      ],
-      UTExportedTypeDeclarations: [
-        {
-          UTTypeIdentifier: "local.cutline.project",
-          UTTypeDescription: "Cutline Project",
-          UTTypeConformsTo: ["public.json"],
-          UTTypeTagSpecification: { "public.filename-extension": ["cutline"] },
-        },
-      ],
-      NSHumanReadableCopyright:
-        "Third-party licenses and source notices are included in app resources",
-    },
-  });
-} finally {
-  await rm(staging, { recursive: true, force: true });
-}
+const out = await packageWithVendorResources({
+  vendorRoot: path.resolve("vendor"),
+  speechFiles: speechModelFiles,
+  createPackages: () =>
+    packager({
+      dir: process.cwd(),
+      out: path.resolve("release"),
+      name: "Cutline",
+      icon: path.resolve("assets/Cutline.icns"),
+      platform: "darwin",
+      arch: "arm64",
+      overwrite: true,
+      asar: false,
+      prune: true,
+      appBundleId: "local.cutline.editor",
+      appCategoryType: "public.app-category.video",
+      appVersion: JSON.parse(readFileSync("package.json", "utf8")).version,
+      executableName: "Cutline",
+      ignore: packageIgnore,
+      extendInfo: {
+        NSHighResolutionCapable: true,
+        CFBundleDocumentTypes: [
+          {
+            CFBundleTypeName: "Cutline Project",
+            CFBundleTypeRole: "Editor",
+            LSHandlerRank: "Owner",
+            LSItemContentTypes: ["local.cutline.project"],
+          },
+        ],
+        UTExportedTypeDeclarations: [
+          {
+            UTTypeIdentifier: "local.cutline.project",
+            UTTypeDescription: "Cutline Project",
+            UTTypeConformsTo: ["public.json"],
+            UTTypeTagSpecification: {
+              "public.filename-extension": ["cutline"],
+            },
+          },
+        ],
+        NSHumanReadableCopyright:
+          "Third-party licenses and source notices are included in app resources",
+      },
+    }),
+});
 // Keep the staged copy out of Spotlight and Finder's Open With, so searching
 // "Cutline" finds only /Applications/Cutline.app. QA and install scripts keep
 // using release/Cutline-darwin-arm64, which now links to the hidden folder.
@@ -145,5 +140,6 @@ for (const dir of out) {
   rmSync(hidden, { recursive: true, force: true });
   renameSync(dir, hidden);
   symlinkSync(path.basename(hidden), dir);
+  await assertSelfContainedDirectory(path.join(hidden, "Cutline.app"));
 }
 console.log(out.join("\n"));
