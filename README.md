@@ -2,6 +2,8 @@
 
 A local video editor for macOS with editable captions, motion graphics, voiceover and optional AI assistance.
 
+[Visit the Cutline website](https://neilbusque.github.io/cutline/) to explore the editor and watch the introduction.
+
 Cutline turns footage, screenshots and scripts into videos you can keep editing. It uses the same composition for preview and MP4 export. Projects are `.cutline` files, and original source media is left unchanged.
 
 ![Cutline editing a native motion sequence](docs/assets/cutline-workspace.png)

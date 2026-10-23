@@ -2,7 +2,7 @@
 
 Open **Audio → Text to speech**. Paste a script, choose a voice and pace, then select **Generate voiceover**. Listen to the preview before adding it to the timeline or saving a WAV. The Audio panel opens here by default; Music sync and My audio remain available.
 
-Cutline uses the bundled Kokoro 82M v1.0 model and eight English voices. Speech synthesis runs on this Mac with no API key, credit balance or per-use charge. The current installer includes the model. If a development install lacks the model, Download Kokoro performs a one-time download; generation then works offline. Broken bundled voice files require repairing the app, rather than downloading the model again.
+Cutline uses the Kokoro 82M v1.0 model and eight English voices. Speech synthesis runs on this Mac with no API key, credit balance or per-use charge. [Source setup](development.md#prepare-local-voiceover) downloads the model, and private local builds can include it. If a development install lacks the model, Download Kokoro performs a one-time download; generation then works offline. Broken bundled voice files require repairing the app, rather than downloading the model again.
 
 The default voice is Heart at 1.08x. Pace ranges from 0.65x to 1.5x, and a script can contain up to 5,000 characters. Long scripts are split into bounded passages while preserving their words. Output is mono 24 kHz PCM WAV. Cancel stops the isolated inference process and clears incomplete output. The engine uses two CPU inference threads.
 

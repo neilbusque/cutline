@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Cutline | Local Mac Video Editor for Shorts &amp; Motion</title>
+    <meta
+      name="description"
+      content="A local video editor for Mac. Create Shorts, animate editable motion, add local voiceover and connect an optional assistant. Explore Cutline's MIT source."
+    />
+    <link rel="canonical" href="https://neilbusque.github.io/cutline/" />
+    <meta name="theme-color" content="#f7f7f2" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Cutline" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:title" content="Cutline. Make your next cut." />
+    <meta
+      property="og:description"
+      content="A local video editor for Mac with editable captions, motion and voiceover. Your footage. Your layers. Your next cut."
+    />
+    <meta property="og:url" content="https://neilbusque.github.io/cutline/" />
+    <meta
+      property="og:image"
+      content="https://neilbusque.github.io/cutline/assets/cutline-social.png"
+    />
+    <meta property="og:image:width" content="1920" />
+    <meta property="og:image:height" content="1080" />
+    <meta property="og:image:alt" content="Cutline video editor. Make your next cut." />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Cutline. Make your next cut." />
+    <meta
+      name="twitter:description"
+      content="A local Mac video editor for creator Shorts, editable motion and local voiceover. Explore the source and watch the film."
+    />
+    <meta
+      name="twitter:image"
+      content="https://neilbusque.github.io/cutline/assets/cutline-social.png"
+    />
+    <meta name="twitter:image:alt" content="Cutline video editor. Make your next cut." />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="sitemap" href="sitemap.xml" type="application/xml" />
+    <link rel="preload" href="assets/cutline-workspace.webp" as="image" type="image/webp" />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="application/ld+json" id="structured-data">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "@id": "https://neilbusque.github.io/cutline/#website",
+      "url": "https://neilbusque.github.io/cutline/",
+      "name": "Cutline",
+      "description": "A local Mac video editor for creator Shorts, editable motion and voiceover.",
+      "inLanguage": "en"
+    },
+    {
+      "@type": "WebPage",
+      "@id": "https://neilbusque.github.io/cutline/#webpage",
+      "url": "https://neilbusque.github.io/cutline/",
+      "name": "Cutline | Local Mac Video Editor for Shorts & Motion",
+      "isPartOf": {
+        "@id": "https://neilbusque.github.io/cutline/#website"
+      },
+      "mainEntity": {
+        "@id": "https://neilbusque.github.io/cutline/#source"
+      },
+      "video": {
+        "@id": "https://neilbusque.github.io/cutline/#intro"
+      },
+      "inLanguage": "en"
+    },
+    {
+      "@type": "SoftwareSourceCode",
+      "@id": "https://neilbusque.github.io/cutline/#source",
+      "name": "Cutline",
+      "description": "Original source for a local video editor targeting macOS 15 or later on Apple Silicon. Cutline source is MIT licensed; third-party dependencies retain their separate terms.",
+      "codeRepository": "https://github.com/neilbusque/cutline",
+      "url": "https://github.com/neilbusque/cutline",
+      "programmingLanguage": [
+        "TypeScript",
+        "JavaScript"
+      ],
+      "version": "0.28.0",
+      "license": "https://github.com/neilbusque/cutline/blob/main/LICENSE",
+      "author": {
+        "@type": "Person",
+        "name": "Neil Busque",
+        "url": "https://github.com/neilbusque"
+      }
+    },
+    {
+      "@type": "VideoObject",
+      "@id": "https://neilbusque.github.io/cutline/#intro",
+      "name": "Cutline: Make your next cut",
+      "description": "A 43-second introduction to Cutline with editable motion, local narration, original music and views of the editor.",
+      "thumbnailUrl": [
+        "https://neilbusque.github.io/cutline/assets/cutline-social.png"
+      ],
+      "contentUrl": "https://neilbusque.github.io/cutline/assets/cutline-intro.mp4",
+      "uploadDate": "2026-10-23",
+      "duration": "PT43S",
+      "inLanguage": "en"
+    }
+  ]
+}
+    </script>
+    <script src="site.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <header class="site-header page-width">
+      <a class="wordmark" href="#" aria-label="Cutline home">
+        <img src="assets/cutline-mark.svg" width="30" height="30" alt="" />
+        <span>Cutline</span>
+      </a>
+      <nav class="desktop-nav" aria-label="Main navigation">
+        <a href="#features">The editor</a>
+        <a href="#film">The film</a>
+        <a href="#get-started">Get started</a>
+        <a class="nav-source" href="https://github.com/neilbusque/cutline">GitHub</a>
+      </nav>
+      <details class="mobile-menu">
+        <summary>Menu</summary>
+        <nav aria-label="Mobile navigation">
+          <a href="#features">The editor</a>
+          <a href="#film">The film</a>
+          <a href="#get-started">Get started</a>
+          <a href="https://github.com/neilbusque/cutline">GitHub</a>
+        </nav>
+      </details>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+      <section class="hero page-width" aria-labelledby="hero-title">
+        <div class="hero-intro">
+          <h1 id="hero-title"><span>Make your</span><span>next cut.</span></h1>
+          <div class="hero-copy">
+            <p class="hero-description">
+              A local video editor for Mac. Shape your footage, animate your ideas,
+              and give every word a voice.
+            </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="https://github.com/neilbusque/cutline">
+                Get the source
+                <svg viewBox="0 0 24 24" width="19" height="19" fill="none" aria-hidden="true">
+                  <path d="m8 7-5 5 5 5m8-10 5 5-5 5m-3-14-2 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </a>
+              <a class="film-link" href="#film" data-play-film>
+                <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+                  <path d="m6 3 11 7-11 7V3Z" fill="currentColor" />
+                </svg>
+                Watch the 43-second film
+              </a>
+            </div>
+            <p class="hero-note">Source release 0.28. macOS 15+ on Apple Silicon.</p>
+          </div>
+        </div>
+
+        <figure class="editor-figure">
+          <a class="editor-image" href="assets/cutline-workspace.png" aria-label="Open the full-size Cutline editor screenshot">
+            <picture>
+              <source srcset="assets/cutline-workspace.webp" type="image/webp" />
+              <img
+                src="assets/cutline-workspace.png"
+                width="2880"
+                height="1736"
+                alt="The Cutline editor with a motion sequence, editable text properties, preview canvas and layered timeline."
+                fetchpriority="high"
+                decoding="async"
+              />
+            </picture>
+          </a>
+          <figcaption>
+            <span>The actual editor, making the film below.</span>
+            <a href="assets/cutline-workspace.png">View full size</a>
+          </figcaption>
+        </figure>
+      </section>
+
+      <section class="features page-width section-space" id="features" aria-labelledby="features-title">
+        <div class="section-intro">
+          <h2 id="features-title">Keep your edit editable.</h2>
+          <p>Your footage, captions, motion and audio stay on the timeline. Shape the details until the cut feels right.</p>
+        </div>
+        <div class="feature-list">
+          <article class="feature-row">
+            <h3>Creator Shorts</h3>
+            <div>
+              <p>Start with your speaker video. Add word-timed captions, tighten pauses, and show real screenshots or recordings while the original voice continues.</p>
+              <a class="text-link" href="https://github.com/neilbusque/cutline/blob/main/docs/creator-shorts.md">Explore Creator punch and Screen demo</a>
+            </div>
+          </article>
+          <article class="feature-row">
+            <h3>Editable motion</h3>
+            <div>
+              <p>Build title sequences, product explainers and logo reveals. Adjust text, shapes, layers, keyframes and easing directly in the editor.</p>
+              <a class="text-link" href="https://github.com/neilbusque/cutline/blob/main/docs/motion-controls.md">See the motion controls</a>
+            </div>
+          </article>
+          <article class="feature-row">
+            <h3>Local narration</h3>
+            <div>
+              <p>Turn a script into English voiceover on your Mac. Choose a voice and pace, add your music, and keep the speech clear in the mix.</p>
+              <a class="text-link" href="https://github.com/neilbusque/cutline/blob/main/docs/kokoro-tts.md">Meet the voiceover tools</a>
+            </div>
+          </article>
+          <article class="feature-row">
+            <h3>An optional assistant</h3>
+            <div>
+              <p>Connect Claude, Codex or a compatible MCP client to inspect a project, make edits and review preview frames. Manual editing works without an assistant account.</p>
+              <a class="text-link" href="https://github.com/neilbusque/cutline/blob/main/docs/agent-control.md">Read the connection guide</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="film-section section-space" id="film" aria-labelledby="film-title">
+        <div class="page-width">
+          <div class="film-heading">
+            <h2 id="film-title">Made in Cutline.</h2>
+            <p>A 43-second introduction with editable motion, local narration and an original score.</p>
+          </div>
+          <video
+            id="intro-film"
+            class="intro-film"
+            controls
+            playsinline
+            preload="none"
+            poster="assets/cutline-poster.webp"
+            width="1920"
+            height="1080"
+            tabindex="0"
+            aria-label="Cutline: Make your next cut. A 43-second introduction."
+            aria-describedby="film-caption"
+          >
+            <source src="assets/cutline-intro.mp4" type="video/mp4" />
+            <track kind="captions" src="assets/cutline-intro.vtt" srclang="en" label="English" default />
+            Your browser cannot play this video. <a href="assets/cutline-intro.mp4">Open the introduction</a>.
+          </video>
+          <div class="film-caption">
+            <p id="film-caption">Sound on when you're ready. English captions are available in the player.</p>
+            <details class="film-transcript">
+              <summary>Read the film transcript</summary>
+              <div>
+                <p>Every great story starts with a moment. A spark. A frame. A sound. Cutline brings them together.</p>
+                <p>Shape the edit. Give every word a voice. Turn a simple idea into motion. From bold creator shorts to cinematic product films.</p>
+                <p>Keep your footage, your layers, and your creative choices in your hands. Edit locally on your Mac. Bring an assistant when you want one.</p>
+                <p>Build something that feels unmistakably yours. Cutline. Make your next cut.</p>
+                <p class="visual-description">The film combines animated typography, Cutline's mark and views of the actual editor.</p>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+
+      <section class="get-started page-width section-space" id="get-started" aria-labelledby="start-title">
+        <div class="section-intro">
+          <h2 id="start-title">Start with the source.</h2>
+          <p>Cutline 0.28 is a source release for Apple Silicon Macs running macOS 15 or later.</p>
+          <a class="button button-primary" href="https://github.com/neilbusque/cutline">Get the source</a>
+        </div>
+        <div class="setup-guide">
+          <ol class="setup-steps">
+            <li>
+              <h3>Prepare your Mac</h3>
+              <p>Install Node.js 22.12 or later, Git, CMake and Xcode Command Line Tools. Setup needs an internet connection to download dependencies and local models.</p>
+            </li>
+            <li>
+              <h3>Build and open Cutline</h3>
+              <p>Clone the repository, follow the setup guide and run the commands below from the project folder.</p>
+            </li>
+          </ol>
+          <div class="setup-code">
+            <pre aria-label="Cutline source setup commands"><code>npm ci
+npm run setup:runtime
+npx --no-install install-electron
+npm run setup:vendor
+npm run setup:speech
+npm run build
+npm start</code></pre>
+          </div>
+          <a class="text-link setup-link" href="https://github.com/neilbusque/cutline/blob/main/docs/development.md">Read the complete setup guide</a>
+          <p class="distribution-note">There is no downloadable app in this release. Cutline's own source is MIT licensed; dependencies have separate terms. The current FFmpeg binary prevents distributing an app bundle. <a href="https://github.com/neilbusque/cutline/blob/main/THIRD_PARTY_NOTICES.md">Read the third-party notices</a>.</p>
+        </div>
+      </section>
+
+      <section class="faq page-width section-space" id="faq" aria-labelledby="faq-title">
+        <h2 id="faq-title">Before your first cut.</h2>
+        <div class="faq-list">
+          <details>
+            <summary>Does Cutline run on my Mac?</summary>
+            <div class="faq-answer"><p>The current build supports Apple Silicon Macs running macOS 15 or later. Intel Macs, Windows and Linux are not supported by the current build and packaging setup.</p></div>
+          </details>
+          <details>
+            <summary>Is there an app download?</summary>
+            <div class="faq-answer"><p>Version 0.28 is a source-only release. Build it locally using the <a href="https://github.com/neilbusque/cutline/blob/main/docs/development.md">setup guide</a>. The currently selected FFmpeg binary cannot be redistributed in an app or installer.</p></div>
+          </details>
+          <details>
+            <summary>Is Cutline open source?</summary>
+            <div class="faq-answer"><p>Cutline's original source code and documentation use the <a href="https://github.com/neilbusque/cutline/blob/main/LICENSE">MIT license</a>. Its dependencies keep their own terms. Remotion uses a separate custom license, and downloaded tools and models are not relicensed by Cutline. Review the <a href="https://github.com/neilbusque/cutline/blob/main/THIRD_PARTY_NOTICES.md">third-party notices</a> for the full distinction.</p></div>
+          </details>
+          <details>
+            <summary>Does my footage stay on my Mac?</summary>
+            <div class="faq-answer"><p>Manual editing, transcription, voiceover and export run locally after setup. Optional connected features have different data flows: assistants can receive chat messages, project details, transcripts and requested preview images. Stock providers receive searches; generation providers receive submitted prompts and selected reference images. See the <a href="https://github.com/neilbusque/cutline/blob/main/SECURITY.md">security and privacy guide</a>.</p></div>
+          </details>
+          <details>
+            <summary>Do I need an AI account?</summary>
+            <div class="faq-answer"><p>No account is needed for manual editing, local captions, local voiceover or export. Connecting Claude, Codex or another assistant is optional and uses that provider's account and usage terms.</p></div>
+          </details>
+          <details>
+            <summary>Can I keep editing after I export?</summary>
+            <div class="faq-answer"><p>Yes. Save your editable <code>.cutline</code> project and export a separate MP4. Keep the original media files available: saving the project does not collect those files into an archive. The <a href="https://github.com/neilbusque/cutline/blob/main/docs/getting-started.md">first edit guide</a> covers saving, moving and reopening projects.</p></div>
+          </details>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer page-width">
+      <div class="footer-brand">
+        <a class="wordmark" href="#" aria-label="Cutline home">
+          <img src="assets/cutline-mark.svg" width="30" height="30" alt="" loading="lazy" />
+          <span>Cutline</span>
+        </a>
+        <p>Make your next cut.</p>
+      </div>
+      <nav aria-label="Footer navigation">
+        <a href="https://github.com/neilbusque/cutline">GitHub</a>
+        <a href="https://github.com/neilbusque/cutline/blob/main/docs/getting-started.md">Documentation</a>
+        <a href="https://github.com/neilbusque/cutline/issues">Report an issue</a>
+        <a href="https://github.com/neilbusque/cutline/blob/main/THIRD_PARTY_NOTICES.md">Licenses</a>
+      </nav>
+      <p class="footer-note">Original Cutline source © 2026 Cutline contributors. MIT licensed. Third-party terms apply.</p>
+    </footer>
+  </body>
+</html>

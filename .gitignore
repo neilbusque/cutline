@@ -26,6 +26,8 @@ node_modules
 /layered-*/
 *.cutline
 *.mp4
+# Reviewed public website film; keep all other local exports ignored.
+!/site/assets/cutline-intro.mp4
 *.mov
 *.mkv
 *.webm
