@@ -17,6 +17,8 @@ import { agentMediaTools } from "./agent-media";
 import { musicTools } from "./music-control";
 import { JobsArgsSchema } from "./agent-tasks";
 import { directorStyles } from "../shared/director-guide";
+import { ExplainerInputSchema } from "../shared/explainer";
+import { StoryProduceSchema } from "./story-batch";
 
 /**
  * Tools whose work can outlast a client's request timeout. They answer within
@@ -34,6 +36,7 @@ export const longRunningTools = new Set([
   "cutline_auto_edit",
   "cutline_relink",
   "cutline_story_voice",
+  "cutline_story_produce",
 ]);
 
 const read = {
@@ -66,6 +69,27 @@ const describe = <T extends Record<string, any>>(
  * bundles it so clients still see the tools while Cutline is closed.
  */
 export const cutlineTools: Tool[] = [
+  {
+    name: "cutline_explainer",
+    description:
+      "Create/save an editable explainer outline from authored script. Styles: kinetic, screen, diagram, editorial. Replaces saved plan, keeps timeline; screen needs real media. No paid generation. Read schema section explainer.",
+    inputSchema: readableSchema(
+      z.object({
+        projectId: z.string(),
+        revision: z.number().int().min(0),
+        input: ExplainerInputSchema,
+      }),
+      true,
+    ),
+    annotations: edit(true),
+  },
+  {
+    name: "cutline_story_produce",
+    description:
+      "Generate/reuse all local narration and measured captions, then build editable scenes. Default rebuild replaces only the prior story; unrelated clips stay. Cancelling keeps finished voices. Wait on jobs; no paid generation.",
+    inputSchema: readableSchema(StoryProduceSchema, true),
+    annotations: edit(false),
+  },
   {
     name: "cutline_director_guide",
     description:

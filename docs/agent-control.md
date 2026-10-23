@@ -392,11 +392,27 @@ In 0.19, set `story.referenceAssetIds` to ordered image asset IDs for shared cha
 
 Paid Higgsfield shots are submitted explicitly from the Story panel. These planning tools do not initiate paid video generation.
 
+## Explainers
+
+Read `cutline_editing_schema {section: "explainer"}`, the current project and its saved storyline before planning. `cutline_explainer {projectId, revision, input}` creates and saves an outline from authored text. `input` contains `style`, `topic`, `script`, and optional `audience` and `cta`. Style values are `kinetic`, `screen`, `diagram` and `editorial`. Each nonempty script line starts a scene; longer lines split at sentence boundaries while preserving the narration words. A closing action changes on-screen copy, not spoken narration.
+
+This tool replaces the saved outline and keeps the timeline unchanged. Preserve existing authored work unless replacing it is part of the request. Matching unchanged narration can retain its existing scene and media links. No factual script, screen evidence or paid media is generated from the topic. Read [styles and references](explainer-styles.md) for the intended use and limits of each treatment.
+
+Before producing Product focus, import the user's actual screenshots or recordings and assign their returned asset IDs to every `screen` or `split` scene. Inspect and revise the saved plan with `cutline_story`. Native graphics scenes need no external media.
+
+Call `cutline_story_produce {projectId, revision}` with the latest revision to create or reuse local narration, align captions and assemble all scenes. An optional `mode` accepts `append` or `rebuild`; omitted mode rebuilds the prior story sequence when one exists and appends otherwise. Unrelated timeline clips are preserved. Production checks required media before generating speech and stops automatic assembly if its storyline, canvas or previously owned sequence changes while work is running.
+
+Wait on long-running work with `cutline_jobs`, using the returned job or task ID and the same `sessionId`. Cancel with `cutline_cancel_job`. Completed narration remains reusable after cancellation. If requested captions cannot be aligned, production keeps the audio and stops before assembly; fix the local transcription setup and retry, or explicitly disable captions in the saved story. Do not invent word timestamps to bypass that check.
+
+After production, read the returned warnings and quality report, inspect representative frames with `cutline_preview`, and review actual playback with sound. Save the editable project and verify that export finishes. The structural report cannot judge the full listening experience. Per-scene `cutline_story_voice` and manual `cutline_story_assemble` remain available.
+
+> Build a Sketch flow explainer from the script I supplied. Keep all narration words, use editable process diagrams and preserve unrelated timeline work. Create local narration and captions, review the assembled scenes, then save the editable project and verify the MP4 export.
+
 ## Product films (0.20)
 
-A story may include `brand: {name, accent, background, foreground}` (colors are six-digit hex strings). Each scene may include `design: {layout, headline, eyebrow, body, points, motion}`. `layout` is `title`, `screen`, `split`, `features`, `quote`, or `cta`; `motion` is `smooth`, `snappy`, or `minimal`. Headline, eyebrow, and body are editable on-screen copy, separate from narration. `points` holds up to three benefit strings. Read the live story schema for lengths and defaults. Absence of `design` preserves the existing full-frame footage workflow.
+A story may include `brand: {name, accent, background, foreground}` (colors are six-digit hex strings). Each scene may include `design: {layout, headline, eyebrow, body, points, motion}`. Product layouts are `title`, `screen`, `split`, `features`, `quote`, and `cta`; explainers add `kinetic`, `process`, `comparison`, `editorial`, and `editorial-quote`. `motion` is `smooth`, `snappy`, or `minimal`. Headline, eyebrow, and body are editable on-screen copy, separate from narration. `points` holds up to three strings, used as benefits, process steps, two comparison sides, or the first editorial cutout label. Read the live story schema for lengths and defaults. Absence of `design` preserves the existing full-frame footage workflow.
 
-`title`, `features`, `quote`, and `cta` build native editable graphics locally. `screen` and `split` additionally require an imported image or video `assetId` and frame that media without inventing interface details. Narration remains optional. Avoid unsupported claims, synthetic testimonials, and invented metrics. A quoted statement layout is not evidence of a customer endorsement.
+All designed layouts except `screen` and `split` build native editable graphics locally. `screen` and `split` additionally require an imported image or video `assetId` and frame that media without inventing interface details. Narration remains optional. Avoid unsupported claims, synthetic testimonials, and invented metrics. A quoted statement layout is not evidence of a customer endorsement.
 
 Assembly creates ordinary motion definitions and replaceable media clips. Inspect with `cutline_preview`; refine through the existing motion and clip tools. Rebuild owns only its last generated clips, tracks, and unused motion definitions; unrelated or reused work remains. Assembly ownership IDs are managed by the editor and cannot be supplied by a client to delete arbitrary work.
 

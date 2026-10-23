@@ -28,6 +28,12 @@ export {
   STORY_SCENE_LIMIT,
 } from "./story-schema";
 export type { StoryPlan, StoryScene } from "./story-schema";
+export {
+  createExplainerStory,
+  explainerStyles,
+  ExplainerInputSchema,
+} from "./explainer";
+export type { ExplainerInput, ExplainerStyleId } from "./explainer";
 
 export type StoryTemplate = "story" | "explainer" | "promo";
 

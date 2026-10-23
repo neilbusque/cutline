@@ -7,6 +7,11 @@ import { GenerationCredentials } from "./generation-credentials";
 import { GenerationLibrary } from "./generation";
 import { StoryControl } from "./story-control";
 import { StoryProduction } from "./story-production";
+import { StoryBatchProduction } from "./story-batch";
+import {
+  createExplainerStory,
+  ExplainerInputSchema,
+} from "../shared/explainer";
 import { effectsGuide } from "../shared/animation";
 import {
   app,
@@ -465,6 +470,7 @@ function copySessionPrompt() {
 let agentTasks: AgentTasks;
 let storyControl: StoryControl;
 let storyVoice: StoryProduction;
+let storyBatch: StoryBatchProduction;
 /** Tools whose work can outlast a client's request timeout; see AgentTasks. */
 const longTools = longRunningTools;
 async function toolCall(name: string, args: any) {
@@ -513,6 +519,24 @@ async function runTool(name: string, args: any): Promise<unknown> {
   if (agentMediaTools.some((tool) => tool.name === name))
     return agentMedia(name, args);
   switch (name) {
+    case "cutline_explainer": {
+      assertRevision(args);
+      const input = ExplainerInputSchema.parse(args.input);
+      return storyControl.save({
+        projectId: args.projectId,
+        revision: args.revision,
+        story: createExplainerStory(input, store.project.story),
+      });
+    }
+    case "cutline_story_produce": {
+      const { story: savedStory, ...result } = await storyBatch.produce(args);
+      return {
+        ...result,
+        quality: analyzeVideoQuality(store.project, {
+          assetAvailable: (asset) => existsSync(asset.path),
+        }),
+      };
+    }
     case "cutline_story":
       return args.story ? storyControl.save(args) : storyControl.inspect();
     case "cutline_story_voice": {
@@ -1058,8 +1082,15 @@ function register() {
     configured: async () => (await generationCredentials.status()).configured,
   });
   const storyProduction = new StoryProduction({ store, speech, media, jobs });
+  const batch = new StoryBatchProduction({
+    store,
+    production: storyProduction,
+    control: story,
+    jobs,
+  });
   storyControl = story;
   storyVoice = storyProduction;
+  storyBatch = batch;
   const handlers: Record<string, (args: any) => any> = {
     "story.inspect": () => story.inspect(),
     "story.save": (args) => story.save(args),
@@ -1120,6 +1151,7 @@ function register() {
     "story.generate": (args) => story.generate(args),
     "story.refresh": (args) => story.refresh(args),
     "story.voice": (args) => storyProduction.voice(args),
+    "story.produce": (args) => batch.produce(args),
     "story.assemble": (args) => story.assemble(args),
     ...Object.fromEntries(
       ["analyze", "grid", "sync", "reactive", "create", "inspect"].map(

@@ -3,9 +3,33 @@ import { SpeechInputSchema } from "./tts";
 
 export const STORY_SCENE_LIMIT = 60;
 export const STORY_REFERENCE_LIMIT = 9;
+export const ExplainerStyleSchema = z.enum([
+  "kinetic",
+  "screen",
+  "diagram",
+  "editorial",
+]);
+export const ExplainerMetadataSchema = z.object({
+  style: ExplainerStyleSchema,
+  topic: z.string().trim().min(1).max(120),
+  audience: z.string().trim().max(200).optional(),
+  cta: z.string().trim().max(160).optional(),
+});
 const id = z.string().min(1).max(200);
 export const ProductDesignSchema = z.object({
-  layout: z.enum(["title", "screen", "split", "features", "quote", "cta"]),
+  layout: z.enum([
+    "title",
+    "screen",
+    "split",
+    "features",
+    "quote",
+    "cta",
+    "kinetic",
+    "process",
+    "comparison",
+    "editorial",
+    "editorial-quote",
+  ]),
   headline: z.string().max(180).default(""),
   eyebrow: z.string().max(80).default(""),
   body: z.string().max(500).default(""),
@@ -72,6 +96,7 @@ export const StoryPlanSchema = z
     musicAssetId: id.optional(),
     referenceAssetIds,
     brand: ProductBrandSchema.optional(),
+    explainer: ExplainerMetadataSchema.optional(),
     assembly: z
       .object({
         clipIds: z.array(id).max(10000),

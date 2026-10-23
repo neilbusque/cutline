@@ -109,7 +109,16 @@ export class StoryProduction {
       existsSync(candidate.path)
         ? candidate
         : undefined;
-    if (reusable?.words?.length)
+    if (
+      reusable?.words?.some(
+        (word) =>
+          word.text.trim() &&
+          word.start >= 0 &&
+          word.end > word.start &&
+          word.end <= reusable.duration &&
+          word.start < reusable.duration,
+      )
+    )
       return {
         asset: structuredClone(reusable),
         sceneId: scene.id,
@@ -228,8 +237,10 @@ export class StoryProduction {
                 "That narration was removed or relinked while captions were being aligned. Your media edits were kept.",
               );
             // Preserve renaming or other asset edits made during transcription.
+            const { words: previousWords, ...currentWithoutWords } =
+              currentAsset;
             asset = {
-              ...currentAsset,
+              ...currentWithoutWords,
               ...(asset.words ? { words: asset.words } : {}),
             };
           } else if (now.assets.length >= 1000) {

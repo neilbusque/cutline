@@ -296,6 +296,7 @@ try {
     .filter({ hasText: /^Story$/ })
     .click();
   await panel().waitFor({ state: "visible" });
+  await panel().locator(".story-brief > summary").click();
   await panel().getByLabel("Story brief").fill("Two moonlit ninja moments");
   await panel()
     .getByRole("button", { name: "Plan with assistant", exact: true })
@@ -308,6 +309,7 @@ try {
   );
   await page.getByRole("button", { name: "Properties", exact: true }).click();
   check("Plan with assistant prepares an editable prompt without sending it");
+  await panel().locator(".story-script-entry > summary").click();
   await panel()
     .getByLabel("Story script")
     .fill(

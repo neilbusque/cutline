@@ -60,6 +60,39 @@ export const productLayouts: ReadonlyArray<{
     description: "Your brand, final thought, and a clear next step",
     needsMedia: false,
   },
+  {
+    id: "kinetic",
+    name: "Kinetic type",
+    description:
+      "Dominant type with a moving motif and a compact supporting phrase",
+    needsMedia: false,
+  },
+  {
+    id: "process",
+    name: "Process flow",
+    description: "Editable numbered steps joined by drawn connectors",
+    needsMedia: false,
+  },
+  {
+    id: "comparison",
+    name: "Comparison",
+    description:
+      "Two authored ideas shown side by side, or stacked on a tall canvas",
+    needsMedia: false,
+  },
+  {
+    id: "editorial",
+    name: "Editorial collage",
+    description:
+      "Layered paper, concise labels, and a deliberate offset composition",
+    needsMedia: false,
+  },
+  {
+    id: "editorial-quote",
+    name: "Editorial statement",
+    description: "An oversized statement on an editable paper composition",
+    needsMedia: false,
+  },
 ];
 
 export function sceneNeedsMedia(scene: Pick<StoryScene, "design">) {
@@ -166,6 +199,8 @@ export function createProductScene(
 ) {
   const { scene, start, frames, graphicsTrackId, mediaTrackId, visual } =
     options;
+  if (!Number.isInteger(frames) || frames < 1)
+    throw Error("Use at least one whole frame for a product scene.");
   const design = scene.design;
   if (!design) throw Error("Choose a product layout for this scene.");
   if (sceneNeedsMedia(scene) && !sceneVisualReady(scene, project))
@@ -184,6 +219,9 @@ export function createProductScene(
   const arrive = frame(minimal ? 0.22 : snappy ? 0.3 : 0.48);
   const exit = Math.max(1, frame(minimal ? 0.16 : 0.23));
   const leave = Math.max(arrive, last - exit);
+  // Tiny inserts cannot fit both a reveal and an exit. A visible static hold
+  // is preferable to duplicate endpoint keys making the whole shot invisible.
+  const shortScene = last <= arrive + exit;
   const curve: [number, number, number, number] = snappy
     ? [0.22, 1, 0.36, 1]
     : [0.16, 1, 0.3, 1];
@@ -206,6 +244,7 @@ export function createProductScene(
     distance = s * 0.035,
     fade = true,
   ): MotionKeyframe[] => {
+    if (shortScene) return [];
     const begin = Math.min(frame(delay), Math.max(0, leave - arrive));
     const end = Math.min(leave, begin + arrive);
     const records: MotionKeyframe[] = [
@@ -303,9 +342,10 @@ export function createProductScene(
     );
     // A very short scene must never end before the last line appears. Fall
     // back to a shared fade when there are more lines than reveal frames.
-    const textAnimation =
-      extra.textAnimation ??
-      (minimal || fitted.lines > revealBudget ? "none" : "line-reveal");
+    const textAnimation = shortScene
+      ? "none"
+      : (extra.textAnimation ??
+        (minimal || fitted.lines > revealBudget ? "none" : "line-reveal"));
     layers.push(
       MotionLayerSchema.parse({
         type: "text",
@@ -359,7 +399,248 @@ export function createProductScene(
   let chromeHeight = 0;
   const browserKeys = keys(0.15, s * (snappy ? 0.045 : 0.026));
 
-  if (design.layout === "title" || design.layout === "cta") {
+  if (design.layout === "kinetic") {
+    type("Eyebrow", eyebrow, box(0.075, 0.15, 0.7, 0.045), s * 0.024, {
+      color: accent,
+      fontWeight: 600,
+    });
+    type(
+      "Headline",
+      headline,
+      box(0.07, 0.245, 0.84, 0.29),
+      s * (tall ? 0.14 : 0.16),
+      {
+        keyframes: keys(0, 0).map((key) => ({
+          ...key,
+          scale: minimal || key.frame !== 0 ? 1 : 0.93,
+        })),
+      },
+    );
+    type("Supporting copy", body, box(0.075, 0.6, 0.69, 0.13), s * 0.03, {
+      fontWeight: 400,
+      color: muted,
+      textRevealStart: frame(0.18),
+    });
+    // A geometric motif changes scale instead of adding a decorative rule.
+    shape(
+      "Moving idea",
+      box(0.8, 0.605, (s * 0.1) / w, (s * 0.1) / h),
+      accent,
+      {
+        type: "ellipse",
+        musicAccent: false,
+        keyframes: keys(0.08, 0).map((key) => ({
+          ...key,
+          scale: minimal || key.frame !== 0 ? 1 : 0.25,
+        })),
+      },
+    );
+  } else if (design.layout === "process") {
+    type("Eyebrow", eyebrow, box(0.075, 0.14, 0.85, 0.035), s * 0.022, {
+      color: muted,
+      fontWeight: 600,
+    });
+    type("Headline", headline, box(0.07, 0.195, 0.86, 0.16), s * 0.077);
+    const points = design.points.filter((point) => point.trim());
+    const steps = points.length ? points : [headline];
+    const vertical = tall || square;
+    const count = steps.length;
+    const gap = vertical ? 0.029 : 0.045;
+    const stepWidth = (0.85 - gap * (count - 1)) / count;
+    steps.forEach((point, index) => {
+      const area = vertical
+        ? box(0.075, 0.39 + index * 0.087, 0.85, 0.058)
+        : box(0.075 + index * (stepWidth + gap), 0.425, stepWidth, 0.165);
+      if (index < count - 1) {
+        const connector = vertical
+          ? box(0.1, 0.448 + index * 0.087, (s * 0.016) / w, 0.029)
+          : box(
+              0.075 + (index + 1) * stepWidth + index * gap,
+              0.5,
+              gap,
+              (s * 0.016) / h,
+            );
+        shape(`Step ${index + 1} connector`, connector, "transparent", {
+          type: "path",
+          vectorPath: vertical
+            ? "M 0 0 L 0 100 M -8 90 L 0 100 L 8 90"
+            : "M 0 0 L 100 0 M 90 -8 L 100 0 L 90 8",
+          vectorViewBox: vertical ? [-10, 0, 20, 100] : [0, -10, 100, 20],
+          vectorAspectRatio: "none",
+          stroke: accent,
+          strokeWidth: Math.max(2, s * 0.002),
+          vectorLineCap: "round",
+          vectorLineJoin: "round",
+          musicAccent: false,
+          keyframes: keys(0.12 + index * 0.12, 0).map((key) => ({
+            ...key,
+            trim:
+              minimal || last === 0 || key.frame > frame(0.12 + index * 0.12)
+                ? 1
+                : 0,
+          })),
+        });
+      }
+      shape(`Step ${index + 1} outline`, area, "transparent", {
+        radius: s * 0.012,
+        stroke: mix(bg, ink, 0.4),
+        strokeWidth: Math.max(1, s * 0.0015),
+        musicAccent: false,
+        keyframes: keys(index * 0.12 + 0.04, s * 0.012),
+      });
+      const inset = s * 0.017;
+      type(
+        `Step ${index + 1} number`,
+        `${index + 1}`,
+        {
+          x: area.x + inset,
+          y: area.y + area.height * 0.15,
+          width: s * 0.04,
+          height: area.height * (vertical ? 0.7 : 0.22),
+        },
+        s * 0.025,
+        {
+          color: accent,
+          fontWeight: 600,
+          textAnimation: "none",
+          keyframes: keys(index * 0.12 + 0.08, 0),
+        },
+      );
+      type(
+        `Step ${index + 1}`,
+        point,
+        {
+          x: area.x + (vertical ? s * 0.075 : inset),
+          y: area.y + area.height * (vertical ? 0.12 : 0.4),
+          width: area.width - (vertical ? s * 0.095 : inset * 2),
+          height: area.height * (vertical ? 0.76 : 0.5),
+        },
+        s * 0.03,
+        { fontWeight: 600, textRevealStart: frame(index * 0.12 + 0.12) },
+      );
+    });
+    type("Supporting copy", body, box(0.075, 0.68, 0.85, 0.065), s * 0.022, {
+      color: muted,
+      fontWeight: 400,
+      textAnimation: "none",
+    });
+  } else if (design.layout === "comparison") {
+    type("Eyebrow", eyebrow, box(0.075, 0.14, 0.85, 0.035), s * 0.022, {
+      color: muted,
+      fontWeight: 600,
+    });
+    type("Headline", headline, box(0.07, 0.195, 0.86, 0.16), s * 0.077);
+    const vertical = tall || square;
+    const points = design.points.filter((point) => point.trim());
+    // Neutral labels avoid inventing a before/after claim from arbitrary copy.
+    points.slice(0, 2).forEach((point, index) => {
+      const area = vertical
+        ? box(0.075, 0.39 + index * 0.13, 0.85, 0.11)
+        : box(0.075 + index * 0.44, 0.4, 0.41, 0.22);
+      const fill = index === 1 ? accent : panel;
+      const color = index === 1 ? bg : ink;
+      shape(`Comparison ${index + 1} panel`, area, fill, {
+        radius: s * 0.012,
+        musicAccent: false,
+        keyframes: keys(index * 0.14, s * 0.02),
+      });
+      type(
+        `Comparison ${index + 1} label`,
+        index === 0 ? "A" : "B",
+        {
+          x: area.x + s * 0.02,
+          y: area.y + area.height * 0.11,
+          width: s * 0.035,
+          height: area.height * (vertical ? 0.7 : 0.2),
+        },
+        s * 0.022,
+        { color, fontWeight: 600, textAnimation: "none" },
+      );
+      type(
+        `Comparison ${index + 1}`,
+        point,
+        {
+          x: area.x + s * (vertical ? 0.085 : 0.02),
+          y: area.y + area.height * (vertical ? 0.1 : 0.37),
+          width: area.width - s * (vertical ? 0.11 : 0.04),
+          height: area.height * (vertical ? 0.8 : 0.52),
+        },
+        s * 0.035,
+        { color, fontWeight: 600, textRevealStart: frame(index * 0.14 + 0.1) },
+      );
+    });
+    type("Supporting copy", body, box(0.075, 0.675, 0.85, 0.07), s * 0.022, {
+      color: muted,
+      fontWeight: 400,
+      textAnimation: "none",
+    });
+  } else if (
+    design.layout === "editorial" ||
+    design.layout === "editorial-quote"
+  ) {
+    const statement = design.layout === "editorial-quote";
+    const paper = mix(ink, bg, 0.06);
+    const paperInk = bg;
+    const area = statement
+      ? box(0.1, 0.235, 0.8, 0.36)
+      : box(0.09, 0.22, 0.79, 0.36);
+    shape(
+      "Paper backing",
+      { ...area, x: area.x + s * 0.014, y: area.y + s * 0.016 },
+      mix(bg, accent, 0.45),
+      {
+        rotate: statement ? -1.2 : 1.6,
+        musicAccent: false,
+        keyframes: keys(0, s * 0.015),
+      },
+    );
+    shape("Paper sheet", area, paper, {
+      rotate: statement ? 0.8 : -1,
+      musicAccent: false,
+      keyframes: keys(0.06, s * 0.015),
+    });
+    type("Eyebrow", eyebrow, box(0.1, 0.14, 0.78, 0.04), s * 0.022, {
+      color: accent,
+      fontWeight: 600,
+    });
+    type(
+      statement ? "Statement" : "Headline",
+      headline,
+      statement ? box(0.14, 0.285, 0.71, 0.25) : box(0.13, 0.265, 0.71, 0.25),
+      s * (statement ? 0.095 : 0.086),
+      {
+        color: paperInk,
+        rotate: statement ? 0.8 : -1,
+        keyframes: keys(0.08, s * 0.015),
+      },
+    );
+    const label = design.points.find((point) => point.trim());
+    if (label && !statement) {
+      shape("Cutout label", box(0.58, 0.55, 0.29, 0.075), accent, {
+        rotate: 1.5,
+        musicAccent: false,
+        keyframes: keys(0.2, s * 0.012),
+      });
+      type(
+        "Cutout label copy",
+        label,
+        box(0.595, 0.56, 0.26, 0.05),
+        s * 0.023,
+        {
+          color: bg,
+          fontWeight: 600,
+          rotate: 1.5,
+          textAnimation: "none",
+          keyframes: keys(0.2, s * 0.012),
+        },
+      );
+    }
+    type("Supporting copy", body, box(0.1, 0.665, 0.8, 0.08), s * 0.026, {
+      color: muted,
+      fontWeight: 400,
+      textRevealStart: frame(0.2),
+    });
+  } else if (design.layout === "title" || design.layout === "cta") {
     type("Eyebrow", eyebrow, box(0.075, 0.17, 0.78, 0.045), s * 0.022, {
       color: muted,
       fontWeight: 600,

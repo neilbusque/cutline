@@ -67,7 +67,7 @@ export function ProductFilmSetup({
   return (
     <details
       className="story-product-film"
-      open={!story.scenes.length || hasDesign}
+      open={hasDesign && !story.explainer}
     >
       <summary>
         <MonitorPlay size={15} aria-hidden="true" />
@@ -244,16 +244,20 @@ export function ProductScenePreview({
   brand: savedBrand,
   asset,
   base,
+  aspectRatio = 16 / 9,
 }: {
   scene: StoryScene;
   brand?: Brand;
   asset?: Asset;
   base: string;
+  aspectRatio?: number;
 }) {
   const [replay, setReplay] = useState(0);
   const design = scene.design;
   if (!design) return null;
   const brand = savedBrand ?? productBrand;
+  const editorial =
+    design.layout === "editorial" || design.layout === "editorial-quote";
   const image =
     asset &&
     (asset.kind === "image"
@@ -274,7 +278,7 @@ export function ProductScenePreview({
         </button>
       </div>
       <div
-        className={`product-scene-preview is-${design.layout}`}
+        className={`product-scene-preview is-${design.layout}${aspectRatio <= 1 ? " is-portrait" : ""}`}
         role="img"
         aria-label={`${productLayouts.find((layout) => layout.id === design.layout)?.name} layout preview: ${design.headline || scene.title}`}
         style={
@@ -288,6 +292,7 @@ export function ProductScenePreview({
                 : design.motion === "minimal"
                   ? "300ms"
                   : "900ms",
+            aspectRatio,
           } as React.CSSProperties
         }
       >
@@ -296,30 +301,50 @@ export function ProductScenePreview({
           key={replay}
           className={`product-preview-content${replay ? " is-playing" : ""} motion-${design.motion}`}
         >
-          <div className="product-preview-copy">
-            {design.eyebrow && <small>{design.eyebrow}</small>}
-            <strong>
-              {design.layout === "quote" ? "“" : ""}
-              {design.headline || scene.title}
-              {design.layout === "quote" ? "”" : ""}
-            </strong>
-            {design.body && <p>{design.body}</p>}
-            {design.layout === "features" && (
-              <div className="product-preview-points">
-                {design.points.filter(Boolean).map((point, index) => (
-                  <span key={index}>
-                    <i>{index + 1}</i>
-                    {point}
+          {editorial ? (
+            <div className="product-preview-editorial">
+              {design.eyebrow && <small>{design.eyebrow}</small>}
+              <div className="product-preview-paper">
+                <strong>{design.headline || scene.title}</strong>
+                {design.layout === "editorial" && design.points[0] && (
+                  <span className="product-preview-cutout">
+                    {design.points[0]}
                   </span>
-                ))}
+                )}
               </div>
-            )}
-            {design.layout === "cta" && (
-              <span className="product-preview-button">
-                <ArrowRight size={13} />
-              </span>
-            )}
-          </div>
+              {design.body && <p>{design.body}</p>}
+            </div>
+          ) : (
+            <div className="product-preview-copy">
+              {design.eyebrow && <small>{design.eyebrow}</small>}
+              <strong>
+                {design.layout === "quote" ? "“" : ""}
+                {design.headline || scene.title}
+                {design.layout === "quote" ? "”" : ""}
+              </strong>
+              {design.body && <p>{design.body}</p>}
+              {["features", "process", "comparison"].includes(
+                design.layout,
+              ) && (
+                <div className="product-preview-points">
+                  {design.points
+                    .filter(Boolean)
+                    .slice(0, design.layout === "comparison" ? 2 : 3)
+                    .map((point, index) => (
+                      <span key={index}>
+                        <i>{index + 1}</i>
+                        {point}
+                      </span>
+                    ))}
+                </div>
+              )}
+              {design.layout === "cta" && (
+                <span className="product-preview-button">
+                  <ArrowRight size={13} />
+                </span>
+              )}
+            </div>
+          )}
           {(design.layout === "screen" || design.layout === "split") && (
             <div className="product-preview-screen">
               <div>
@@ -399,12 +424,17 @@ export function ProductCopyEditor({
           }
         />
       </label>
-      {design.layout === "features" &&
-        [0, 1, 2].map((index) => (
+      {["features", "process", "comparison"].includes(design.layout) &&
+        (design.layout === "comparison" ? [0, 1] : [0, 1, 2]).map((index) => (
           <label key={index} className="story-field">
-            Feature {index + 1}
+            {design.layout === "process"
+              ? "Step"
+              : design.layout === "comparison"
+                ? "Side"
+                : "Feature"}{" "}
+            {index + 1}
             <input
-              aria-label={`Feature point ${index + 1}`}
+              aria-label={`${design.layout === "process" ? "Process step" : design.layout === "comparison" ? "Comparison side" : "Feature point"} ${index + 1}`}
               maxLength={140}
               value={design.points[index] ?? ""}
               onChange={(event) => {
@@ -418,6 +448,22 @@ export function ProductCopyEditor({
             />
           </label>
         ))}
+      {design.layout === "editorial" && (
+        <label className="story-field">
+          Cutout label
+          <input
+            aria-label="Editorial cutout label"
+            maxLength={140}
+            value={design.points[0] ?? ""}
+            onChange={(event) =>
+              onChange({
+                ...design,
+                points: [event.target.value, ...design.points.slice(1)],
+              })
+            }
+          />
+        </label>
+      )}
       <label className="story-field">
         Motion pace
         <select

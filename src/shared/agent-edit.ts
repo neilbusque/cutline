@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { StoryPlanSchema, StorySceneSchema } from "./story-schema";
+import { ExplainerInputSchema } from "./explainer";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
   AssetSchema,
@@ -1334,6 +1335,7 @@ function fieldList(option: ActionOption | CommandOption) {
 
 /** One validator per cutline_editing_schema section. */
 const schemaSections: Record<string, () => z.ZodType> = {
+  explainer: () => ExplainerInputSchema,
   story: () => StoryPlanSchema,
   storyScene: () => StorySceneSchema,
   clip: () => ClipSchema,
@@ -1506,8 +1508,13 @@ const actionStubs: Record<string, Record<string, object>> = {
       "{id, name, layers[]}; each layer is a motion.layer.add definition. Prefer motion.scene or motion.shape, then layer edits.",
     ),
   },
+  "caption.update": {
+    patch: described(
+      "Caption appearance fields. Read section captionPatch for exact fields and bounds.",
+    ),
+  },
   "caption.style": {
-    patch: described("Same fields as caption.update patch."),
+    patch: described("Caption appearance fields. Read section captionPatch."),
   },
   "motion.recipe": {
     point: described(

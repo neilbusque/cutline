@@ -13,6 +13,7 @@ Cutline turns footage, screenshots and scripts into videos you can keep editing.
 ## What you can make
 
 - **Shorts and Reels:** edit a speaker video, remove pauses, add word-timed captions, and place real screen evidence in split views or cutaways. [Creator shorts guide](docs/creator-shorts.md).
+- **Explainers:** choose Kinetic type, Product focus, Sketch flow or Editorial collage, turn your script into an editable outline, then create local narration, captions and a timeline sequence. [Make an explainer](docs/explainer-guide.md) and [choose a style](docs/explainer-styles.md).
 - **Product videos:** plan scenes, use imported screenshots or recordings, add narration, and build an editable sequence. Product layouts and motion scenes render locally.
 - **Motion graphics:** animate text, shapes and imported SVG paths with editable layers, keyframes, easing and timing. [Motion controls](docs/motion-controls.md).
 - **Voiceover and music:** generate English narration locally with Kokoro, import audio, compose an instrumental bed, and lower music under speech. [Voiceover](docs/kokoro-tts.md) and [music sync](docs/music-sync.md).
@@ -57,6 +58,8 @@ Adding media to a local project does not submit it for cloud generation. Review 
 | Make and save a first video          | [Getting started](docs/getting-started.md)                                                                                |
 | Choose a Reel structure              | [Reel formats](docs/reel-formats.md)                                                                                      |
 | Build speaker and screen-demo Shorts | [Creator shorts](docs/creator-shorts.md)                                                                                  |
+| Make a narrated explainer            | [Explainer guide](docs/explainer-guide.md)                                                                                |
+| Choose an explainer direction        | [Styles and references](docs/explainer-styles.md)                                                                         |
 | Build an educational Reel            | [Creator education](docs/creator-education-style.md)                                                                      |
 | Edit motion layers and timing        | [Motion controls](docs/motion-controls.md)                                                                                |
 | Create vectors and logo reveals      | [Vector and logo workflow](docs/vector-logo.md)                                                                           |
@@ -66,7 +69,7 @@ Adding media to a local project does not submit it for cloud generation. Review 
 | Connect an editing assistant         | [Agent control](docs/agent-control.md)                                                                                    |
 | Build and test                       | [Development](docs/development.md)                                                                                        |
 | Resolve a problem                    | [Troubleshooting](docs/troubleshooting.md)                                                                                |
-| Review the current source release    | [Changes in 0.28.0](docs/release-0.28.md)                                                                                 |
+| Review the current source release    | [Changes in 0.29.0](docs/release-0.29.md)                                                                                 |
 
 ## Contribute
 

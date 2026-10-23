@@ -27,6 +27,7 @@ import {
   storyNarrationSignature,
 } from "../shared/story";
 import { sceneNeedsMedia } from "../shared/product-scenes";
+import { createExplainerStory, type ExplainerInput } from "../shared/explainer";
 import {
   StoryPlanSchema,
   StorySceneSchema,
@@ -44,6 +45,11 @@ import {
   ProductLayoutPicker,
   ProductScenePreview,
 } from "./ProductStory";
+import {
+  ExplainerStory,
+  explainerInputFromStory,
+  refreshExplainerInput,
+} from "./ExplainerStory";
 import "./story.css";
 
 type Props = {
@@ -66,6 +72,15 @@ type Editor = {
   revision: number;
   dirty: boolean;
 };
+type ExplainerForm = {
+  projectId: string;
+  input: ExplainerInput;
+  baseline: ExplainerInput;
+};
+function formFromStory(projectId: string, story: StoryPlan): ExplainerForm {
+  const input = explainerInputFromStory(story);
+  return { projectId, input, baseline: input };
+}
 type BuildResult = {
   startFrame: number;
   durationFrames: number;
@@ -99,6 +114,15 @@ const describeError = (error: unknown) =>
 const storyOf = (project: Project) =>
   project.story ?? StoryPlanSchema.parse({});
 const serialized = (story: StoryPlan) => JSON.stringify(story);
+const hasCaptionTiming = (asset?: Asset) =>
+  !!asset?.words?.some(
+    (word) =>
+      word.text.trim() &&
+      word.start >= 0 &&
+      word.end > word.start &&
+      word.start < asset.duration &&
+      word.end <= asset.duration,
+  );
 const isPending = (job?: GenerationJob) =>
   !!job && ["submitting", "queued", "in_progress"].includes(job.status);
 const generationLabels: Record<GenerationJob["status"], string> = {
@@ -148,6 +172,10 @@ export function StoryLibrary({
   const [generationCheckError, setGenerationCheckError] = useState("");
   const [replaceScript, setReplaceScript] = useState(false);
   const [discardedDraft, setDiscardedDraft] = useState<Editor>();
+  const [explainerForm, setExplainerForm] = useState<ExplainerForm>(() =>
+    formFromStory(project.id, storyOf(project)),
+  );
+  const explainerForms = useRef(new Map<string, ExplainerForm>());
   const cache = useRef(new Map<string, Editor>());
   const state = useRef({ project, editor, active });
   const mounted = useRef(true);
@@ -156,8 +184,23 @@ export function StoryLibrary({
   const epoch = useRef(0);
   const generationRef = useRef(generations);
   generationRef.current = generations;
+  const jobsRef = useRef(jobs);
+  jobsRef.current = jobs;
   const audio = useRef<HTMLAudioElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const production = useRef<Job | undefined>(undefined);
+  production.current = [...jobs]
+    .reverse()
+    .find((job) => job.kind === "story-produce" && job.state === "running");
+  explainerForms.current.set(explainerForm.projectId, explainerForm);
+  if (explainerForms.current.size > 20) {
+    const oldest = [...explainerForms.current.entries()].find(
+      ([id, form]) =>
+        id !== project.id &&
+        JSON.stringify(form.input) === JSON.stringify(form.baseline),
+    );
+    if (oldest) explainerForms.current.delete(oldest[0]);
+  }
   state.current = { project, editor, active };
   cache.current.delete(editor.projectId);
   cache.current.set(editor.projectId, editor);
@@ -189,6 +232,13 @@ export function StoryLibrary({
     setReplaceScript(false);
     setDiscardedDraft(undefined);
     setSelectedId("");
+    setExplainerForm(
+      explainerForms.current.get(project.id) ??
+        formFromStory(
+          project.id,
+          cache.current.get(project.id)?.draft ?? storyOf(project),
+        ),
+    );
     setEditor((previous) => {
       if (previous.projectId === project.id) return previous;
       const cached = cache.current.get(project.id);
@@ -231,6 +281,20 @@ export function StoryLibrary({
     if (!active) audio.current?.pause();
   }, [active]);
   useEffect(() => {
+    if (editor.projectId !== project.id) return;
+    const source = explainerInputFromStory(editor.draft);
+    setExplainerForm((previous) => {
+      if (previous.projectId !== project.id) return previous;
+      if (JSON.stringify(source) === JSON.stringify(previous.baseline))
+        return previous;
+      return {
+        ...previous,
+        input: refreshExplainerInput(previous.input, previous.baseline, source),
+        baseline: source,
+      };
+    });
+  }, [editor.projectId, editor.draft, project.id]);
+  useEffect(() => {
     panel.current?.scrollTo({ top: 0 });
   }, [step]);
 
@@ -265,7 +329,12 @@ export function StoryLibrary({
     const tick = async () => {
       const current = state.current;
       if (canceled || !current.active) return;
-      if (!pollLock.current && !lock.current && !current.editor.dirty) {
+      if (
+        !pollLock.current &&
+        !lock.current &&
+        !production.current &&
+        !current.editor.dirty
+      ) {
         const scenes = current.editor.draft.scenes.filter((scene) => {
           const generation = generationRef.current.find(
             (job) => job.id === scene.generationId,
@@ -287,7 +356,8 @@ export function StoryLibrary({
                 canceled ||
                 state.current.editor.dirty ||
                 state.current.project.id !== projectId ||
-                lock.current
+                lock.current ||
+                production.current
               )
                 break;
               const reply = await api.invoke("story.refresh", {
@@ -323,7 +393,7 @@ export function StoryLibrary({
     ]);
   }
   function change(update: (draft: StoryPlan) => StoryPlan) {
-    if (lock.current) return;
+    if (lock.current || production.current) return;
     setEditor((previous) => ({
       ...previous,
       draft: update(previous.draft),
@@ -365,9 +435,11 @@ export function StoryLibrary({
   function splitScript(text: string, template: Template = "story") {
     try {
       const created = createStoryFromScript(text, template);
+      if (editor.draft.scenes.length) setDiscardedDraft(editor);
       change((draft) => ({
         ...draft,
         scenes: created.scenes,
+        explainer: undefined,
         ...(draft.brief ? {} : { brief: created.brief }),
       }));
       setSelectedId(created.scenes[0]?.id ?? "");
@@ -394,6 +466,7 @@ export function StoryLibrary({
       referenceAssetIds: draft.referenceAssetIds,
       musicAssetId: draft.musicAssetId,
       assembly: draft.assembly,
+      explainer: undefined,
     }));
     setSelectedId(created.scenes[0]?.id ?? "");
     setReplaceScript(false);
@@ -402,11 +475,33 @@ export function StoryLibrary({
       "Product film draft ready. Edit the copy, add your screens in Produce, then build the sequence.",
     );
   }
+  function applyExplainer(input: ExplainerInput) {
+    try {
+      const currentInput = refreshExplainerInput(
+        input,
+        explainerForm.baseline,
+        explainerInputFromStory(editor.draft),
+      );
+      const created = createExplainerStory(currentInput, editor.draft);
+      if (editor.draft.scenes.length) setDiscardedDraft(editor);
+      change(() => created);
+      setExplainerForm(formFromStory(project.id, created));
+      setSelectedId(created.scenes[0]?.id ?? "");
+      setReplaceScript(false);
+      setScript("");
+      setNotice(
+        "Outline ready. Review the scenes, then create your explainer with local narration and captions.",
+      );
+    } catch (failure) {
+      setError(describeError(failure));
+    }
+  }
   async function run(name: string, operation: () => Promise<void>) {
-    if (lock.current) return;
+    if (lock.current || production.current) return;
     lock.current = true;
     const requestEpoch = epoch.current;
     const projectId = project.id;
+    const earlierJobs = new Set(jobsRef.current.map((job) => job.id));
     setAction(name);
     setError("");
     setNotice("");
@@ -418,8 +513,30 @@ export function StoryLibrary({
         epoch.current === requestEpoch &&
         state.current.project.id === projectId
       ) {
-        setError(describeError(failure));
-        report(failure);
+        const message = describeError(failure);
+        const cancellationMessage = message
+          .replace(/^Error invoking remote method ['"][^'"]+['"]:\s*/u, "")
+          .replace(/^Error:\s*/u, "");
+        const cancelled =
+          name === "produce" &&
+          (jobsRef.current.some(
+            (job) =>
+              job.kind === "story-produce" &&
+              job.state === "cancelled" &&
+              !earlierJobs.has(job.id),
+          ) ||
+            /^(?:Story (?:production|narration) )?cancelled(?:\.|$)/iu.test(
+              cancellationMessage,
+            ));
+        if (cancelled) {
+          setError("");
+          setNotice(
+            "Explainer cancelled. Finished narration is kept for your next attempt.",
+          );
+        } else {
+          setError(message);
+          report(failure);
+        }
       }
     } finally {
       if (mounted.current && epoch.current === requestEpoch) {
@@ -604,8 +721,65 @@ export function StoryLibrary({
       onCreated(reply.startFrame);
     });
   }
+  async function produceExplainer() {
+    const projectId = project.id;
+    const requestEpoch = epoch.current;
+    await run("produce", async () => {
+      audio.current?.pause();
+      const current = state.current;
+      if (
+        current.editor.dirty &&
+        serialized(storyOf(current.project)) !== current.editor.baseline
+      )
+        throw new Error(
+          "The saved storyline changed. Save your version or use the saved storyline before creating the explainer.",
+        );
+      let revision = Math.max(
+        current.project.revision,
+        current.editor.revision,
+      );
+      if (current.editor.dirty || !current.project.story) {
+        const saved = await api.invoke("story.save", {
+          projectId,
+          revision,
+          story: current.editor.draft,
+        });
+        if (!stillHere(projectId, requestEpoch)) return;
+        revision = saved.revision;
+        setEditor({
+          projectId,
+          draft: saved.story,
+          baseline: serialized(saved.story),
+          revision,
+          dirty: false,
+        });
+        setDiscardedDraft(undefined);
+      }
+      if (!stillHere(projectId, requestEpoch)) return;
+      const reply = await api.invoke("story.produce", { projectId, revision });
+      if (!stillHere(projectId, requestEpoch)) return;
+      setEditor((previous) => {
+        if (
+          previous.projectId !== projectId ||
+          previous.dirty ||
+          previous.revision > reply.revision
+        )
+          return previous;
+        return {
+          projectId,
+          draft: reply.story,
+          baseline: serialized(reply.story),
+          revision: reply.revision,
+          dirty: false,
+        };
+      });
+      setResult(reply);
+      onCreated(reply.startFrame);
+    });
+  }
 
-  if (editor.projectId !== project.id) return null;
+  if (editor.projectId !== project.id || explainerForm.projectId !== project.id)
+    return null;
   const draft = editor.draft;
   const selected =
     draft.scenes.find((scene) => scene.id === selectedId) ?? draft.scenes[0];
@@ -697,7 +871,8 @@ export function StoryLibrary({
   const availableSceneImages = imageAssets.filter(
     (asset) => !selectedReferenceIds.includes(asset.id),
   );
-  const busy = !!action;
+  const runningProduction = production.current;
+  const busy = !!action || !!runningProduction;
   const needsSave = editor.dirty || !project.story;
   const conflict =
     editor.dirty && serialized(storyOf(project)) !== editor.baseline;
@@ -720,7 +895,7 @@ export function StoryLibrary({
     ? draft.scenes.findIndex((scene) => scene.id === selected.id)
     : -1;
   const timedCaptionCount = narrated.filter(
-    (scene) => voiceReady(scene) && voiceFor(scene)?.words?.length,
+    (scene) => voiceReady(scene) && hasCaptionTiming(voiceFor(scene)),
   ).length;
 
   return (
@@ -806,6 +981,7 @@ export function StoryLibrary({
                 revision: project.revision,
                 dirty: false,
               });
+              setExplainerForm(formFromStory(project.id, story));
               setError("");
             }}
           >
@@ -820,6 +996,7 @@ export function StoryLibrary({
             disabled={busy}
             onClick={() => {
               setEditor({ ...discardedDraft, dirty: true });
+              setExplainerForm(formFromStory(project.id, discardedDraft.draft));
               setDiscardedDraft(undefined);
             }}
           >
@@ -837,20 +1014,197 @@ export function StoryLibrary({
           {notice}
         </p>
       )}
+      {runningProduction && (
+        <div className="story-job" role="status">
+          <span>{runningProduction.message}</span>
+          <progress
+            aria-label="Explainer production progress"
+            max={1}
+            value={runningProduction.progress}
+          />
+          <button
+            onClick={() =>
+              api
+                .invoke("job.cancel", { id: runningProduction.id })
+                .catch(report)
+            }
+          >
+            Cancel explainer
+          </button>
+          <p className="story-hint">
+            Completed voiceovers stay available if you cancel.
+          </p>
+        </div>
+      )}
       <fieldset className="story-fieldset" disabled={busy}>
         <legend className="sr-only">Story creation</legend>
+        {draft.explainer && draft.scenes.length > 0 && (
+          <section className="story-batch" aria-label="Create your explainer">
+            <div className="story-section-heading">
+              <h3>
+                <Clapperboard size={14} aria-hidden="true" /> Create your
+                explainer
+              </h3>
+              <span>{draft.scenes.length} scenes</span>
+            </div>
+            <p className="story-hint">
+              Create local narration, time the captions, and put your editable
+              scenes on the timeline.
+            </p>
+            <div className="story-voice-settings">
+              <label className="story-field">
+                Voice
+                <select
+                  aria-label="Explainer narration voice"
+                  value={draft.voice}
+                  onChange={(event) =>
+                    change((story) => ({
+                      ...story,
+                      voice: event.target.value as SpeechVoice,
+                    }))
+                  }
+                >
+                  {speechVoices.map((voice) => (
+                    <option key={voice.id} value={voice.id}>
+                      {voice.name} · {voice.accent}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="story-field">
+                Pace
+                <select
+                  aria-label="Explainer narration pace"
+                  value={draft.speed}
+                  onChange={(event) =>
+                    change((story) => ({
+                      ...story,
+                      speed: Number(event.target.value),
+                    }))
+                  }
+                >
+                  {[0.8, 0.9, 1, 1.08, 1.2, 1.35, 1.5].map((speed) => (
+                    <option key={speed} value={speed}>
+                      {speed}×
+                    </option>
+                  ))}
+                  {![0.8, 0.9, 1, 1.08, 1.2, 1.35, 1.5].includes(
+                    draft.speed,
+                  ) && <option value={draft.speed}>{draft.speed}×</option>}
+                </select>
+              </label>
+            </div>
+            <label className="explainer-caption-toggle">
+              <input
+                type="checkbox"
+                checked={draft.captions}
+                onChange={(event) =>
+                  change((story) => ({
+                    ...story,
+                    captions: event.target.checked,
+                  }))
+                }
+              />
+              Add timed captions
+            </label>
+            {visualCount < draft.scenes.length && (
+              <p className="story-warning">
+                Add media to {draft.scenes.length - visualCount} scene
+                {draft.scenes.length - visualCount === 1 ? "" : "s"} before
+                creating.
+                <button
+                  onClick={() => {
+                    setSelectedId(
+                      draft.scenes.find((scene) => !visualReady(scene))?.id ??
+                        "",
+                    );
+                    setStep(1);
+                  }}
+                >
+                  Choose real screens or footage
+                </button>
+              </p>
+            )}
+            {voicedCount < narrated.length && voiceCheckError && (
+              <p className="story-error" role="alert">
+                Could not check the voice engine: {voiceCheckError}
+              </p>
+            )}
+            {voicedCount < narrated.length &&
+              voiceStatus &&
+              !voiceStatus.ready && (
+                <div className="story-engine">
+                  <p>
+                    Download the local voice engine once (
+                    {voiceStatus.downloadMB} MB).
+                  </p>
+                  <button
+                    className="control"
+                    disabled={!!runningVoice}
+                    onClick={() => void setupVoice()}
+                  >
+                    Set up local voice
+                  </button>
+                </div>
+              )}
+            {!musicReady && (
+              <p className="story-warning">
+                Your music track is unavailable. Choose another track or No
+                music in Finish.
+              </p>
+            )}
+            <button
+              className="primary story-build"
+              disabled={
+                busy ||
+                !!runningVoice ||
+                conflict ||
+                visualCount !== draft.scenes.length ||
+                !musicReady ||
+                (voicedCount < narrated.length && !voiceStatus?.ready)
+              }
+              onClick={() => void produceExplainer()}
+            >
+              {action === "produce" || runningProduction ? (
+                <LoaderCircle className="spin" size={15} aria-hidden="true" />
+              ) : (
+                <Clapperboard size={15} aria-hidden="true" />
+              )}
+              {action === "produce" || runningProduction
+                ? "Creating explainer…"
+                : "Create explainer"}
+            </button>
+            <p className="story-hint">
+              {draft.assembly
+                ? "Saves your outline and replaces its previous story sequence. Other timeline clips stay in place."
+                : "Saves your outline first. All scenes stay editable after creation."}{" "}
+              Follow progress or cancel in Jobs.
+            </p>
+          </section>
+        )}
         {step === 0 && (
           <section className="story-step" aria-label="Plan your story">
+            <ExplainerStory
+              key={`explainer-${project.id}`}
+              story={draft}
+              input={explainerForm.input}
+              onInput={(input) =>
+                setExplainerForm((previous) =>
+                  previous.projectId === project.id
+                    ? { ...previous, input }
+                    : previous,
+                )
+              }
+              onCreate={applyExplainer}
+            />
             <ProductFilmSetup
               key={project.id}
               story={draft}
               onRecipe={applyProductRecipe}
               onBrand={(brand) => change((story) => ({ ...story, brand }))}
             />
-            <details className="story-brief" open={!draft.scenes.length}>
-              <summary hidden={!draft.scenes.length}>
-                Brief &amp; visual direction
-              </summary>
+            <details className="story-brief">
+              <summary>Brief &amp; visual direction</summary>
               <label className="story-field">
                 The idea
                 <textarea
@@ -905,7 +1259,7 @@ export function StoryLibrary({
             </details>
             <details
               className="story-reference-section"
-              open={sharedReferenceIds.length > 0 || !draft.scenes.length}
+              open={sharedReferenceIds.length > 0}
             >
               <summary>
                 <ImagePlus size={14} aria-hidden="true" />
@@ -968,58 +1322,61 @@ export function StoryLibrary({
               )}
             </details>
             {(!draft.scenes.length || replaceScript) && (
-              <div className="story-script-box">
-                <label className="story-field">
-                  Paste your script
-                  <textarea
-                    aria-label="Story script"
-                    rows={5}
-                    maxLength={30000}
-                    value={script}
-                    placeholder="One paragraph per scene. Each paragraph becomes its narration."
-                    onChange={(event) => setScript(event.target.value)}
-                  />
-                </label>
-                <p className="story-hint">
-                  Separate scenes with a blank line. You can edit every scene
-                  afterward.
-                </p>
-                <button
-                  className="primary"
-                  disabled={!script.trim()}
-                  onClick={() => splitScript(script)}
-                >
-                  <Clapperboard size={14} aria-hidden="true" />
-                  {draft.scenes.length
-                    ? "Replace scenes from script"
-                    : "Split into scenes"}
-                </button>
-                {!!draft.scenes.length && (
-                  <button onClick={() => setReplaceScript(false)}>
-                    Keep current scenes
+              <details className="story-script-entry" open={replaceScript}>
+                <summary>Script scenes &amp; examples</summary>
+                <div className="story-script-box">
+                  <label className="story-field">
+                    Paste your script
+                    <textarea
+                      aria-label="Story script"
+                      rows={5}
+                      maxLength={30000}
+                      value={script}
+                      placeholder="One paragraph per scene. Each paragraph becomes its narration."
+                      onChange={(event) => setScript(event.target.value)}
+                    />
+                  </label>
+                  <p className="story-hint">
+                    Separate scenes with a blank line. You can edit every scene
+                    afterward.
+                  </p>
+                  <button
+                    className="primary"
+                    disabled={!script.trim()}
+                    onClick={() => splitScript(script)}
+                  >
+                    <Clapperboard size={14} aria-hidden="true" />
+                    {draft.scenes.length
+                      ? "Replace scenes from script"
+                      : "Split into scenes"}
                   </button>
-                )}
-                {!draft.scenes.length && (
-                  <>
-                    <span className="story-small-heading">
-                      Or start with an editable example
-                    </span>
-                    <div className="story-templates">
-                      {templates.map((template) => (
-                        <button
-                          className="control"
-                          key={template.id}
-                          onClick={() =>
-                            splitScript(template.script, template.id)
-                          }
-                        >
-                          {template.name}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+                  {!!draft.scenes.length && (
+                    <button onClick={() => setReplaceScript(false)}>
+                      Keep current scenes
+                    </button>
+                  )}
+                  {!draft.scenes.length && (
+                    <>
+                      <span className="story-small-heading">
+                        Or start with an editable example
+                      </span>
+                      <div className="story-templates">
+                        {templates.map((template) => (
+                          <button
+                            className="control"
+                            key={template.id}
+                            onClick={() =>
+                              splitScript(template.script, template.id)
+                            }
+                          >
+                            {template.name}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </details>
             )}
             {!!draft.scenes.length && (
               <>
@@ -1148,6 +1505,7 @@ export function StoryLibrary({
                       brand={draft.brand}
                       asset={selectedVisual}
                       base={base}
+                      aspectRatio={project.width / project.height}
                     />
                     <ProductCopyEditor
                       scene={selected}
@@ -1248,6 +1606,7 @@ export function StoryLibrary({
                     brand={draft.brand}
                     asset={selectedVisual}
                     base={base}
+                    aspectRatio={project.width / project.height}
                   />
                   <p className="story-hint">
                     {sceneNeedsMedia(selected)
@@ -1592,7 +1951,7 @@ export function StoryLibrary({
                   Could not check the voice engine: {voiceCheckError}
                 </p>
               )}
-              {voiceStatus && !voiceStatus.ready && (
+              {voiceStatus && !voiceStatus.ready && !voiceReady(selected) && (
                 <div className="story-engine">
                   <p>
                     Download the voice engine once ({voiceStatus.downloadMB}{" "}
@@ -1613,9 +1972,9 @@ export function StoryLibrary({
                 disabled={
                   needsSave ||
                   !selected.narration.trim() ||
-                  !voiceStatus?.ready ||
+                  (!voiceReady(selected) && !voiceStatus?.ready) ||
                   !!runningVoice ||
-                  (voiceReady(selected) && !!selectedVoice?.words?.length)
+                  (voiceReady(selected) && hasCaptionTiming(selectedVoice))
                 }
                 onClick={() => void sceneAction("voice", selected)}
               >
@@ -1625,7 +1984,7 @@ export function StoryLibrary({
                   <Mic2 size={13} aria-hidden="true" />
                 )}
                 {voiceReady(selected) && selectedVoice
-                  ? selectedVoice.words?.length
+                  ? hasCaptionTiming(selectedVoice)
                     ? "Voiceover ready"
                     : "Retry caption timing"
                   : selectedVoice
@@ -1650,10 +2009,10 @@ export function StoryLibrary({
               {selectedVoice &&
                 voiceReady(selected) &&
                 selected.narration.trim() &&
-                !selectedVoice.words?.length && (
+                !hasCaptionTiming(selectedVoice) && (
                   <p className="story-warning">
-                    Voice is ready. Timed captions are unavailable for this
-                    scene; you can transcribe it in Captions after assembly.
+                    Voice is ready. Retry caption timing to align this saved
+                    voiceover, or transcribe it in Captions after assembly.
                   </p>
                 )}
             </div>
@@ -1867,7 +2226,7 @@ export function StoryLibrary({
           </section>
         )}
       </fieldset>
-      {runningVoice && (
+      {runningVoice && !runningProduction && (
         <div className="story-job" role="status">
           <span>{runningVoice.message}</span>
           <progress
@@ -1884,18 +2243,20 @@ export function StoryLibrary({
           </button>
         </div>
       )}
-      {busy && !runningVoice && (
+      {busy && !runningVoice && !runningProduction && (
         <div className="story-working" role="status">
           <LoaderCircle className="spin" size={14} aria-hidden="true" />
           {action === "setup"
             ? "Setting up the voice engine…"
-            : action.startsWith("voice:")
-              ? "Creating voiceover and timing captions…"
-              : action === "assemble"
-                ? "Building your video…"
-                : action === "save"
-                  ? "Saving storyline…"
-                  : "Working…"}
+            : action === "produce"
+              ? "Creating local narration, captions, and your explainer…"
+              : action.startsWith("voice:")
+                ? "Creating voiceover and timing captions…"
+                : action === "assemble"
+                  ? "Building your video…"
+                  : action === "save"
+                    ? "Saving storyline…"
+                    : "Working…"}
         </div>
       )}
       {result && (
