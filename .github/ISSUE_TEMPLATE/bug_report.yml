@@ -1,0 +1,46 @@
+name: Bug report
+description: Report a reproducible problem in Cutline.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use synthetic or sanitized examples. Do not include private media, API keys, connection files or token-bearing URLs. Follow SECURITY.md for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: Cutline version or commit
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: macOS version, Apple chip and build type
+      description: Say whether this is a packaged app or source checkout.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest sequence that triggers the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result and sanitized evidence
+      description: Include the exact error and useful screenshots or synthetic fixtures. For export issues, include canvas size, frame rate and source format.
+    validations:
+      required: true
+  - type: textarea
+    id: checks
+    attributes:
+      label: Checks already tried
+      description: Does it happen with a new project and synthetic media?

@@ -1,0 +1,54 @@
+/* Assistant replies: simple markdown, calm and readable. Scoped under
+   .message so these rules win over the base message styles, which load later. */
+.message.user > p {
+  margin-top: 0;
+}
+.message .message-text {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.message .message-text > * {
+  margin: 8px 0 0;
+}
+.message .message-text > :first-child {
+  margin-top: 0;
+}
+.message .message-text p {
+  white-space: normal;
+}
+.message .message-text p.message-heading {
+  font-weight: 600;
+}
+.message .message-text ul,
+.message .message-text ol {
+  padding-left: 18px;
+}
+.message .message-text li + li {
+  margin-top: 3px;
+}
+.message .message-text li::marker {
+  color: var(--text-3);
+}
+.message .message-text strong {
+  font-weight: 600;
+}
+.message .message-text code {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  background: var(--fill-strong);
+}
+.message .message-text pre {
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  background: var(--well);
+  overflow-x: auto;
+}
+.message .message-text pre code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+}

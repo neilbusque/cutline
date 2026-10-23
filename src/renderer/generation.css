@@ -1,0 +1,312 @@
+.generation-library {
+  gap: 14px;
+}
+.generation-heading {
+  margin-bottom: 0;
+  gap: 6px;
+}
+.generation-provider {
+  padding: 3px 0 3px 5px;
+  font-size: 11px;
+  font-weight: 400;
+}
+.generation-intro {
+  margin-top: -8px;
+  font-size: 12px;
+}
+.generation-connect {
+  padding: 10px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-group);
+  background: var(--fill);
+}
+.generation-connect form,
+.generation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.generation-connected,
+.generation-connect-actions,
+.generation-history-heading,
+.generation-job-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.generation-connected > span,
+.generation-field > span,
+.generation-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.generation-connected > span {
+  color: var(--text-2);
+  font-size: 11px;
+}
+.generation-connected > span svg {
+  color: var(--ok);
+  flex-shrink: 0;
+}
+.generation-connected button {
+  padding: 4px 0 4px 4px;
+  font-size: 11px;
+}
+.generation-connect-actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.generation-connect-actions button {
+  font-size: 11px;
+  min-height: 28px;
+  padding-inline: 7px;
+}
+.generation-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+}
+.generation-field input,
+.generation-field select,
+.generation-field textarea {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 400;
+  min-height: 32px;
+}
+.generation-prompt textarea {
+  min-height: 104px;
+  line-height: 1.55;
+  resize: vertical;
+}
+.generation-prompt textarea::placeholder {
+  color: var(--text-3);
+}
+.generation-note {
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.generation-prompt + .generation-note {
+  margin-top: -5px;
+}
+.generation-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.generation-model,
+.generation-ratio {
+  grid-column: 1 / -1;
+}
+.generation-reference-button {
+  width: 100%;
+  min-height: 32px;
+  justify-content: flex-start;
+  padding: 6px 8px;
+  border: 1px dashed var(--field-border);
+  border-radius: var(--radius-field);
+  font-size: 11px;
+}
+.generation-reference-button > span {
+  margin-left: auto;
+  color: var(--text-3);
+}
+.generation-reference-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 9px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-field);
+  background: var(--fill);
+}
+.generation-reference-file > svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.generation-reference-file > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+}
+.generation-reference > .generation-note {
+  margin-top: 5px;
+}
+.generation-reference {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.generation-reference-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+.generation-reference-heading strong {
+  font-weight: 500;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.generation-audio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-block: 2px;
+  color: var(--text-2);
+  font-size: 12px;
+}
+.generation-audio input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.generation-cost {
+  padding-top: 3px;
+}
+.generation-submit {
+  min-height: 36px;
+  width: 100%;
+}
+.generation-connect-hint {
+  text-align: center;
+  margin-top: -3px;
+}
+.generation-error,
+.generation-warning,
+.generation-message {
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  line-height: 1.55;
+}
+.generation-error,
+.generation-error p {
+  color: var(--danger);
+}
+.generation-connect > .generation-error {
+  margin-top: 8px;
+}
+.generation-warning {
+  color: var(--warning);
+}
+.generation-message {
+  padding: 9px 10px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  border-radius: var(--radius-field);
+}
+.generation-history {
+  border-top: 1px solid var(--separator);
+  padding-top: 14px;
+}
+.generation-history-heading {
+  margin-bottom: 10px;
+}
+.generation-history-heading h3 {
+  font-size: 12px;
+}
+.generation-history-heading > span,
+.generation-job-heading time {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.generation-empty {
+  font-size: 12px;
+  color: var(--text-3);
+  padding: 2px 0 8px;
+}
+.generation-loading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+.generation-jobs {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.generation-job {
+  min-width: 0;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-group);
+  background: var(--fill);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.generation-status {
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+}
+.generation-job-completed .generation-status {
+  color: var(--ok);
+}
+.generation-job-failed .generation-status,
+.generation-job-nsfw .generation-status {
+  color: var(--danger);
+}
+.generation-status.generation-needs-attention {
+  color: var(--warning);
+}
+.generation-job-prompt {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.generation-job-meta,
+.generation-job-reference {
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.generation-job-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.generation-job-actions:empty {
+  display: none;
+}
+.generation-job-actions button {
+  min-height: 28px;
+  padding: 4px 8px;
+  font-size: 11px;
+}
+.generation-library :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .generation-library,
+  .generation-library .spin {
+    animation: none;
+  }
+  .generation-library :is(button, input, select, textarea) {
+    transition: none;
+  }
+}

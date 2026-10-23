@@ -1,0 +1,685 @@
+/* Reel workflow and stock library: dense editing controls, calm hierarchy. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.reel-intro {
+  padding: 4px 0 14px;
+  border-bottom: 1px solid var(--separator);
+  margin-bottom: 12px;
+}
+.reel-intro h2 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.2px;
+  margin: 0 0 10px;
+}
+/* Plain information, not a control. */
+.reel-format {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-3);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.reel-fieldset {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+.reel-fieldset:disabled {
+  opacity: 0.6;
+}
+.reel-fieldset section[hidden] {
+  display: none;
+}
+.reel-fieldset section:not([hidden]) {
+  animation: cl-rise-in var(--t) var(--ease-out);
+}
+.reel-stepper {
+  margin: 0 0 16px;
+  flex-shrink: 0;
+}
+.reel-stepper button {
+  padding: 0 4px;
+}
+.reel-stepper button > span {
+  font-size: 11px;
+  color: var(--text-4);
+  font-variant-numeric: tabular-nums;
+}
+.reel-stepper button.active > span {
+  color: var(--text-3);
+}
+.reel-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+.reel-step > span {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--selected);
+}
+.reel-step h3 {
+  font-weight: 600;
+  font-size: 13px;
+  margin: 0;
+  flex: 1;
+}
+.reel-step small {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.reel-source-actions button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 10px;
+}
+.reel-empty {
+  padding: 18px 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-3);
+  border: 1px dashed rgb(255 255 255 / 0.16);
+  border-radius: var(--radius-group);
+  margin: 12px 0;
+  text-align: center;
+}
+.reel-sources {
+  max-height: 230px;
+  overflow-y: auto;
+  margin-top: 10px;
+  display: grid;
+  gap: 4px;
+}
+.reel-source {
+  display: flex;
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  padding: 6px;
+  min-width: 0;
+  background: var(--fill);
+  transition: background-color var(--t-fast) var(--ease);
+}
+.reel-source:hover {
+  background: var(--fill-strong);
+}
+.reel-source.is-selected {
+  border-color: transparent;
+  background: var(--selected);
+}
+.reel-source label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  flex: 1;
+}
+.reel-source input,
+.reel-check input {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.reel-source img {
+  width: 36px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 5px;
+}
+.reel-source label > span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.reel-source strong {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.reel-source small {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.reel-order {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+.reel-order button {
+  padding: 1px 4px;
+  min-height: 19px;
+  border-radius: 6px;
+}
+.reel-hint {
+  font-size: 11.5px;
+  color: var(--text-3);
+  line-height: 1.55;
+  margin: 8px 0 12px;
+}
+.reel-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 12px 0;
+}
+.reel-label > span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.reel-label input,
+.reel-label select {
+  width: 100%;
+  font-size: 12px;
+  min-height: 32px;
+}
+.reel-label small {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-3);
+}
+.reel-style-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin: 12px 0;
+}
+.reel-style {
+  padding: 10px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-2);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  background: var(--fill);
+}
+.reel-style.active {
+  border-color: transparent;
+  box-shadow: 0 0 0 1.5px var(--text);
+  background: var(--selected);
+  color: var(--text);
+}
+.reel-style > span {
+  font-size: 24px;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+.reel-style strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.reel-style small {
+  font-size: 10.5px;
+  color: var(--text-3);
+}
+.reel-style.style-clean > span {
+  font-weight: 400;
+}
+.reel-style.style-bold > span {
+  color: #fff;
+  text-shadow: 2px 2px 0 #000;
+}
+.reel-style.style-cinematic > span {
+  font-family: Georgia, serif;
+  color: #e8cb9f;
+  font-style: italic;
+}
+.reel-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+  padding: 8px 0;
+  min-width: 0;
+}
+.reel-check > span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.reel-check strong {
+  font-weight: 500;
+}
+.reel-check small {
+  font-size: 11px;
+  color: var(--text-3);
+}
+.reel-details {
+  border-block: 1px solid var(--separator);
+  padding: 12px 0;
+  margin: 8px 0;
+  font-size: 12px;
+}
+.reel-details summary {
+  color: var(--text-2);
+}
+.reel-details summary > span {
+  float: right;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 400;
+}
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block !important;
+}
+.reel-build-button {
+  width: 100%;
+  height: 36px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 18px;
+  font-size: 12.5px;
+}
+.reel-progress,
+.reel-result,
+.reel-inline-error {
+  border: 1px solid var(--separator);
+  padding: 12px 14px;
+  margin-top: 12px;
+  border-radius: var(--radius-group);
+  background: var(--fill);
+  font-size: 12px;
+  line-height: 1.55;
+  animation: cl-rise-in var(--t) var(--ease-out);
+}
+.reel-result > strong {
+  display: flex;
+  gap: 7px;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text);
+}
+.reel-result > strong svg {
+  color: var(--ok);
+}
+.reel-result p {
+  color: var(--text-2);
+  margin: 8px 0;
+}
+.reel-result button {
+  width: 100%;
+  height: 30px;
+  margin: 5px 0;
+}
+.reel-inline-error {
+  background: var(--danger-fill);
+  border-color: var(--danger-line);
+  color: var(--danger);
+}
+.reel-progress {
+  color: var(--text-2);
+}
+.safe-guide {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+}
+.safe-guide::after {
+  content: "";
+  position: absolute;
+  left: 8%;
+  right: 15%;
+  top: 12%;
+  bottom: 21%;
+  border: 1px dashed rgb(255 255 255 / 0.5);
+  border-radius: 4px;
+}
+.safe-guide > span {
+  position: absolute;
+  left: 8%;
+  top: 8%;
+  font-size: 10px;
+  font-weight: 500;
+  color: #fff;
+  background: rgb(0 0 0 / 0.6);
+  padding: 3px 6px;
+  border-radius: 5px;
+}
+.caption-styles {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+/* Stock library */
+.stock-kind-tabs {
+  margin-bottom: 12px;
+}
+.stock-kind-tabs button {
+  padding: 0 6px;
+}
+.stock-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 7px;
+  margin-top: 9px;
+}
+.stock-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--text-3);
+  font-size: 11px;
+}
+.stock-filters select {
+  min-width: 0;
+  width: 100%;
+  font-size: 12px;
+  padding: 6px 26px 6px 9px;
+}
+.stock-connect {
+  background: var(--fill);
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-group);
+  margin-top: 12px;
+  padding: 12px;
+  line-height: 1.55;
+  font-size: 12px;
+}
+.stock-connect button {
+  margin-top: 8px;
+  width: 100%;
+  height: 30px;
+}
+.stock-api-field {
+  display: flex;
+  gap: 7px;
+}
+.stock-api-field input {
+  min-width: 0;
+  flex: 1;
+}
+.stock-provider-credit {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.55;
+  margin: 8px 0 12px;
+}
+.stock-provider-credit button {
+  padding: 0;
+  color: var(--accent);
+  text-decoration: underline;
+  background: none;
+  border: 0;
+  font-size: inherit;
+}
+.stock-attribution {
+  padding: 0;
+  color: var(--accent);
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: left;
+  align-items: flex-start;
+}
+.stock-connected {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  margin-top: 8px;
+  color: var(--text-3);
+}
+.stock-connected span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ok);
+}
+.stock-connected button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border-radius: var(--radius-pill);
+}
+.stock-key-form input {
+  width: 100%;
+  min-width: 0;
+  font-size: 12px;
+  margin: 8px 0;
+}
+.stock-key-form > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
+}
+.stock-key-form button {
+  font-size: 12px;
+  padding: 5px 10px;
+}
+.stock-quota {
+  font-size: 11px;
+  color: var(--text-3);
+  margin: 7px 0;
+}
+.stock-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: 12px;
+  padding: 25px 0;
+}
+.stock-status {
+  background: var(--fill);
+  border-radius: 8px;
+  padding: 6px 9px;
+}
+.stock-credit-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: normal;
+  text-align: left;
+  padding: 2px 0;
+  line-height: 1.45;
+}
+.stock-photo {
+  aspect-ratio: 4/3;
+}
+.stock-library .stock-providers {
+  margin-top: 10px;
+}
+.stock-library .stock-results {
+  gap: 20px;
+}
+
+/* Reel formats keep timing and caption choices in the existing workflow. */
+.reel-builder {
+  min-width: 0;
+}
+.reel-label input,
+.reel-label select {
+  min-width: 0;
+  max-width: 100%;
+}
+.reel-beats summary {
+  cursor: pointer;
+}
+.reel-beat {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--separator);
+  min-width: 0;
+}
+.reel-beat-heading,
+.reel-animation-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.reel-beat-heading strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.reel-beat-heading button {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+}
+.reel-beat-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+.reel-beat .reel-label {
+  margin: 9px 0;
+}
+.reel-add-beat {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  margin-top: 10px;
+}
+.reel-animation-summary {
+  padding: 10px 0;
+  border-block: 1px solid var(--separator);
+  color: var(--text-2);
+  font-size: 12px;
+}
+.reel-animation-summary button {
+  padding: 5px 8px;
+  font-size: 11px;
+}
+.reel-details summary > span {
+  margin-left: 8px;
+}
+.reel-proofs {
+  border-block: 1px solid var(--separator);
+  padding: 14px 0;
+  margin: 16px 0;
+  min-width: 0;
+}
+.reel-proof-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.reel-proof-heading h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.reel-proof-heading > span {
+  color: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.reel-proof-empty,
+.reel-proof-time-note {
+  color: var(--text-3);
+  font-size: 11.5px;
+  line-height: 1.55;
+  margin: 8px 0 12px;
+}
+.reel-proof-time-note {
+  margin-top: 0;
+}
+.reel-proof-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.reel-proof-actions button {
+  display: flex;
+  flex: 1 1 120px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 32px;
+  font-size: 12px;
+}
+.reel-proof-error {
+  color: var(--danger);
+  font-size: 11.5px;
+  line-height: 1.55;
+  margin: 8px 0;
+}
+.reel-proof .reel-label,
+.reel-proof-time-note,
+.reel-proof-error {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+  .reel-builder .reel-label input,
+  .reel-builder .reel-label select {
+    font-size: 16px;
+    min-height: 44px;
+  }
+  .reel-builder .reel-build-button,
+  .reel-builder .reel-add-beat,
+  .reel-builder .reel-source-actions button,
+  .reel-builder .reel-order button,
+  .reel-builder .reel-beat-heading button,
+  .reel-builder .reel-stepper button,
+  .reel-builder .reel-result button,
+  .reel-builder .reel-proof-actions button,
+  .reel-builder .reel-animation-summary button {
+    min-height: 44px;
+  }
+  .reel-builder .reel-order button,
+  .reel-builder .reel-beat-heading button {
+    min-width: 44px;
+  }
+  .reel-builder .reel-check {
+    min-height: 44px;
+  }
+  .reel-builder .reel-details summary {
+    min-height: 44px;
+    line-height: 24px;
+  }
+  .reel-builder .reel-proof .reel-beat-controls {
+    gap: 8px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reel-builder .reel-fieldset section:not([hidden]),
+  .reel-builder .reel-progress,
+  .reel-builder .reel-result,
+  .reel-builder .reel-inline-error {
+    animation: none;
+  }
+}

@@ -1,0 +1,348 @@
+.motion-library {
+  gap: 0;
+}
+.motion-library .section-heading {
+  margin-bottom: 4px;
+}
+.motion-library .section-heading small {
+  color: var(--text-3);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.mg-tabs {
+  margin-bottom: 10px;
+}
+.mg-tabs button {
+  gap: 5px;
+  padding: 0 3px;
+  font-size: 11px;
+}
+.mg-tabs button svg {
+  display: none;
+}
+.mg-search {
+  margin-bottom: 10px;
+}
+/* One line of filters; scrolls sideways instead of wrapping into a wall. */
+.mg-filters {
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin: 0 -14px 12px;
+  padding: 0 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    transparent,
+    #000 14px,
+    #000 calc(100% - 28px),
+    transparent
+  );
+}
+.mg-filters::-webkit-scrollbar {
+  display: none;
+}
+.mg-filters button {
+  flex: none;
+  padding: 0 10px;
+}
+.mg-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  animation: cl-fade-in var(--t) var(--ease-out);
+}
+.mg-tile {
+  display: block;
+  white-space: normal;
+  text-align: left;
+  padding: 0;
+  min-width: 0;
+  background: var(--fill);
+  border: 1px solid var(--separator);
+  border-radius: 10px;
+  overflow: hidden;
+  transition:
+    border-color var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+.mg-tile:hover:not(:disabled) {
+  background: var(--fill-strong);
+  border-color: rgb(255 255 255 / 0.18);
+}
+.mg-tile:active:not(:disabled) {
+  transform: scale(0.985);
+}
+.mg-tile:disabled {
+  opacity: 0.6;
+}
+.mg-preview {
+  position: relative;
+  aspect-ratio: 16/9;
+  background: #0d0d10;
+  overflow: hidden;
+}
+.mg-preview-action {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  color: #fff;
+  background: var(--blue);
+  box-shadow: var(--blue-edge);
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition:
+    opacity var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease-out);
+}
+.mg-tile:hover .mg-preview-action,
+.mg-tile:focus-visible .mg-preview-action {
+  opacity: 1;
+  transform: none;
+}
+.mg-preview-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+}
+.mg-tile-label {
+  display: block;
+  padding: 8px 9px 9px;
+}
+.mg-tile-label strong {
+  display: block;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+.mg-tile-label small {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  margin-top: 3px;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.mg-empty {
+  color: var(--text-3);
+  font-size: 12px;
+  padding: 24px 4px;
+  text-align: center;
+}
+.mg-footer {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--separator);
+  color: var(--text-3);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+.mg-vector-actions {
+  display: grid;
+  gap: 8px;
+}
+.mg-logo-heading {
+  margin-top: 18px;
+}
+.mg-error {
+  margin: 8px 0 12px;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.mg-sequence {
+  display: grid;
+  gap: 11px;
+}
+.mg-sequence-intro,
+.mg-sequence-hint {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.mg-sequence-intro {
+  color: var(--text-2);
+  font-size: 12px;
+}
+.mg-sequence-preview {
+  position: relative;
+  width: 100%;
+  margin-inline: auto;
+  border: 1px solid var(--separator);
+  border-radius: 9px;
+  overflow: hidden;
+  background: #101112;
+}
+.mg-sequence-play {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 27px;
+  padding: 0 9px;
+  color: white;
+  border: 1px solid rgb(255 255 255 / 0.18);
+  border-radius: 20px;
+  background: rgb(0 0 0 / 0.7);
+  font-size: 11px;
+}
+.mg-sequence-steps {
+  display: flex;
+  gap: 6px;
+}
+.mg-sequence-steps span {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+  justify-content: center;
+  padding: 7px 3px;
+  border-radius: 6px;
+  background: var(--fill);
+  font-size: 10px;
+  color: var(--text-2);
+}
+.mg-sequence-steps b {
+  color: var(--text-3);
+  font-size: 9px;
+  font-weight: 500;
+}
+.mg-sequence-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+.mg-sequence-field > span {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.mg-sequence-field small {
+  font-size: 10px;
+  color: var(--text-3);
+}
+.mg-sequence-field input,
+.mg-sequence-field textarea,
+.mg-sequence-field select {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--separator);
+  border-radius: 6px;
+  background: var(--fill);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+}
+.mg-sequence-field textarea {
+  resize: vertical;
+  min-height: 50px;
+  max-height: 100px;
+}
+.mg-sequence-pace {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.mg-sequence-pace legend {
+  padding: 0 0 6px;
+  font-size: 11px;
+  color: var(--text-2);
+}
+.mg-sequence-pace > div {
+  display: flex;
+  gap: 5px;
+}
+.mg-sequence-pace button {
+  flex: 1;
+  display: grid;
+  gap: 4px;
+  padding: 9px 4px;
+  border: 1px solid var(--separator);
+  border-radius: 7px;
+  background: var(--fill);
+}
+.mg-sequence-pace button[aria-pressed="true"] {
+  background: var(--selected);
+  border-color: var(--blue);
+}
+.mg-sequence-pace strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.mg-sequence-pace button span {
+  color: var(--text-3);
+  font-size: 10px;
+}
+.mg-sequence-palette summary {
+  font-size: 11px;
+  color: var(--text-2);
+  cursor: pointer;
+}
+.mg-sequence-palette > div {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+}
+.mg-sequence-palette label {
+  display: grid;
+  flex: 1;
+  justify-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: var(--text-2);
+}
+.mg-sequence-palette input {
+  width: 100%;
+  height: 29px;
+  padding: 2px;
+  border-radius: 6px;
+  background: var(--fill);
+  border: 1px solid var(--separator);
+}
+.mg-sequence-palette code {
+  color: var(--text-3);
+  font-size: 9px;
+}
+.mg-sequence-add {
+  margin-top: 2px;
+}
+.mg-sequence-result {
+  margin: 0;
+  padding: 9px;
+  border: 1px solid var(--separator);
+  border-radius: 7px;
+  color: var(--text);
+  font-size: 11px;
+  line-height: 1.5;
+  background: var(--selected);
+}
+@media (prefers-reduced-motion: reduce) {
+  .mg-preview-play {
+    display: none;
+  }
+}

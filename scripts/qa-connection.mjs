@@ -1,0 +1,324 @@
+import { _electron as electron } from "@playwright/test";
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { readFile, writeFile, mkdir } from "node:fs/promises";
+import assert from "node:assert/strict";
+import path from "node:path";
+const root = process.cwd(),
+  work = path.resolve("../../work"),
+  appRoot = path.join(root, "release/Cutline-darwin-arm64/Cutline.app");
+const data = path.join(work, "qa-connection-data"),
+  file = path.join(work, "connection-project.cutline");
+await mkdir(data, { recursive: true });
+const fixture = JSON.parse(
+  await readFile("sample-project/Cutline Demo.cutline", "utf8"),
+);
+const short = process.env.CUTLINE_QA_SHORT === "1";
+if (short) {
+  fixture.project.clips = fixture.project.clips
+    .filter((c) => c.start < 180)
+    .map((c) => ({ ...c, duration: Math.min(c.duration, 180 - c.start) }));
+}
+await writeFile(file, JSON.stringify(fixture));
+const env = { ...process.env, CUTLINE_QA: "1", CUTLINE_DATA_DIR: data };
+delete env.ELECTRON_RUN_AS_NODE;
+const app = await electron.launch({
+  executablePath: process.env.CUTLINE_SOURCE_TEST
+    ? path.join(
+        root,
+        "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
+      )
+    : path.join(appRoot, "Contents/MacOS/Cutline"),
+  args: process.env.CUTLINE_SOURCE_TEST ? [root, file] : [file],
+  env,
+});
+let client;
+const results = [],
+  errors = [];
+try {
+  const page = await app.firstWindow();
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].focus(),
+  );
+  await page.waitForSelector(".titlebar");
+  page.on("pageerror", (e) => {
+    errors.push(e.message);
+    console.log("RENDERER ERROR", e.stack);
+  });
+  const invoke = (name, args) =>
+    page.evaluate(({ name, args }) => window.cutline.invoke(name, args), {
+      name,
+      args,
+    });
+  const initial = (await invoke("state")).snapshot.project;
+  assert(initial.clips.length > 1);
+  results.push("Packaged app opens .cutline project directly");
+  const title = initial.clips.find((c) => c.kind === "text");
+  await page.getByRole("button", { name: "Play", exact: true }).click();
+  await new Promise((r) => setTimeout(r, 2500));
+  const started = Date.now();
+  const t0 = await page
+    .locator("video")
+    .first()
+    .evaluate((v) => v.currentTime);
+  await new Promise((r) => setTimeout(r, short ? 2000 : 5000));
+  const t1 = await page
+    .locator("video")
+    .first()
+    .evaluate((v) => v.currentTime);
+  await page.getByRole("button", { name: "Pause", exact: true }).click();
+  const wall = (Date.now() - started) / 1000;
+  console.log("PLAYBACK", JSON.stringify({ t0, t1, wall, delta: t1 - t0 }));
+  assert(Math.abs(t1 - t0 - wall) < 0.6);
+  results.push(
+    `Steady-state playback after 2.5s warm-up: ${Math.round((t1 - t0) * 100) / 100}s media over ${wall.toFixed(2)}s wall time`,
+  );
+  await page.locator(".timeline-clip.text").first().click();
+  await page
+    .getByRole("button", { name: "Create custom animation", exact: true })
+    .click();
+  await page.getByText("2. Title text", { exact: true }).click();
+  await page.getByLabel("Layer text", { exact: true }).fill("A little motion");
+  await page.getByLabel("Layer text", { exact: true }).press("Tab");
+  await page.waitForFunction(() =>
+    document
+      .querySelector(".motion-inspector")
+      ?.textContent?.includes("A little motion"),
+  );
+  const custom = (await invoke("state")).snapshot.project;
+  assert.equal(custom.clips.find((c) => c.id === title.id).preset, "custom");
+  assert(
+    custom.motions.some((m) =>
+      m.layers.some((l) => l.text === "A little motion"),
+    ),
+  );
+  await invoke("undo");
+  await invoke("undo");
+  results.push(
+    "Create and edit custom motion using visual controls; undo restores original",
+  );
+  await page.getByRole("button", { name: "Go to start", exact: true }).click();
+  await page.getByLabel("Animated property").selectOption("scale");
+  await page.getByRole("button", { name: "Add keyframe", exact: true }).click();
+  assert(
+    (await invoke("state")).snapshot.project.clips
+      .find((c) => c.id === title.id)
+      .keyframes.some((k) => k.property === "scale"),
+  );
+  await page.getByLabel("Keyframe value").fill("1.2");
+  await page.getByLabel("Keyframe value").press("Enter");
+  await page.getByLabel("Keyframe easing").selectOption("ease-out");
+  await page
+    .getByRole("button", { name: "Clear scale animation", exact: true })
+    .click();
+  assert.equal(
+    (await invoke("state")).snapshot.project.clips.find(
+      (c) => c.id === title.id,
+    ).keyframes.length,
+    0,
+  );
+  results.push(
+    "Manual keyframe creation, value/easing editing and clearing work through Properties",
+  );
+  client = new Client({ name: "cutline-final-qa", version: "1.0" });
+  await client.connect(
+    new StdioClientTransport({
+      command: process.execPath,
+      args: [path.join(appRoot, "Contents/Resources/app/dist/main/mcp.cjs")],
+      env: {
+        ...process.env,
+        CUTLINE_CONNECTION: path.join(data, "connection.json"),
+      },
+    }),
+  );
+  const inspected = JSON.parse(
+    (
+      await client.callTool({
+        name: "cutline_inspect",
+        arguments: { detail: "full" },
+      })
+    ).content[0].text,
+  );
+  assert(!inspected.assets[0].path);
+  const previous = inspected.clips.find((c) => c.id === title.id);
+  await client.callTool({
+    name: "cutline_apply_edits",
+    arguments: {
+      projectId: inspected.id,
+      revision: inspected.revision,
+      label: "MCP text test",
+      commands: [
+        {
+          type: "clip.update",
+          id: title.id,
+          patch: { text: "MCP verified", blendMode: "screen", mask: "ellipse" },
+        },
+      ],
+    },
+  });
+  assert.deepEqual(
+    (await invoke("state")).snapshot.project.clips.find(
+      (c) => c.id === title.id,
+    ),
+    { ...previous, text: "MCP verified", blendMode: "screen", mask: "ellipse" },
+  );
+  await invoke("undo");
+  results.push(
+    "Packaged MCP makes an isolated property edit without resetting other fields",
+  );
+  const events = [];
+  await page.exposeFunction("recordAssistant", (e) => {
+    events.push(e);
+    if (["tool", "completed", "error"].includes(e.type))
+      console.log("Codex", JSON.stringify(e));
+  });
+  await page.evaluate(() =>
+    window.cutline.on("assistant", window.recordAssistant),
+  );
+  await page.getByRole("button", { name: "Assistant", exact: true }).click();
+  console.log("Testing Codex custom motion generation");
+  await invoke("codex.send", {
+    text: "Read cutline_effects_guide and cutline_inspect. In ONE cutline_apply_edits transaction, animate the first text clip: opacity keyframe at local frame 0 value 0 easing ease-out and at local frame 18 value 1 easing linear; set its mask to rounded, cornerRadius to 24 and shadowBlur to 24. Keep other fields unchanged. Read back to verify. Reply briefly.",
+  });
+  const aiStart = Date.now();
+  while (!events.some((e) => e.type === "completed" || e.type === "error")) {
+    await new Promise((r) => setTimeout(r, 1000));
+    if (Date.now() - aiStart > 240000) throw Error("AI timed out");
+  }
+  const afterAi = (await invoke("state")).snapshot.project;
+  const edited = afterAi.clips.find((c) => c.id === title.id);
+  assert(
+    edited.keyframes.some(
+      (k) => k.property === "opacity" && k.frame === 0 && k.value === 0,
+    ),
+  );
+  assert(
+    edited.keyframes.some(
+      (k) => k.property === "opacity" && k.frame === 18 && k.value === 1,
+    ),
+  );
+  assert.equal(edited.mask, "rounded");
+  assert.equal(edited.shadowBlur, 24);
+  assert(
+    events.some((e) => e.type === "tool" && e.name === "cutline_effects_guide"),
+  );
+  await page.getByRole("button", { name: "Properties", exact: true }).click();
+  await page.getByLabel("Animated property").selectOption("opacity");
+  await page.screenshot({ path: "screenshots/pro-keyframes.png" });
+  await invoke("undo");
+  assert.deepEqual(
+    (await invoke("state")).snapshot.project.clips.find(
+      (c) => c.id === title.id,
+    ),
+    previous,
+  );
+  await invoke("redo");
+  results.push(
+    "Live Codex reads effects guide and creates editable keyframes, mask and shadow in one undoable transaction; redo restores them for export",
+  );
+  await invoke("codex.reconnect");
+  assert.equal((await invoke("codex.status")).status, "connected");
+  events.length = 0;
+  await invoke("codex.send", {
+    text: "Inspect the current project and reply Ready. Do not edit anything.",
+  });
+  const reconnectStarted = Date.now();
+  while (!events.some((e) => e.type === "completed" || e.type === "error")) {
+    if (Date.now() - reconnectStarted > 120000)
+      throw Error("Reconnect response timed out");
+    await page.waitForTimeout(500);
+  }
+  assert(events.some((e) => e.type === "completed"));
+  assert.equal((await invoke("codex.status")).busy, false);
+  events.length = 0;
+  await invoke("codex.send", {
+    text: "Inspect the project and explain its track structure. Do not edit.",
+  });
+  await invoke("codex.stop");
+  const cancelStarted = Date.now();
+  while ((await invoke("codex.status")).busy) {
+    if (Date.now() - cancelStarted > 30000)
+      throw Error("Cancel did not finish");
+    await page.waitForTimeout(250);
+  }
+  assert(
+    events.some((e) => e.type === "completed" && e.status === "interrupted"),
+  );
+  results.push(
+    "Real Codex reconnect produces a fresh successful response; active turn cancellation reaches interrupted and releases busy state",
+  );
+  console.log("Rendering final 75-second acceptance export");
+  const exportStart = Date.now();
+  const job = await invoke("test.export", {
+    path: path.join(root, short ? "acceptance-pro.mp4" : "acceptance-demo.mp4"),
+  });
+  const beforeConcurrent = (await invoke("state")).snapshot.project;
+  await invoke("edit", {
+    projectId: beforeConcurrent.id,
+    revision: beforeConcurrent.revision,
+    label: "Edit while rendering",
+    commands: [
+      {
+        type: "clip.update",
+        id: title.id,
+        patch: { text: "This change must not reach the running export" },
+      },
+    ],
+  });
+  let last = -1;
+  for (;;) {
+    await new Promise((r) => setTimeout(r, 1000));
+    const j = (await invoke("state")).jobs.find((j) => j.id === job.id);
+    if (Math.floor(j.progress * 10) > last) {
+      last = Math.floor(j.progress * 10);
+      console.log("Export", Math.round(j.progress * 100) + "%");
+    }
+    if (j.state === "done") {
+      results.push(
+        `Final ${short ? 6 : 75}-second 1080p export: ${Math.round((Date.now() - exportStart) / 1000)}s`,
+      );
+      break;
+    }
+    if (j.state !== "running") throw Error(j.message);
+    if (Date.now() - exportStart > 900000) throw Error("Export timed out");
+  }
+  await invoke("undo");
+  await page.locator(".ruler").click({ position: { x: 90 * 0.85, y: 12 } });
+  await page.locator(".stage").click({ position: { x: 10, y: 10 } });
+  await new Promise((r) => setTimeout(r, 500));
+  await page
+    .locator(".canvas")
+    .screenshot({ path: "screenshots/preview-frame-90.png" });
+  assert.deepEqual(errors, []);
+  results.push("No uncaught renderer errors");
+  await writeFile(
+    short ? "qa-connection-results.json" : "qa-final-results.json",
+    JSON.stringify(
+      { date: new Date().toISOString(), results, errors },
+      null,
+      2,
+    ),
+  );
+  console.log(results);
+} catch (error) {
+  const page = await app.firstWindow();
+  console.log(
+    "ERROR STATE",
+    errors,
+    await page
+      .locator("body")
+      .innerText()
+      .catch(() => ""),
+  );
+  await page
+    .screenshot({ path: "screenshots/final-error.png" })
+    .catch(() => {});
+  await writeFile(
+    "qa-final-failure.json",
+    JSON.stringify({ results, errors, error: String(error) }, null, 2),
+  );
+  throw error;
+} finally {
+  await client?.close();
+  await app.close();
+}

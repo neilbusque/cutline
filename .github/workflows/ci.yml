@@ -1,0 +1,47 @@
+name: Source checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: source-checks-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-source:
+    name: macOS 15 Apple Silicon source validation
+    # Standard macos-15 is ARM64; Remotion requires macOS 15 or later.
+    # Native media packages and integration tests target darwin-arm64.
+    # Do not force installation on Linux and report skipped native tests as support.
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Prepare local runtime binaries
+        run: |
+          npx --no-install install-electron
+          npm run setup:runtime
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and native media tests
+        run: npm test -- --maxWorkers=1
+      - name: Build source and composition
+        run: npm run build
+      # Intentionally no package, artifact upload, paid-provider calls or deployment.
+      # Full speech-model, playback and export QA is a separate local release check.

@@ -1,0 +1,23 @@
+name: Feature request
+description: Describe a video-editing workflow Cutline could improve.
+title: "[Feature] "
+body:
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What are you trying to make?
+      description: Describe the editing task and current obstacle.
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Explain what the user would do and what the editor would produce.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives or references
+      description: Link public examples if helpful. Do not include private project data.

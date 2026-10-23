@@ -1,0 +1,470 @@
+/* Cutline shares Copilot's look: one dark glass tint over the desktop blur,
+   soft white fills for hover and selection, a deep blue capsule for the main
+   action and raised dark capsules for secondary controls. Colors, radii and
+   timings live here; panel styles only use these tokens. */
+:root {
+  color-scheme: dark;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue",
+    sans-serif;
+  font-size: 12px;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  color: var(--text);
+
+  /* Glass. The window has a native behind-window blur; this tint sits on it. */
+  --tint: 24 23 28;
+  --glass: rgb(var(--tint) / 0.9);
+  --glass-solid: #1b1a1f;
+  --glass-raised: rgb(34 33 39 / 0.96);
+  --ring: rgb(207 226 255 / 0.2);
+  --stage: rgb(0 0 0 / 0.28);
+  --well: rgb(0 0 0 / 0.18);
+  --fill: rgb(255 255 255 / 0.04);
+  --fill-strong: rgb(255 255 255 / 0.065);
+  --hover: rgb(255 255 255 / 0.07);
+  --selected: rgb(255 255 255 / 0.11);
+  --separator: rgb(255 255 255 / 0.09);
+  --separator-soft: rgb(255 255 255 / 0.055);
+  --field-border: rgb(170 172 182 / 0.24);
+  --field-border-hover: rgb(190 192 202 / 0.36);
+
+  /* Text */
+  --text: #edeef2;
+  --text-2: #b2b3ba;
+  --text-3: rgb(255 255 255 / 0.56);
+  --text-4: rgb(255 255 255 / 0.38);
+
+  /* Controls */
+  --control: linear-gradient(180deg, #2e3039, #272a31);
+  --control-edge:
+    inset 0 0.5px 0 rgb(175 179 196 / 0.5), 0 0 0 0.5px rgb(0 0 0 / 0.4),
+    0 1px 2px rgb(0 0 0 / 0.18);
+  --blue: linear-gradient(180deg, #0a4fbd, #022c70);
+  --blue-edge:
+    inset 0 0.5px 0 rgb(129 182 255 / 0.75), 0 0 0 0.5px #0c44a1,
+    0 1px 2px rgb(0 0 0 / 0.22);
+  --accent: #81b6ff;
+  --accent-strong: #a9cdff;
+  --accent-soft: rgb(129 182 255 / 0.14);
+  --accent-line: rgb(129 182 255 / 0.6);
+
+  /* State colors, only where something is happening or wrong */
+  --live: #f87171;
+  --paused: #fbbf24;
+  --ok: #34d399;
+  --warning: #fdba74;
+  --danger: #fca5a5;
+  --danger-fill: rgb(248 113 113 / 0.1);
+  --danger-line: rgb(248 113 113 / 0.32);
+  --warning-fill: rgb(251 191 36 / 0.1);
+
+  /* Timeline clips: video blue, audio green, titles violet, captions amber */
+  --clip-video: rgb(43 92 168 / 0.55);
+  --clip-video-line: rgb(129 182 255 / 0.4);
+  --clip-video-text: #dce9ff;
+  --clip-audio: rgb(16 94 72 / 0.55);
+  --clip-audio-line: rgb(52 211 153 / 0.38);
+  --clip-audio-text: #c3f5e1;
+  --clip-text: rgb(91 72 160 / 0.55);
+  --clip-text-line: rgb(167 139 250 / 0.42);
+  --clip-text-text: #e7e0ff;
+  --clip-caption: rgb(130 92 14 / 0.5);
+  --clip-caption-line: rgb(251 191 36 / 0.38);
+  --clip-caption-text: #fde9b3;
+
+  /* Older names still used by panel styles */
+  --surface: var(--fill);
+  --raised: var(--fill-strong);
+  --line: var(--separator);
+  --muted: var(--text-3);
+
+  /* Shape */
+  --radius-sm: 6px;
+  --radius: 8px;
+  --radius-field: 9px;
+  --radius-group: 12px;
+  --radius-pill: 999px;
+
+  /* Motion: short, transform and opacity, ease out */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --t-fast: 120ms;
+  --t: 180ms;
+  --t-slow: 240ms;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  background: transparent;
+}
+body {
+  margin: 0;
+  overflow: hidden;
+}
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+h2,
+h3,
+p {
+  margin: 0;
+}
+h3 {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+p {
+  line-height: 1.55;
+  color: var(--text-2);
+}
+small {
+  font-size: 11px;
+  color: var(--text-3);
+}
+a {
+  color: var(--accent);
+}
+::selection {
+  background: rgb(129 182 255 / 0.32);
+}
+
+/* Buttons: quiet by default (fills on hover), raised control, blue primary. */
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--text-2);
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  cursor: default;
+  white-space: nowrap;
+  transition:
+    background-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
+    opacity var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
+}
+button:hover:not(:disabled) {
+  background-color: var(--hover);
+  color: var(--text);
+}
+button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+button:disabled {
+  opacity: 0.38;
+}
+button.active,
+button[aria-pressed="true"],
+button[aria-selected="true"] {
+  color: var(--text);
+}
+.primary,
+button.primary {
+  color: #fff;
+  background: var(--blue);
+  border-color: transparent;
+  box-shadow: var(--blue-edge);
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  padding-inline: 14px;
+}
+.primary:hover:not(:disabled) {
+  color: #fff;
+  background: var(--blue);
+  filter: brightness(1.12);
+}
+.control,
+button.control,
+button.subtle {
+  color: var(--text);
+  background: var(--control);
+  border-color: transparent;
+  box-shadow: var(--control-edge);
+  border-radius: var(--radius-pill);
+}
+.control:hover:not(:disabled),
+button.subtle:hover:not(:disabled) {
+  color: var(--text);
+  background: var(--control);
+  filter: brightness(1.1);
+}
+.danger,
+button.danger {
+  color: var(--danger);
+}
+button.danger:hover:not(:disabled) {
+  background-color: var(--danger-fill);
+  color: var(--danger);
+}
+/* Icons keep their size when a row gets tight. */
+button > svg {
+  flex-shrink: 0;
+}
+.icon-button {
+  padding: 6px;
+  border-radius: var(--radius-pill);
+  color: var(--text-2);
+}
+
+/* Fields */
+input,
+textarea,
+select {
+  color: var(--text);
+  background-color: var(--well);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-field);
+  padding: 7px 9px;
+  min-width: 0;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.03);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease),
+    background-color var(--t-fast) var(--ease);
+}
+input:hover:not(:disabled):not(:focus),
+textarea:hover:not(:disabled):not(:focus),
+select:hover:not(:disabled):not(:focus) {
+  border-color: var(--field-border-hover);
+}
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--accent-line);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-4);
+}
+input:disabled,
+textarea:disabled,
+select:disabled {
+  opacity: 0.45;
+}
+select {
+  appearance: none;
+  padding-right: 26px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'%3E%3Cpath d='M2 3.75 5 6.75 8 3.75' fill='none' stroke='%23b2b3ba' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  background-size: 10px 10px;
+}
+select option {
+  background: #26252c;
+  color: var(--text);
+}
+input[type="number"] {
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+input[type="color"] {
+  height: 30px;
+  width: 100%;
+  padding: 3px;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+  box-shadow: none;
+}
+input[type="range"] {
+  accent-color: var(--accent);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+input[type="range"]:focus {
+  box-shadow: none;
+}
+textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+/* Keyboard focus is always an outline ring, which component styles never
+   override; fields add a quieter accent border on any focus. */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline-offset: 1px;
+}
+
+/* Search: one field with a leading icon. The field shows focus, so the
+   input inside it does not draw a second ring. */
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 10px;
+  color: var(--text-3);
+  background: var(--well);
+  border: 1px solid var(--field-border);
+  border-radius: var(--radius-field);
+  transition:
+    border-color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
+}
+.search-field:hover:not(:focus-within) {
+  border-color: var(--field-border-hover);
+}
+.search-field:focus-within {
+  border-color: var(--accent-line);
+  box-shadow: 0 0 0 3px rgb(129 182 255 / 0.14);
+}
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  font-size: 12.5px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  outline: none;
+}
+
+/* Disclosure: a small chevron that turns, unless the summary brings its own icon. */
+summary {
+  list-style: none;
+  cursor: default;
+}
+summary::-webkit-details-marker {
+  display: none;
+}
+summary:not(:has(svg))::before {
+  content: "";
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  vertical-align: 0;
+  background: currentColor;
+  opacity: 0.7;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M3.5 2 6.5 5 3.5 8' fill='none' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transition: transform var(--t) var(--ease);
+}
+details[open] > summary:not(:has(svg))::before {
+  transform: rotate(90deg);
+}
+
+kbd {
+  font:
+    500 10.5px/1 -apple-system,
+    BlinkMacSystemFont,
+    sans-serif;
+  color: var(--text-3);
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.18);
+  box-shadow: inset 0 0 0 0.5px rgb(255 255 255 / 0.16);
+}
+
+/* Tabs, modes and filters share one segmented look, as on Copilot's card:
+   quiet labels, and a soft fill on the chosen one. */
+.pill-tabs {
+  display: flex;
+  gap: 2px;
+}
+.pill-tabs > button {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  border-radius: var(--radius-pill);
+}
+.pill-tabs > button.active,
+.pill-tabs > button[aria-pressed="true"],
+.pill-tabs > button[aria-selected="true"],
+.pill-tabs > button[aria-current="step"] {
+  color: var(--text);
+  background-color: var(--selected);
+}
+
+/* Scroll bars stay thin and quiet. */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.13);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgb(255 255 255 / 0.24);
+}
+
+/* Shared entrances. Short, opacity and transform only. */
+@keyframes cl-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cl-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes cl-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+  button:active:not(:disabled) {
+    transform: none;
+  }
+}

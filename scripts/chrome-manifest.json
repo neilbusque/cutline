@@ -1,0 +1,1754 @@
+{
+  "remotionVersion": "4.0.538",
+  "version": "156.0.8078.47",
+  "chromeMode": "chrome-for-testing",
+  "directory": "chrome-mac-arm64",
+  "executable": "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+  "archive": {
+    "url": "https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/mac-arm64/chrome-mac-arm64.zip",
+    "size": 194932023,
+    "sha": "ad7f2b49a4dc679af286b1b1b386670d93ca7868079f69012d21ba0ac8293df3"
+  },
+  "files": [
+    {
+      "name": "ABOUT",
+      "size": 248,
+      "sha": "34d078ce3003087a8374e7c6156fda374769b8047d6ddaf419d66414aa48edfb"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Google Chrome for Testing Framework",
+      "symlink": "Versions/Current/Google Chrome for Testing Framework"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Helpers",
+      "symlink": "Versions/Current/Helpers"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Libraries",
+      "symlink": "Versions/Current/Libraries"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Resources",
+      "symlink": "Versions/Current/Resources"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Google Chrome for Testing Framework",
+      "size": 251507056,
+      "sha": "b02e4398e164a71edd9219676f8f4c0a6ac482c0790a257ec5b36bdc27bb4cac"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Alerts).app/Contents/Info.plist",
+      "size": 1906,
+      "sha": "5166f0783f4cd95bf38f5a4a64e1f00761b33c21f60203675b6e547247af3003"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Alerts).app/Contents/MacOS/Google Chrome for Testing Helper (Alerts)",
+      "size": 69792,
+      "sha": "b7e8d9a6fff9a64c6ada10fe720fe27b93069cfa6474adc1622630e92f0930a8"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Alerts).app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Alerts).app/Contents/Resources/Assets.car",
+      "size": 1362712,
+      "sha": "e70466610b4bdbb61098baf07d342e8e21a67c34cfd2c53e400d3e588ed2cc4c"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Alerts).app/Contents/Resources/app.icns",
+      "size": 94689,
+      "sha": "3be5d5276c19c48925acc2c6a7896ce238d73b1ca8b74c30724799e2d28223ae"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Alerts).app/Contents/Resources/base.lproj/InfoPlist.strings",
+      "size": 96,
+      "sha": "b978a9cb5bd3109d3198f4f8387517511326986f2549b2a5bb968816f61ebda0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Alerts).app/Contents/Info.plist",
+      "size": 1933,
+      "sha": "feec056b242dd4986e2c7bf44fdd53f6c3dbf84f1bae76dd1e5c2b581e672453"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Alerts).app/Contents/MacOS/Google Chrome for Testing Helper (Aperitif Alerts)",
+      "size": 33600,
+      "sha": "33c184c086f16a954c17f69bb444128c723cf1778f7bfaa6a0bff481821b1695"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Alerts).app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Alerts).app/Contents/Resources/Assets.car",
+      "size": 1362712,
+      "sha": "e70466610b4bdbb61098baf07d342e8e21a67c34cfd2c53e400d3e588ed2cc4c"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Alerts).app/Contents/Resources/app.icns",
+      "size": 94689,
+      "sha": "3be5d5276c19c48925acc2c6a7896ce238d73b1ca8b74c30724799e2d28223ae"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Alerts).app/Contents/Resources/base.lproj/InfoPlist.strings",
+      "size": 96,
+      "sha": "b978a9cb5bd3109d3198f4f8387517511326986f2549b2a5bb968816f61ebda0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif GPU).app/Contents/Info.plist",
+      "size": 1606,
+      "sha": "aee1aca9ac00273317f161d15d005388b8423851373f20b18fb4042a100eef57"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif GPU).app/Contents/MacOS/Google Chrome for Testing Helper (Aperitif GPU)",
+      "size": 33584,
+      "sha": "8811c71dd986dd5b507eca1995ac28b6261b8343a3effaa1bc18248c816cbe02"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif GPU).app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Renderer).app/Contents/Info.plist",
+      "size": 1630,
+      "sha": "41116d79b05ed54bf9d6bf7c02eaf4053c25d42ebe4f7ccda7afc85f786131b6"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Renderer).app/Contents/MacOS/Google Chrome for Testing Helper (Aperitif Renderer)",
+      "size": 33600,
+      "sha": "da3186dfdf76b5b23f845fff13dca7b8ac94a1987bae35331154b4740c4370f7"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif Renderer).app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif).app/Contents/Info.plist",
+      "size": 1594,
+      "sha": "2c18249c42034798df84b1d8678f972650a688dbbeb7ee720cb88ba8f72debc0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif).app/Contents/MacOS/Google Chrome for Testing Helper (Aperitif)",
+      "size": 33584,
+      "sha": "961256f9edef669b73f65b1fd9c644d61886407c7bb7cb21f8fd7842e8782d89"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Aperitif).app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (GPU).app/Contents/Info.plist",
+      "size": 1579,
+      "sha": "e7eb24c5444511b861456fa2e95dcea01442f97580f80aa4f5775c9c76dd2db5"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (GPU).app/Contents/MacOS/Google Chrome for Testing Helper (GPU)",
+      "size": 69792,
+      "sha": "089f48e64dc34c24032f3189ba97be0f0e9532f6842b9ba7f9f915d7d1edd538"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (GPU).app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Renderer).app/Contents/Info.plist",
+      "size": 1603,
+      "sha": "7b6ed666c30b3446a5ab32af166b024bc920e17ce69c0bfa5eca77bc7a112e62"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Renderer).app/Contents/MacOS/Google Chrome for Testing Helper (Renderer)",
+      "size": 69792,
+      "sha": "65eb77ef25246147615dd9e59f820d02fbb9d5cad99563c14b36087d84567f6a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper (Renderer).app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper.app/Contents/Info.plist",
+      "size": 1561,
+      "sha": "6c38d5347f0480415bf4d452b002adf791f6f469f9e3a08db166dc872f086cb7"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper.app/Contents/MacOS/Google Chrome for Testing Helper",
+      "size": 69792,
+      "sha": "0125094824bbc5baf371ead0dedb98c50253067493717b045fa4225c8cfba998"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/Google Chrome for Testing Helper.app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/app_mode_loader",
+      "size": 810608,
+      "sha": "d3c626a3d2ce1097f31c96b586c71507a23ffb2cccd819612071bb66e037827c"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/chrome_crashpad_handler",
+      "size": 1360608,
+      "sha": "778e95acf990ad827061374ab4bcd25672d6c550ab974fa957d54bb038ef3f90"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Helpers/web_app_shortcut_copier",
+      "size": 33488,
+      "sha": "34d6abb50920d3c3547f17905e3711ec92d3d568e99549aa0028d4ca2a212f54"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/IwaKeyDistribution/iwa-key-distribution.pb",
+      "size": 3793,
+      "sha": "db1b46bcb253793ecc2cb734e2eb7c04ee6a69acfe3548abe27c4ea62a3b402a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/IwaKeyDistribution/manifest.json",
+      "size": 114,
+      "sha": "2de00b641c03834a89f9c9c06327cb72a948dc59a18a5c2d28ddd617eb64ff9d"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/MEIPreload/manifest.json",
+      "size": 238,
+      "sha": "44844cf3dde6e80087ae0e6bf0d9326d7ef7d23326d24ac83af0850be26923d2"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/MEIPreload/preloaded_data.pb",
+      "size": 8254,
+      "sha": "c6070a157b4e28d16fbccbd233e93846ddb070c85e1a1bc64469b7a5f1424fad"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/PrivacySandboxAttestationsPreloaded/manifest.json",
+      "size": 122,
+      "sha": "51c311a4ba03140bcd1c827f8d93dba50cadda736925903b26e95609275dbffd"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/PrivacySandboxAttestationsPreloaded/privacy-sandbox-attestations.dat",
+      "size": 7624,
+      "sha": "59e345dc13aedee9ea46b92e58300ecaca944aaea9384c7af885400ac2ae8806"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/WidevineCdm/LICENSE",
+      "size": 473,
+      "sha": "20de375707692099b3132084695377ce5fec0aec05813dedcce094b8eda44386"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/WidevineCdm/_platform_specific/mac_arm64/libwidevinecdm.dylib",
+      "size": 20416896,
+      "sha": "e1e9f6b0c77f4251542a2f49dda419c85eda88c5d9ef2721d5d594dc195a6e5f"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/WidevineCdm/manifest.json",
+      "size": 833,
+      "sha": "620fadefec2d3e2351720ca916f674752869d88d18c3886bc268cd1522726277"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/libaperitif.dylib",
+      "size": 69760,
+      "sha": "6111265af905a0fe534c38f6eb21dd35f41da18261a62c22a23abcbb3f67d75a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/libvk_swiftshader.dylib",
+      "size": 16326576,
+      "sha": "2655fb354356ab6c0089af88a0501f5d7ff630edcdcd92a8eba2b33c3ff5a5fa"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/libvulkan.dylib",
+      "size": 499488,
+      "sha": "a23e1ee938c78bf6d098924297801073d4ba8adc8a13088eb40848ad316b0dc3"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Libraries/vk_swiftshader_icd.json",
+      "size": 110,
+      "sha": "d717d915e31e7c27948b80b36ab34e2d897888114c5c7d0af835f93eb53e58f5"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/Info.plist",
+      "size": 1099,
+      "sha": "978492904f74903fe14117e73cfb06f2b6c6b61925c5d13811bfe436b2e08270"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/af.lproj/locale.pak",
+      "size": 649306,
+      "sha": "0fa40beb35d7acdcb731096349d5894727349820476af429d38133e899e4c0da"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/af_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/af_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/af_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/am.lproj/locale.pak",
+      "size": 1051453,
+      "sha": "1b4266c802ac3f0d9e43bde642c112cfeea8f9b55556c90c3e9a4b87d4f87a89"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/am_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/am_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/am_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/app_mode-Info.plist",
+      "size": 1599,
+      "sha": "31a0e00cb64b077b43a159173a2e7348e026af6a137492a0ab380eac7f7c04f7"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ar.lproj/locale.pak",
+      "size": 1164790,
+      "sha": "1fe3b27955816342c5241791bbd0bdddf13e1cb914a48bdacb9de92a1a764033"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ar_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ar_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ar_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/bg.lproj/locale.pak",
+      "size": 1205772,
+      "sha": "fe05b31e38ca70115263ae8df5466d63fe1a906500d4612b737eaf7d871e7f09"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/bg_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/bg_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/bg_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/bn.lproj/locale.pak",
+      "size": 1541096,
+      "sha": "95d471c9f6f733f8180bc457ba75419c77d1c7caaaec6dd01089271f2fb8eb46"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/bn_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/bn_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/bn_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ca.lproj/locale.pak",
+      "size": 742357,
+      "sha": "b9d89f3d611a9812c6556a5df66930dcff82c96e9814d9de0c0fc81a8908859a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ca_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ca_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ca_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/chrome_100_percent.pak",
+      "size": 528969,
+      "sha": "b8a24a4c44ea0753106f88c48fc368a6c6ca9eca070d4ece47147ea8e4a1bf92"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/chrome_200_percent.pak",
+      "size": 1012860,
+      "sha": "767bbf0c6c2ab77071b1c36e28dfe090f54c7a61e52d901a1c42d58353c392aa"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/cs.lproj/locale.pak",
+      "size": 763845,
+      "sha": "3af15ff40479499cc8a01c30f34ca976d83e37d285cdbfd2b212fe7f0e064979"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/cs_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/cs_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/cs_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/da.lproj/locale.pak",
+      "size": 687026,
+      "sha": "d47748f5b7915e60b41ae11156f4c8459631ae893f18e92fc4d22c29e51c4dc2"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/da_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/da_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/da_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/de.lproj/locale.pak",
+      "size": 745936,
+      "sha": "c2c5b79c88b05b861a5b71de25796d25288ec169aea87c1e131e299a250eab12"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/de_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/de_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/de_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/el.lproj/locale.pak",
+      "size": 1324260,
+      "sha": "fb01bfab0ed229b01cd954b2ed0c1e08c7a48e1e209adba9f24818ec3a9a8a0e"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/el_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/el_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/el_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/en.lproj/locale.pak",
+      "size": 602682,
+      "sha": "dc94544bceafa7ee3ff4f053bd27c7ec6077a69dbe33b5a2787b8da2b352a6af"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/en_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/en_GB.lproj/locale.pak",
+      "size": 594152,
+      "sha": "95a56bca3e0390a1f080280aa8e748ed42bc5c7ec0f2ceaa00614ed028c2b85a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/en_GB_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/en_GB_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/en_GB_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/en_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/en_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/es.lproj/locale.pak",
+      "size": 721982,
+      "sha": "35f483c05c5109667d6c397e36c459b44a82dcb5595cd093441a6a9f4124710a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/es_419.lproj/locale.pak",
+      "size": 727141,
+      "sha": "9cc2bd6b98b42eca7e31d8a180cc2438728ed2e9d601414141c5c638b181aee9"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/es_419_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/es_419_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/es_419_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/es_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/es_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/es_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/et.lproj/locale.pak",
+      "size": 662258,
+      "sha": "d0e3e2ffc91ee7b69f69a5cff16e3717af514b73e7d17cfee2f68558877d5bf7"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/et_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/et_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/et_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fa.lproj/locale.pak",
+      "size": 1089650,
+      "sha": "0322df89a357b2a698c305f2e37d8bd1e6a541e6160fc5bb93691682d35c6ee9"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fa_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fa_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fa_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fi.lproj/locale.pak",
+      "size": 673329,
+      "sha": "40dca5622d6148e32fb73363a029f52060ecfbd39e59b0b891cad7b8c17a9d5e"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fi_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fi_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fi_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fil.lproj/locale.pak",
+      "size": 760963,
+      "sha": "a2ad6800814bc65ea4d9e6a9cf24c6451bc3513a1e8a5df7b1e838bfa01500c8"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fil_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fil_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fil_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fr.lproj/locale.pak",
+      "size": 789791,
+      "sha": "d8bff088b08b49f082f50bc75fa02e5347630c551af8400c1fa2290797e26915"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fr_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fr_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/fr_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/gpu_shader_cache.bin",
+      "size": 968826,
+      "sha": "d3fc3a27c1d9a651f5d470e0f6ef2e06094ec5ad58c68b497b22b312442fdb8d"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/gu.lproj/locale.pak",
+      "size": 1526522,
+      "sha": "9a377187def515debe61fcc8aef5ebe1df84df86c1439a45a738ae94cfcb7ce4"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/gu_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/gu_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/gu_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/he.lproj/locale.pak",
+      "size": 956041,
+      "sha": "efd6951073ab4a852e5d0f11e29d306341203c14f7b7be67e750745ce6528bce"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/he_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/he_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/he_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hi.lproj/locale.pak",
+      "size": 1629144,
+      "sha": "812918d0229e31048a08ec0da67d277e5bed9bc298d8410e2fff06be8ef050e8"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hi_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hi_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hi_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hr.lproj/locale.pak",
+      "size": 734710,
+      "sha": "4799c3cc800dd9c397c9ff41602bce77bb8cd417fb7e3c8485f180fbc2117177"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hr_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hr_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hr_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hu.lproj/locale.pak",
+      "size": 786063,
+      "sha": "98098b834d392ea9b69c876322f0cc4c3a3b82783a1650231dd6da3b51e862b9"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hu_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hu_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/hu_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/icudtl.dat",
+      "size": 10824432,
+      "sha": "02a01b3188b6a41a756f7322fdb5e6b5ca6573b327b01dfc8ed662d571a6f769"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/id.lproj/locale.pak",
+      "size": 654543,
+      "sha": "10c1c3926451ea9a26df66044cf6b43bdff77817e57ab08f5ff6672a80f12789"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/id_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/id_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/id_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/install.sh",
+      "size": 6377,
+      "sha": "1b541faca17a7a1a124d9e288fd27bf66785f3667d788243383ab17700489b69"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/it.lproj/locale.pak",
+      "size": 717744,
+      "sha": "c2e74f709ad9f0443f5cec38a0d05d30f1806425e41714885ea271496838e7c7"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/it_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/it_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/it_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ja.lproj/locale.pak",
+      "size": 868616,
+      "sha": "967676f6217c29b233df6444f17b8c1dd08209367f41ce6084facabf2f74b6a3"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ja_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ja_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ja_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/kn.lproj/locale.pak",
+      "size": 1753199,
+      "sha": "474704f0fede129c52ee94e258a5d0b751f0768ae4a295490569e578e0d6a13d"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/kn_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/kn_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/kn_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ko.lproj/locale.pak",
+      "size": 740388,
+      "sha": "449b11839a0e219afc790355297fe691d56042b1e6f159ad1e8f5480cb4582a2"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ko_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ko_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ko_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/lt.lproj/locale.pak",
+      "size": 798682,
+      "sha": "eda92db44f030174e9af4f22832d4ada386111b6bf8dcc204f28cd925e51cf30"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/lt_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/lt_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/lt_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/lv.lproj/locale.pak",
+      "size": 795927,
+      "sha": "2d07d137ee337f20f3e8abf000078bf46a052aa32aa53dd4fd597343ab5a5cde"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/lv_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/lv_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/lv_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ml.lproj/locale.pak",
+      "size": 1803521,
+      "sha": "d65e5f588ec9f3b392793278e3f8423c66bb6135ef45ef23c4ba8f5eab955027"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ml_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ml_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ml_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/mr.lproj/locale.pak",
+      "size": 1494654,
+      "sha": "df6b837397afb2bde0551c3ef6b04f3a9bdc121d05fa72747be0c7e55c8bdb86"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/mr_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/mr_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/mr_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ms.lproj/locale.pak",
+      "size": 687867,
+      "sha": "ac2fdacb389ea787167c06bb9b24d8beca86fe5b4f66821779f3adcdd19010bc"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ms_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ms_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ms_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/nb.lproj/locale.pak",
+      "size": 652613,
+      "sha": "d451d147ff5e50836b66e4fab54a82e3d79ecbee1529ed30790448555e2d7ec7"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/nb_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/nb_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/nb_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/nl.lproj/locale.pak",
+      "size": 681736,
+      "sha": "4cbc2717665fa15531cc04f1d7842172a947b57c7de901c6fac5f35dfdec6cba"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/nl_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/nl_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/nl_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pl.lproj/locale.pak",
+      "size": 764256,
+      "sha": "2e7a989a0ecc08a572fd5a5c2c1dfe04e3d668e2bd1f18c87b69d2e579cbd157"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pl_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pl_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pl_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/product_logo_32.png",
+      "size": 2018,
+      "sha": "ae841ee4a539c13ac00e29c6e0f85369f2e280b22659a876093bd61cd34be172"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pt_BR.lproj/locale.pak",
+      "size": 716011,
+      "sha": "2ac747be869c409ee96fe64a2227c398fc58dbc860a71176ef9b7e7b5fd6324d"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pt_BR_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pt_BR_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pt_BR_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pt_PT.lproj/locale.pak",
+      "size": 719514,
+      "sha": "1a2f656345cdd47d5d471506cbbe4d1762438864f06328d1e9fecc2fae57cc07"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pt_PT_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pt_PT_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/pt_PT_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/resources.pak",
+      "size": 20927037,
+      "sha": "bd87e68b067df2b5b3804b2256c6aac4696142a53e9f4511b724d5bd6aa4616c"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ro.lproj/locale.pak",
+      "size": 744389,
+      "sha": "1da56a3d58f37d9fa265e75927701cd6cb35ca87944b8fccdfda0ce6ae39d2b9"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ro_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ro_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ro_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ru.lproj/locale.pak",
+      "size": 1229651,
+      "sha": "6a96ac7c45399ed647651d851b480fe8924c94220fa515d1e9bf3459e734564b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ru_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ru_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ru_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sk.lproj/locale.pak",
+      "size": 776496,
+      "sha": "d3e094bc1e07bf2dbb64913d5b192b1e3c20beb95b85e34489976468d7c3a4b4"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sk_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sk_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sk_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sl.lproj/locale.pak",
+      "size": 740363,
+      "sha": "301a4b18e65ca666acb891a752d659a1b9e28c14c46ac3db60b30f0bd579d965"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sl_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sl_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sl_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sr.lproj/locale.pak",
+      "size": 1137492,
+      "sha": "da86b73f11686399133ca53f0fb1cd931989fc18714779bb7fa18e4800809810"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sr_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sr_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sr_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sv.lproj/locale.pak",
+      "size": 664383,
+      "sha": "8128a77cb719d6562cf6300ac25d16c4e9fd9745db0e6077a4749f9f0083e77f"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sv_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sv_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sv_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sw.lproj/locale.pak",
+      "size": 705394,
+      "sha": "2953863cd99ec42505c5fbe0fe635f71621cf1231c8d39ebe410c9071d1bae6b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sw_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sw_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/sw_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ta.lproj/locale.pak",
+      "size": 1794774,
+      "sha": "d237b1bd056e1fec25a9f3d749f742136587c84c2f3261bd52cc87b7bb63e35b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ta_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ta_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ta_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/te.lproj/locale.pak",
+      "size": 1665072,
+      "sha": "dc3d9c0ff0a54f0831d6c7bfd5196eb2f4ebe3a87f13d891a3f3f0e2f8c20794"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/te_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/te_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/te_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/th.lproj/locale.pak",
+      "size": 1390930,
+      "sha": "ad49317ca1066c5f9c8592a0cab4c18752cc7c1dc430e5070336bbbc8c5cf77b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/th_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/th_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/th_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/tr.lproj/locale.pak",
+      "size": 718976,
+      "sha": "1459f8add9b79403240235d4184833defece709c83a461bb6954bf7947f347c6"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/tr_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/tr_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/tr_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/uk.lproj/locale.pak",
+      "size": 1239583,
+      "sha": "ad9474d101795a586a7220cf18c5e44fa430af13fa101f9f3c88753bae60fe10"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/uk_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/uk_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/uk_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ur.lproj/locale.pak",
+      "size": 1067320,
+      "sha": "b6de4448fa9f4574b4ea649f1383b7a68676e541098c68a82fed62fc7dda7ed3"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ur_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ur_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/ur_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/v8_context_snapshot.arm64.bin",
+      "size": 753112,
+      "sha": "e864c5b2224120d92461567788568a23459147d4fc1db29a2f8a66d7b56e79a1"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/vi.lproj/locale.pak",
+      "size": 851098,
+      "sha": "bee42155b9c4e3ca5d8a4bca33ac4efe267fc46cee6b7fd58bae0323418e45a8"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/vi_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/vi_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/vi_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/zh_CN.lproj/locale.pak",
+      "size": 610059,
+      "sha": "82be1e847e57991794b9c0f435c8e90f326a4bda1c94effcf731ba68cd92a4d5"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/zh_CN_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/zh_CN_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/zh_CN_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/zh_TW.lproj/locale.pak",
+      "size": 603908,
+      "sha": "73c2a339e672f83cbded8ef520c48bc4d0f50d6b800adfaa1bd85917225cf8d9"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/zh_TW_FEMININE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/zh_TW_MASCULINE.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/156.0.8078.47/Resources/zh_TW_NEUTER.lproj/locale.pak",
+      "size": 18,
+      "sha": "ca73097bd968b363b7145e86b64f3c595e533808b0763dc8863a27fc363cfa51"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Frameworks/Google Chrome for Testing Framework.framework/Versions/Current",
+      "symlink": "156.0.8078.47"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Info.plist",
+      "size": 18240,
+      "sha": "af350b4675fd57b4b6a14526f1a920c2c0f72a046db25cc8f8dee2d2f88b1e85"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+      "size": 52112,
+      "sha": "34fbfdb52aacee492bbada9972bf323eba663f8d8a069f86e2652e5158d6c580"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/PkgInfo",
+      "size": 8,
+      "sha": "2e923178639849f5232473c3ae9fa451a9df4bc41751b2bf2d40045bc13ddcff"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/Assets.car",
+      "size": 1362712,
+      "sha": "e70466610b4bdbb61098baf07d342e8e21a67c34cfd2c53e400d3e588ed2cc4c"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/af.lproj/InfoPlist.strings",
+      "size": 1076,
+      "sha": "e86f7b007c5aa6a9ad284bf2e41591b206998db77dd3765ad1c0d2177fdfa1ff"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/am.lproj/InfoPlist.strings",
+      "size": 1726,
+      "sha": "127c902e9f3bb68fbd61eb852b6c9b75c59e1d5a6f5a476c43e5cdb83ecaec8a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/app.icns",
+      "size": 94689,
+      "sha": "3be5d5276c19c48925acc2c6a7896ce238d73b1ca8b74c30724799e2d28223ae"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ar.lproj/InfoPlist.strings",
+      "size": 1971,
+      "sha": "c971ed89273da82a3924debe532ff002238a29be3b3b7f957b82b331163e8b83"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/bg.lproj/InfoPlist.strings",
+      "size": 1776,
+      "sha": "eca9a7dbc6fab706b7b7628f2911c835407e2ffea4f13a330a6671a39a78d77c"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/bn.lproj/InfoPlist.strings",
+      "size": 2299,
+      "sha": "8a5e312b4f8fb504f0bd11b97169bf60be611f007f8189baff62e42a8a0c7f84"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ca.lproj/InfoPlist.strings",
+      "size": 1138,
+      "sha": "165eb8f27dfe7d4143d092e44bf4b179c6d094c31b09e152acd7fc0a8d321c7a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/com.google.chrome.for.testing.manifest/Contents/Resources/com.google.chrome.for.testing.manifest",
+      "size": 174482,
+      "sha": "46ff1419ee252b1f919eb1a3b7a94dcb7415a16a39f3e2ce8d6cb677e06810e6"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/com.google.chrome.for.testing.manifest/Contents/Resources/en.lproj/Localizable.strings",
+      "size": 395452,
+      "sha": "44e64666e2fe6442584645fb8280c8800e8c2e053e90f794de65facf4bab0cde"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/cs.lproj/InfoPlist.strings",
+      "size": 1195,
+      "sha": "c23fbc01a1957a7f0160cc5d145b195f63e435c35660ded3e0b55056a768a137"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/da.lproj/InfoPlist.strings",
+      "size": 1062,
+      "sha": "83207e6bb4b3522136ac36651e3f54eef97064f65c69055a35fb72ca224a64de"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/de.lproj/InfoPlist.strings",
+      "size": 1128,
+      "sha": "3558c0c04be7e637cbfaf27adbe1171fb50c89262bf718e2e06d8c220b7a1af5"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/el.lproj/InfoPlist.strings",
+      "size": 1963,
+      "sha": "08e24f0dd9e48fa5647ef1df76c350df9511d92f0ac519deef112e164bf9b24e"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/en.lproj/InfoPlist.strings",
+      "size": 1119,
+      "sha": "6d763272908fb93e4035ec115876fe1a9633cee14f4be1cb664316e13ca71a49"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/en_GB.lproj/InfoPlist.strings",
+      "size": 1119,
+      "sha": "314030dfef78cbc8f1b731436d0d5ce107072c2ebaf9263b71ae9952c00a4748"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/es.lproj/InfoPlist.strings",
+      "size": 1219,
+      "sha": "75f4f97404ab8149c081c36d2ffff06411282f287075d27e07a96f57571f04e9"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/es_419.lproj/InfoPlist.strings",
+      "size": 1203,
+      "sha": "fa8592d256153c030e62ff905b49d8b492d2c94921d914f735c40b0572615737"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/et.lproj/InfoPlist.strings",
+      "size": 1268,
+      "sha": "e7e23f1833349cda2dd4e75379fe04e0a0d1b373631c18e4c0084a082aee2faf"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/fa.lproj/InfoPlist.strings",
+      "size": 1799,
+      "sha": "407f49e468034f089452077b0fffd5912744593e06fcbe52eb3c4bb403291d72"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/fi.lproj/InfoPlist.strings",
+      "size": 1187,
+      "sha": "697674d29a5ef46b3fe25bbc372ab2bb4efa72d090ff438bbcdca424dcfacc9d"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/fil.lproj/InfoPlist.strings",
+      "size": 1294,
+      "sha": "3ec47e2b7727bdd4f290baa9312d264c8bc5eff79d1ad322965886f76f9b3e8c"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/fr.lproj/InfoPlist.strings",
+      "size": 1496,
+      "sha": "d99b0a28eb443c7355ef19e94b9ddd1ac00c8e71d1e15cd3312727cc5f2a7f31"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/gu.lproj/InfoPlist.strings",
+      "size": 2098,
+      "sha": "ea41acbabe5c537ee93d343deb15e63765c02c2633af41e939aaab4a76c1b05b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/he.lproj/InfoPlist.strings",
+      "size": 1330,
+      "sha": "0d7a4682b6628ba4c2f4771ab0da463dd1a995d67c2b44bb60cef13d66f45a6e"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/hi.lproj/InfoPlist.strings",
+      "size": 2138,
+      "sha": "87afd28f5c2738482ae81b7e1ff605cf5bd6ed1bf7357e025bcc5524a1ba600b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/hr.lproj/InfoPlist.strings",
+      "size": 1164,
+      "sha": "af888dd53eb7dca20c36a6247124a33b676f2896921a3975f08f7653da0777f1"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/hu.lproj/InfoPlist.strings",
+      "size": 1319,
+      "sha": "6bb128c83c7f169a40ace75d2e1910aba47a4dee83ae3d8f7f87f4ad0a2ad34b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/id.lproj/InfoPlist.strings",
+      "size": 1179,
+      "sha": "4f2f185565a560d185ff91858bfe835ea25dd8fc889574d0a86109cdaaf5eab7"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/it.lproj/InfoPlist.strings",
+      "size": 1243,
+      "sha": "b065f124bef333b5d748f7c3d0ac656e580739d77b0a8b09d821f9f716a0fe04"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ja.lproj/InfoPlist.strings",
+      "size": 1608,
+      "sha": "6823f8a41bc3d03e00743446a1218ec9940a18dea7151de6047d65df4ffd8278"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/kn.lproj/InfoPlist.strings",
+      "size": 2829,
+      "sha": "f46ffb850f4e54e5fe043b735d868e8b78dc0eb262a113871bec127e0454a8df"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ko.lproj/InfoPlist.strings",
+      "size": 1478,
+      "sha": "9860077788bab44220d7532024ec89aecc24d7122d447ddc8139114cdde4ea1c"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/lt.lproj/InfoPlist.strings",
+      "size": 1471,
+      "sha": "dbeee8bfc5bb8db91faeeed8da42321fec283ec9cde7b284ca94ca3f42f82775"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/lv.lproj/InfoPlist.strings",
+      "size": 1283,
+      "sha": "29bc303ebdeea00ddd205373d5340f7889f216be2e87a85f8f778497366bc537"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ml.lproj/InfoPlist.strings",
+      "size": 2711,
+      "sha": "0c30ec503297af483b88ed8f2f91e5e414e0cd04f4157d2c1b0f413e1b4766b7"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/mr.lproj/InfoPlist.strings",
+      "size": 2184,
+      "sha": "8998a3e3e1a3ea20b819fc9526030e139659cf1d8f77cb001c7f9427d67ab47b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ms.lproj/InfoPlist.strings",
+      "size": 1276,
+      "sha": "cc93cbe8bcfc45094e3074038a58c31d2fc59d256d653e9181e356620ed7acd3"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/nb.lproj/InfoPlist.strings",
+      "size": 1108,
+      "sha": "877c7b0394ba07438224c63df715ec0155dbdf97b82b4f72750d2152f2601551"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/nl.lproj/InfoPlist.strings",
+      "size": 1111,
+      "sha": "6688b3237b07a3d523b70bc24618acb5cef49703afd254a66e423a2f30144875"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/pl.lproj/InfoPlist.strings",
+      "size": 1213,
+      "sha": "ee5b5e3fcbef1369e595b611e885491491d53f61e3f5ecce2c6d6ecf0e663dd8"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/pt_BR.lproj/InfoPlist.strings",
+      "size": 1141,
+      "sha": "eaff1ab69746928daf6f2df80d7ca557273fbf82980637f51cebbf336dab1c68"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/pt_PT.lproj/InfoPlist.strings",
+      "size": 1213,
+      "sha": "1b15eedfada9f9ede343596582ad3e7b67a4f66731e46ee370ce32cc4cf66907"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ro.lproj/InfoPlist.strings",
+      "size": 1236,
+      "sha": "c0450b66a50c370f82ac7253fe7584be16e89f10715e0bd6482708a648a07725"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ru.lproj/InfoPlist.strings",
+      "size": 1774,
+      "sha": "d1d36e4cca9fc88beba4e7d8a6fc6abf8f55aa66159aa74b514c8519485de7b0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/scripting.sdef",
+      "size": 16777,
+      "sha": "cd0453c2e166a0b664f8ea1d1ac04b53a54eed14835569b6104a7823dbb950f2"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/sk.lproj/InfoPlist.strings",
+      "size": 1163,
+      "sha": "6aea31ab82330ceff92f9680923046be6a7709aff3499e28061477f1ec51dca1"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/sl.lproj/InfoPlist.strings",
+      "size": 1253,
+      "sha": "d3084e69a40261759673e6d0fbd6d7657c70f5f85fe3fe753db603b1540c945a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/sr.lproj/InfoPlist.strings",
+      "size": 1601,
+      "sha": "2a9f9aa85b4cb78db7a53127122c880138ca3928cff469bc5ea205fa3901c310"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/sv.lproj/InfoPlist.strings",
+      "size": 1153,
+      "sha": "44b10ffc962636e5d8a743f1775cea1af0f86752d6ebd8a9657770cfe44240ff"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/sw.lproj/InfoPlist.strings",
+      "size": 1164,
+      "sha": "204d564ec0af79cd7ede5c9511f6c766e4fbcdb0d7bf4708f3be1fde97dd6035"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ta.lproj/InfoPlist.strings",
+      "size": 2522,
+      "sha": "412b010e9b6ff8ef9c14b58fd8d5060ae45da52cf04606372205e0ad27fbadfd"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/te.lproj/InfoPlist.strings",
+      "size": 2862,
+      "sha": "18a665233d62df1d55be754907c676909efae706fe10bb959d19b21000a6e86b"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/th.lproj/InfoPlist.strings",
+      "size": 2324,
+      "sha": "0ec680047df4c86314dca92fad4e4863b245a2b0718a368acb26dc48a4cb113a"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/tr.lproj/InfoPlist.strings",
+      "size": 1346,
+      "sha": "3a9263d82a795c21757bc2980cb068d2bcb209cc68918591cce082286bd22251"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/uk.lproj/InfoPlist.strings",
+      "size": 1647,
+      "sha": "389f878586366886d28a49c1478a309f1d86541375a209d20f95d39c3ee0f348"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/ur.lproj/InfoPlist.strings",
+      "size": 1613,
+      "sha": "9cee6c35250915a8d2fa9957f17c33203121eba0448602f21f28cdbb437ce0e1"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/vi.lproj/InfoPlist.strings",
+      "size": 1523,
+      "sha": "6d3eca5fadc79e8992c80dff4c7e6a39753e8eef75ca9e12bd5f0c303bf4d2c0"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/zh_CN.lproj/InfoPlist.strings",
+      "size": 1257,
+      "sha": "5c2e7314c52af4c7aa16164f52132b6e1750c92a9303d2ab4c7875693729d450"
+    },
+    {
+      "name": "Google Chrome for Testing.app/Contents/Resources/zh_TW.lproj/InfoPlist.strings",
+      "size": 1103,
+      "sha": "96a21211bd6367ec9297aaae608649ddf07d2a696eac036ee213389bedd375ec"
+    },
+    {
+      "name": "resources/accessibility/reading_mode_gdocs_helper/content.js",
+      "size": 439,
+      "sha": "6c0aeaaf9a71ad68aa45764c111e70bb23aa0fbf406644a375b6b709cbbe4b6e"
+    },
+    {
+      "name": "resources/accessibility/reading_mode_gdocs_helper/gdocs_script.js",
+      "size": 1425,
+      "sha": "d291adabcfcb1a4a4a2ffacdd9d04fdb473ab0d6903556bef7446be9c3646d86"
+    },
+    {
+      "name": "resources/accessibility/reading_mode_gdocs_helper_manifest.json",
+      "size": 2375,
+      "sha": "355474bb5dc316273045a7081e5a4868d43c22021942c863d8d7f50144d894c3"
+    }
+  ]
+}

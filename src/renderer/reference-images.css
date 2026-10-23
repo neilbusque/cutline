@@ -1,0 +1,73 @@
+.reference-images {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.reference-images > li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 5px;
+  border: 1px solid var(--separator);
+  border-radius: var(--radius-field);
+  background: var(--fill);
+}
+.reference-thumbnail {
+  flex: 0 0 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: var(--text-3);
+  background: var(--well);
+  border-radius: var(--radius-sm);
+}
+.reference-thumbnail img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.reference-description {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+.reference-description strong {
+  color: var(--text-2);
+  font-weight: 500;
+}
+.reference-description > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-3);
+}
+.reference-description small {
+  font-size: 10px;
+  color: var(--text-3);
+}
+.reference-images .is-missing small {
+  color: var(--warning);
+}
+.reference-actions {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.reference-actions button {
+  min-width: 26px;
+  min-height: 30px;
+  padding: 4px;
+}
+.reference-images button:focus-visible {
+  outline: 2px solid var(--accent-line);
+  outline-offset: 2px;
+}

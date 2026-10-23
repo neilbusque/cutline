@@ -1,0 +1,30 @@
+import { _electron as electron } from '@playwright/test';
+import {readFile,writeFile} from 'node:fs/promises';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+const root=process.cwd(),work=path.resolve('../../work');
+const fixture=JSON.parse(await readFile('sample-project/Creative Demo.cutline','utf8'));
+for(let i=0;i<16;i++)fixture.project.tracks.push({id:`sticky-${i}`,name:`Video ${i+1}`,kind:'video',muted:false,hidden:false});
+const file=path.join(work,'sticky.cutline');await writeFile(file,JSON.stringify(fixture));
+const env={...process.env,CUTLINE_QA:'1',CUTLINE_DATA_DIR:path.join(work,'sticky-data')};delete env.ELECTRON_RUN_AS_NODE;
+const app=await electron.launch({executablePath:path.join(root,'node_modules/electron/dist/Electron.app/Contents/MacOS/Electron'),args:[root,file],env});
+try{
+ const page=await app.firstWindow();await page.waitForSelector('.ruler');
+ const top=(await page.locator('.ruler').boundingBox()).y;
+ await page.locator('.timeline-scroll').evaluate(el=>el.scrollTop=500);
+ await page.waitForTimeout(150);
+ assert(Math.abs((await page.locator('.ruler').boundingBox()).y-top)<1,'Time ruler stays pinned');
+ const positions=await page.evaluate(()=>({tracks:document.querySelector('.timeline-scroll').scrollTop,labels:document.querySelector('.track-labels').scrollTop}));assert.equal(positions.tracks,positions.labels);assert(positions.tracks>=500);
+ const track=await page.locator('[data-track-id="sticky-5"]').boundingBox(), label=await page.getByLabel('Rename Video 6',{exact:true}).locator('..').boundingBox();
+ assert(Math.abs(track.y-label.y)<15,'Track names align with lanes');
+ await page.locator('.track-labels').evaluate(el=>el.scrollTop=750);await page.waitForTimeout(100);
+ assert.equal(await page.locator('.timeline-scroll').evaluate(el=>el.scrollTop),750);
+ await page.getByLabel('Timeline zoom').fill('3');
+ await page.locator('.timeline-scroll').evaluate(el=>el.scrollLeft=250);await page.waitForTimeout(100);
+ const ruler=await page.locator('.ruler').boundingBox();assert(Math.abs(ruler.y-top)<1);
+ const viewport=await page.locator('.timeline-scroll').boundingBox();
+ await page.mouse.click(viewport.x+100,top+12);await page.waitForTimeout(100);
+ assert((await page.locator('.playhead').getAttribute('style')).includes('left: 351px'),'Pinned ruler still seeks after horizontal scroll');
+ await page.screenshot({path:'screenshots/sticky-timeline.png'});
+ console.log('PASS: ruler stays fixed; vertical scrolling synchronized from either side; horizontal scrolling and ruler seeking work.');
+}finally{await app.close();}
