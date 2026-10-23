@@ -12,6 +12,7 @@ The dedicated Pages workflow publishes only this directory on changes to `site/`
 - Preserve the canonical URL, social metadata, factual structured data, sitemap and caption track when editing.
 - Preview at 1440 and 390 pixels; test navigation, FAQ, video controls/captions, keyboard focus and links.
 - The MP4 loads only when requested. Keep its poster and dimensions in HTML to prevent layout shifts.
+- The English caption cues sit near the top of the film to avoid its centered titles and native controls on small screens. Preserve their timing and placement.
 - Keep source-only release and macOS 15+ Apple Silicon requirements accurate. Do not invent app downloads, pricing, reviews or unrestricted dependency-license claims.
 
 ## Search indexing
