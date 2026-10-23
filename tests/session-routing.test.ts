@@ -1,4 +1,10 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -15,6 +21,7 @@ import { Store } from "../src/main/store";
 import { AgentTasks } from "../src/main/agent-tasks";
 import type { SessionConnection, SessionInfo } from "../src/main/sessions";
 import type { Job } from "../src/shared/model";
+import { version } from "../package.json";
 
 const cleanup: Array<() => unknown | Promise<unknown>> = [];
 afterEach(async () => {
@@ -149,7 +156,15 @@ async function clientFor(
 
 describe("explicit session routing", () => {
   it("keeps the built-in Claude MCP endpoint local while external calls require a session", async () => {
-    const { directory, routers } = await fixture();
+    const { directory, ids, routers } = await fixture();
+    for (const id of ids) {
+      const data =
+        id === "main" ? directory : path.join(directory, "sessions", id);
+      const connection = JSON.parse(
+        readFileSync(path.join(data, "connection.json"), "utf8"),
+      );
+      expect(connection.version).toBe(version);
+    }
     const localCall = vi.fn(async () => ({ projectId: "built-in-window" }));
     const bridge = await startBridge(
       new Store(path.join(directory, "built-in.cutline")),
@@ -169,6 +184,9 @@ describe("explicit session routing", () => {
       new StreamableHTTPClientTransport(new URL(bridge.mcpUrl)),
     );
     cleanup.push(() => external.close());
+    for (const client of [local, external]) {
+      expect(client.getServerVersion()).toEqual({ name: "cutline", version });
+    }
     const localResult = await local.callTool({
       name: "cutline_inspect",
       arguments: {},

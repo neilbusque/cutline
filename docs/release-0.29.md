@@ -1,6 +1,10 @@
-# Changes in 0.29.0
+# Changes in 0.29.1
 
 Cutline now has a guided explainer workflow in **Story → Explainer**. Choose a direction, enter your authored script, review the outline and select **Create explainer**.
+
+## Fix in 0.29.1
+
+Local connection metadata, session information and MCP handshakes now use the package version directly. This corrects the stale 0.28.0 label in version 0.29.0 and prevents future release labels from drifting. The four explainer styles and production workflow introduced in 0.29.0 are unchanged.
 
 ## Four editable directions
 

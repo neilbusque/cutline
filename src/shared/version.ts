@@ -1,2 +1,4 @@
-/** Keep local connection metadata and MCP handshake versions consistent. */
-export const CUTLINE_VERSION = "0.28.0";
+import { version } from "../../package.json";
+
+/** Bundle the release version into connection metadata and MCP handshakes. */
+export const CUTLINE_VERSION = version;
