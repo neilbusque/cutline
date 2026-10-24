@@ -47,6 +47,7 @@ import { errorText, IconButton, keepFocusInside } from "./controls";
 import { Projects } from "./Projects";
 import {
   createEditQueue,
+  duplicateCommands,
   hasUnsavedWork,
   previewTransform,
   transformCommands,
@@ -525,13 +526,9 @@ export function App() {
     }
   };
   const duplicate = () => {
-    if (!clip) return;
-    const copy = {
-      ...structuredClone(clip),
-      id: uid(),
-      start: clip.start + clip.duration,
-    };
-    edit("Duplicate clip", [{ type: "clip.add", clip: copy }]);
+    if (!clip || !p) return;
+    const copy = duplicateCommands(p, clip);
+    edit("Duplicate clip", copy.commands);
     setSelected(copy.id);
   };
   useEffect(() => {

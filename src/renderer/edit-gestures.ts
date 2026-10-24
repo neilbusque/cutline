@@ -1,5 +1,6 @@
-import type { Clip, Project, Snapshot } from "../shared/model";
+import { uid, type Clip, type Project, type Snapshot } from "../shared/model";
 import type { Command } from "../shared/commands";
+import { newTrack } from "../shared/layers";
 import { linkedCaptionCommands } from "../shared/linked-captions";
 import { trimClip } from "../shared/timeline";
 
@@ -237,6 +238,61 @@ export function timingCommands(
       "start" in change ? "move" : "trim",
     ),
   ];
+}
+
+/**
+ * ⌘D: a copy right after the clip, built like the agent's clip.duplicate:
+ * no transition, and its generated captions come along. When that spot is
+ * taken, the copy goes on a new track above instead of covering the next
+ * shot in the same row; captions that would collide get a new text track.
+ */
+export function duplicateCommands(project: Project, clip: Clip) {
+  const free = (trackId: string, start: number, end: number) =>
+    !project.clips.some(
+      (c) => c.trackId === trackId && c.start < end && c.start + c.duration > start,
+    );
+  const commands: Command[] = [];
+  const start = clip.start + clip.duration;
+  let trackId = clip.trackId;
+  const added: Project["tracks"] = [];
+  const track = (kind: Project["tracks"][number]["kind"]) => {
+    const made = newTrack(
+      { ...project, tracks: [...project.tracks, ...added] },
+      kind,
+    );
+    added.push(made);
+    commands.push({ type: "track.add", track: made });
+    return made.id;
+  };
+  if (!free(trackId, start, start + clip.duration))
+    trackId = track(project.tracks.find((t) => t.id === clip.trackId)!.kind);
+  const copy: Clip = {
+    ...structuredClone(clip),
+    id: uid(),
+    start,
+    trackId,
+    transition: undefined,
+  };
+  commands.push({ type: "clip.add", clip: copy });
+  const captions = project.clips
+    .filter((c) => c.captionSourceId === clip.id)
+    .map((caption) => ({
+      ...structuredClone(caption),
+      id: uid(),
+      captionSourceId: copy.id,
+      start: caption.start + clip.duration,
+    }));
+  const textTrack = captions.some(
+    (c) => !free(c.trackId, c.start, c.start + c.duration),
+  )
+    ? track("text")
+    : undefined;
+  for (const caption of captions)
+    commands.push({
+      type: "clip.add",
+      clip: { ...caption, trackId: textTrack ?? caption.trackId },
+    });
+  return { id: copy.id, commands };
 }
 
 /** The project with a layer that is being dragged in the preview. */

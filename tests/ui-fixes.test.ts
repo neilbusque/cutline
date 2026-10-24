@@ -5,7 +5,11 @@ import { applyCommands, type Command } from "../src/shared/commands";
 import { makeClip, newProject, type Project } from "../src/shared/model";
 import { errorText } from "../src/renderer/controls";
 import { exampleReplacesTyping } from "../src/renderer/ExplainerStory";
-import { timingCommands, trimCommands } from "../src/renderer/edit-gestures";
+import {
+  duplicateCommands,
+  timingCommands,
+  trimCommands,
+} from "../src/renderer/edit-gestures";
 import { createValueStore } from "../src/renderer/playhead";
 import {
   isTextField,
@@ -403,5 +407,91 @@ describe("examples never silently replace a typed script", () => {
   it("fills an empty form at once", () => {
     expect(exampleReplacesTyping(empty)).toBe(false);
     expect(exampleReplacesTyping({ ...empty, script: "   " })).toBe(false);
+  });
+});
+
+describe("Cmd+D duplicates like the agent", () => {
+  const sequence = () => {
+    const p = newProject();
+    const asset = {
+      id: "shot",
+      name: "Shot",
+      kind: "video" as const,
+      path: "/local/shot.mp4",
+      duration: 20,
+      hasAudio: true,
+    };
+    p.assets = [asset];
+    const first = {
+      ...makeClip(p, "video", "video", 0, asset),
+      id: "first",
+      duration: 90,
+    };
+    const second = {
+      ...makeClip(p, "video", "video", 90, asset),
+      id: "second",
+      duration: 90,
+      transition: { kind: "crossfade" as const, frames: 10, fromId: "first" },
+    };
+    const caption = (id: string, source: string, start: number) => ({
+      ...makeClip(p, "caption", "captions", start),
+      id,
+      duration: 45,
+      text: "Hello",
+      captionSourceId: source,
+    });
+    p.clips = [
+      first,
+      second,
+      caption("a", "first", 0),
+      caption("b", "first", 45),
+      caption("c", "second", 90),
+    ];
+    return p;
+  };
+  const run = (p: Project, id: string) => {
+    const made = duplicateCommands(p, p.clips.find((c) => c.id === id)!);
+    const next = applyCommands(p, {
+      projectId: p.id,
+      revision: p.revision,
+      label: "Duplicate clip",
+      commands: made.commands,
+    });
+    return { next, copy: next.clips.find((c) => c.id === made.id)! };
+  };
+  const overlaps = (p: Project) =>
+    p.clips.some((a) =>
+      p.clips.some(
+        (b) =>
+          a !== b &&
+          a.trackId === b.trackId &&
+          a.start < b.start + b.duration &&
+          b.start < a.start + a.duration,
+      ),
+    );
+
+  it("never stacks the copy on the next shot in one row", () => {
+    const { next, copy } = run(sequence(), "first");
+    expect(copy.start).toBe(90);
+    expect(copy.trackId).not.toBe("video");
+    expect(overlaps(next)).toBe(false);
+  });
+
+  it("brings the clip's captions and drops its transition", () => {
+    const { next, copy } = run(sequence(), "second");
+    expect(copy.trackId).toBe("video");
+    expect(copy.start).toBe(180);
+    expect(copy.transition).toBeUndefined();
+    const captions = next.clips.filter((c) => c.captionSourceId === copy.id);
+    expect(captions.map((c) => c.start)).toEqual([180]);
+    expect(overlaps(next)).toBe(false);
+  });
+
+  it("puts captions that would collide on their own text track", () => {
+    const { next, copy } = run(sequence(), "first");
+    const captions = next.clips.filter((c) => c.captionSourceId === copy.id);
+    expect(captions).toHaveLength(2);
+    expect(captions.every((c) => c.trackId !== "captions")).toBe(true);
+    expect(overlaps(next)).toBe(false);
   });
 });
