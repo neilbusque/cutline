@@ -1351,7 +1351,9 @@ export function StoryLibrary({
                       Keep current scenes
                     </button>
                   )}
-                  {!draft.scenes.length && (
+                  {/* Examples replace the script box, so they leave once
+                      something is typed there. */}
+                  {!draft.scenes.length && !script.trim() && (
                     <>
                       <span className="story-small-heading">
                         Or start with an editable example

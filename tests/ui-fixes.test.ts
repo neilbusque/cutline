@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyCommands, type Command } from "../src/shared/commands";
 import { makeClip, newProject, type Project } from "../src/shared/model";
 import { errorText } from "../src/renderer/controls";
+import { exampleReplacesTyping } from "../src/renderer/ExplainerStory";
 import { timingCommands, trimCommands } from "../src/renderer/edit-gestures";
 import { createValueStore } from "../src/renderer/playhead";
 import {
@@ -379,5 +380,28 @@ describe("Cmd+Z in a text field", () => {
     expect(isTextField(el("INPUT", "checkbox"))).toBe(false);
     expect(isTextField(el("SELECT"))).toBe(false);
     expect(isTextField(el("BUTTON"))).toBe(false);
+  });
+});
+
+describe("examples never silently replace a typed script", () => {
+  const empty = {
+    style: "kinetic" as const,
+    topic: "",
+    script: "",
+    audience: "",
+    cta: "",
+  };
+
+  it("asks first when there are typed words", () => {
+    expect(
+      exampleReplacesTyping({ ...empty, script: "My long narration" }),
+    ).toBe(true);
+    expect(exampleReplacesTyping({ ...empty, topic: "My topic" })).toBe(true);
+    expect(exampleReplacesTyping({ ...empty, cta: "Book a call" })).toBe(true);
+  });
+
+  it("fills an empty form at once", () => {
+    expect(exampleReplacesTyping(empty)).toBe(false);
+    expect(exampleReplacesTyping({ ...empty, script: "   " })).toBe(false);
   });
 });

@@ -48,6 +48,13 @@ const example = {
   cta: "Make your next cut with Cutline",
 };
 
+/** True when the example would replace words that were typed. */
+export function exampleReplacesTyping(input: ExplainerInput) {
+  return (["topic", "script", "audience", "cta"] as const).some(
+    (key) => !!input[key]?.trim() && input[key] !== example[key],
+  );
+}
+
 function StylePreview({ style }: { style: ExplainerStyleId }) {
   return (
     <span className={`explainer-style-preview is-${style}`} aria-hidden="true">
@@ -109,9 +116,11 @@ export function ExplainerStory({
   onCreate: (input: ExplainerInput) => void;
 }) {
   const [confirm, setConfirm] = useState(false);
+  const [confirmExample, setConfirmExample] = useState(false);
   const selected = explainerStyles.find((style) => style.id === input.style);
   const change = (patch: Partial<ExplainerInput>) => {
     setConfirm(false);
+    setConfirmExample(false);
     onInput({ ...input, ...patch });
   };
   const ready = !!input.topic.trim() && !!input.script.trim();
@@ -215,10 +224,28 @@ export function ExplainerStory({
         >
           Create outline <ArrowRight size={14} aria-hidden="true" />
         </button>
-        <button className="story-inline-action" onClick={() => change(example)}>
+        <button
+          className="story-inline-action"
+          onClick={() =>
+            exampleReplacesTyping(input)
+              ? setConfirmExample(true)
+              : change(example)
+          }
+        >
           Use Cutline example
         </button>
       </div>
+      {confirmExample && (
+        <div className="story-warning product-recipe-confirm" role="status">
+          <p>Replace your script with the example?</p>
+          <div>
+            <button className="control" onClick={() => change(example)}>
+              Replace
+            </button>
+            <button onClick={() => setConfirmExample(false)}>Keep</button>
+          </div>
+        </div>
+      )}
       {confirm && (
         <div className="story-warning product-recipe-confirm" role="status">
           <p>
