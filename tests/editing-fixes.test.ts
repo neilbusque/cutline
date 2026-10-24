@@ -690,6 +690,51 @@ describe("transitions move the captions of the clips they move", () => {
     expect(byId(removed, "b1").start).toBe(120);
     expect(byId(removed, "c1").start).toBe(220);
   });
+
+  it("ends the outgoing clip's captions where the incoming clip's begin, so two never show at once", () => {
+    const p = newProject();
+    p.assets = [media("a"), media("b")];
+    const words = (names: string[], step: number) =>
+      names.map((text, i) => ({ text, start: i * step, end: i * step + step * 0.8 }));
+    p.clips = [
+      { ...makeClip(p, "video", "video", 0, p.assets[0]), id: "a", duration: 300 },
+      { ...makeClip(p, "video", "video", 300, p.assets[1]), id: "b", duration: 300 },
+      // 30 fps: the last phrase of a runs to its end, b speaks from its start.
+      caption("w35", 262, 38, words(["w35", "w36", "w37", "w38", "w39"], 0.25), {
+        captionSourceId: "a",
+      }),
+      caption("w0", 300, 37, words(["w0", "w1", "w2", "w3", "w4"], 0.24), {
+        captionSourceId: "b",
+      }),
+      caption("w5", 337, 40, words(["w5", "w6"], 0.6), { captionSourceId: "b" }),
+    ];
+    const faded = tx(validateProject(p), [
+      { type: "clip.transition", id: "b", kind: "crossfade", frames: 15 },
+    ]);
+    const incoming = byId(faded, "w0"),
+      outgoing = byId(faded, "w35");
+    expect(incoming.start).toBe(285);
+    expect(outgoing).toMatchObject({ start: 262, duration: 23 });
+    // Words spoken under the incoming clip's first phrase are cut from it.
+    expect(outgoing.text).toBe("w35 w36 w37 w38");
+    for (let frame = 250; frame < 340; frame++)
+      expect(
+        faded.clips.filter(
+          (c) =>
+            c.kind === "caption" && c.start <= frame && frame < c.start + c.duration,
+        ).length,
+      ).toBeLessThanOrEqual(1);
+    // A crossfade into a clip without captions leaves the outgoing ones alone.
+    const silent = { ...p, clips: p.clips.filter((c) => c.captionSourceId !== "b") };
+    expect(
+      byId(
+        tx(validateProject(silent), [
+          { type: "clip.transition", id: "b", kind: "crossfade", frames: 15 },
+        ]),
+        "w35",
+      ).duration,
+    ).toBe(38);
+  });
 });
 
 describe("splitting inside a transition", () => {
