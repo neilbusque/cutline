@@ -6,6 +6,15 @@ import type { Playhead } from "./playhead";
 
 type LogoMatch = { title: string; slug: string; color: string };
 
+/**
+ * What a search with no matches shows: the site's own logo for a web
+ * address, a retry when the search itself failed, or "not in the library".
+ */
+export function emptyLogoSearch(query: string, failed: boolean) {
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/iu.test(query.trim())) return "site";
+  return failed ? "failed" : "missing";
+}
+
 const logoColors = [
   ["brand", "Brand"],
   ["white", "White"],
@@ -27,10 +36,15 @@ export function VectorStudio({
   const [query, setQuery] = useState("");
   // Results remember the text they answer, so a quick click never adds the
   // previous search's logo.
-  const [found, setFound] = useState<{ query: string; matches: LogoMatch[] }>({
+  const [found, setFound] = useState<{
+    query: string;
+    matches: LogoMatch[];
+    failed?: boolean;
+  }>({
     query: "",
     matches: [],
   });
+  const [attempt, setAttempt] = useState(0);
   const matches = found.query === query.trim() ? found.matches : [];
   const [logoColor, setLogoColor] =
     useState<(typeof logoColors)[number][0]>("brand");
@@ -50,13 +64,15 @@ export function VectorStudio({
           (result: LogoMatch[]) =>
             live && setFound({ query: text, matches: result ?? [] }),
         )
-        .catch(() => live && setFound({ query: text, matches: [] }));
+        .catch(
+          () => live && setFound({ query: text, matches: [], failed: true }),
+        );
     }, 220);
     return () => {
       live = false;
       clearTimeout(timer);
     };
-  }, [query]);
+  }, [query, attempt]);
 
   const fail = (failure: unknown) => onError(errorText(failure));
 
@@ -165,7 +181,7 @@ export function VectorStudio({
         {query.trim().length >= 2 &&
           found.query === query.trim() &&
           !matches.length &&
-          (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/iu.test(query.trim()) ? (
+          (emptyLogoSearch(query, !!found.failed) === "site" ? (
             <button
               className="import-button control"
               disabled={!!working}
@@ -178,6 +194,16 @@ export function VectorStudio({
             >
               Add the logo from {query.trim()}
             </button>
+          ) : found.failed ? (
+            <p className="mg-sequence-hint" role="alert">
+              Logo search failed.{" "}
+              <button
+                className="vs-link"
+                onClick={() => setAttempt((count) => count + 1)}
+              >
+                Try again
+              </button>
+            </p>
           ) : (
             <p className="mg-sequence-hint">
               Not in the library. Type its website, such as gamma.app, to use

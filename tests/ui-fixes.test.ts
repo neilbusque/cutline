@@ -708,3 +708,13 @@ describe("Draw vector starts a drawing", () => {
     expect(html).not.toContain(layer.vectorPath!);
   });
 });
+
+describe("a failed logo search is not a missing logo", () => {
+  it("says the search failed and offers a retry", async () => {
+    const { emptyLogoSearch } = await import("../src/renderer/VectorStudio");
+    expect(emptyLogoSearch("Claude", true)).toBe("failed");
+    expect(emptyLogoSearch("Claude", false)).toBe("missing");
+    // A web address can still use the site's own logo either way.
+    expect(emptyLogoSearch("gamma.app", true)).toBe("site");
+  });
+});
