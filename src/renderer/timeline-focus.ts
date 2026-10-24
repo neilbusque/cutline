@@ -87,3 +87,20 @@ export function clipFocusTarget(
   }
   return undefined;
 }
+
+/**
+ * Keys the editor leaves to the focused control. Delete and the left and right
+ * arrows act on what is focused in Properties, a library panel or a dialog (a
+ * path point, a key, a layer row), never the selected clip or the playhead.
+ * Space on a section heading opens or closes the section instead of playing.
+ */
+export function keyStaysInFocus(
+  target: Pick<Element, "tagName" | "closest">,
+  key: string,
+) {
+  if (key === " ") return target.tagName === "SUMMARY";
+  return (
+    ["Delete", "Backspace", "ArrowLeft", "ArrowRight"].includes(key) &&
+    !!target.closest(".right-panel, .library, [role=dialog]")
+  );
+}

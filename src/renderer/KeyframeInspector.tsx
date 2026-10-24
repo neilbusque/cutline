@@ -423,6 +423,14 @@ export function KeyframeInspector({
               k.frame >= c.animationOffset + c.duration
             }
             onClick={() => select(k)}
+            onKeyDown={(event) => {
+              if (event.key !== "Delete" && event.key !== "Backspace") return;
+              event.preventDefault();
+              event.stopPropagation();
+              change(k.frame - c.animationOffset, k.value, k.easing, true);
+              setSelectedFrame(null);
+              setError("");
+            }}
           >
             ◆ {keyTime(k.frame - c.animationOffset, fps)} ·{" "}
             {formatKeyValue(property, k.value)} · {easingName(k)}

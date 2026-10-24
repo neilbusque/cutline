@@ -6,6 +6,7 @@ import { makeClip, newProject, type Project } from "../src/shared/model";
 import { errorText } from "../src/renderer/controls";
 import { timingCommands, trimCommands } from "../src/renderer/edit-gestures";
 import { createValueStore } from "../src/renderer/playhead";
+import { keyStaysInFocus } from "../src/renderer/timeline-focus";
 
 const remote = (message: string) =>
   Error(`Error invoking remote method 'cutline': Error: ${message}`);
@@ -329,5 +330,32 @@ describe("generated captions follow every trim and timing edit", () => {
     const { p, video } = captioned();
     const next = apply(p, timingCommands(p, video, { duration: 100 }));
     expect(inside(next)).toBe(true);
+  });
+});
+
+describe("keys pressed in a panel act on what is focused there", () => {
+  const at = (tagName: string, inPanel: boolean) => ({
+    tagName,
+    closest: (selector: string) =>
+      inPanel && selector.includes(".right-panel") ? {} : null,
+  }) as unknown as Element;
+
+  it("Delete on a path point, key or layer row never reaches the clip", () => {
+    for (const key of ["Delete", "Backspace"]) {
+      expect(keyStaysInFocus(at("circle", true), key)).toBe(true);
+      expect(keyStaysInFocus(at("BUTTON", true), key)).toBe(true);
+    }
+    // Outside the panels, Delete still removes the selected clip.
+    expect(keyStaysInFocus(at("DIV", false), "Delete")).toBe(false);
+  });
+
+  it("arrows in a panel leave the playhead alone", () => {
+    expect(keyStaysInFocus(at("circle", true), "ArrowLeft")).toBe(true);
+    expect(keyStaysInFocus(at("DIV", false), "ArrowRight")).toBe(false);
+  });
+
+  it("Space opens a focused section instead of playing", () => {
+    expect(keyStaysInFocus(at("SUMMARY", true), " ")).toBe(true);
+    expect(keyStaysInFocus(at("BUTTON", true), " ")).toBe(false);
   });
 });

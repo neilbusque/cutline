@@ -270,6 +270,16 @@ export function VectorEditor({
       event.stopPropagation();
       return;
     }
+    // Delete removes the focused point, never the clip.
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      event.stopPropagation();
+      if (kind !== "point" || points.length <= 2) return;
+      releaseGesture();
+      writePoints(points.filter((_, j) => j !== i));
+      setSelected(Math.max(0, i - 1));
+      return;
+    }
     const direction: Record<string, Point> = {
       ArrowLeft: { x: -1, y: 0 },
       ArrowRight: { x: 1, y: 0 },

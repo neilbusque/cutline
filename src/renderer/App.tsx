@@ -53,6 +53,7 @@ import {
   withDraft,
 } from "./edit-gestures";
 import { kindLabel } from "./labels";
+import { keyStaysInFocus } from "./timeline-focus";
 import {
   createValueStore,
   usePlayheadFrame,
@@ -553,6 +554,7 @@ export function App() {
       const target = e.target as HTMLElement;
       if (target.matches("input,textarea,select") || target.isContentEditable)
         return;
+      const focused = keyStaysInFocus(target, e.key);
       if (e.key === "Escape") {
         setSelected(undefined);
         setSettingsOpen(false);
@@ -563,7 +565,7 @@ export function App() {
         duplicate();
         return;
       }
-      if (e.code === "Space") {
+      if (e.code === "Space" && !focused) {
         // A clicked button keeps focus; Space should still play, not click it
         // again. Keyboard-focused buttons keep their normal Space behaviour.
         const button = target.closest("button");
@@ -585,6 +587,7 @@ export function App() {
         e.preventDefault();
         void run(e.shiftKey ? "save.as" : "save");
       }
+      if (focused) return;
       if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();
         remove(e.shiftKey);

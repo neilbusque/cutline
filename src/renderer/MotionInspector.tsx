@@ -270,11 +270,11 @@ export function MotionInspector({
     setKeyError("");
     update({ keyframes: next });
   };
-  const removeKey = () =>
+  const removeKey = (keyFrame = at) =>
     update({
       keyframes: layer.keyframes
         .map((k) => {
-          if (k.frame !== at) return k;
+          if (k.frame !== keyFrame) return k;
           const next = { ...k };
           delete next[property];
           return next;
@@ -428,6 +428,13 @@ export function MotionInspector({
       onChange={(n) => update({ [field]: n })}
     />
   );
+  // A motion keeps at least one layer.
+  const removeLayers = (indices: number[]) => {
+    if (!indices.length || indices.length >= motion.layers.length) return;
+    const layers = motion.layers.filter((_, i) => !indices.includes(i));
+    put(layers, "Remove motion layers");
+    selectOnly(Math.min(index, layers.length - 1));
+  };
   const layerName = (l: Layer) =>
     l.name || (l.type === "text" ? l.text || "Clip text" : optionLabel(l.type));
   return (
@@ -479,6 +486,13 @@ export function MotionInspector({
                     setSelected(i);
                   } else if (selection.includes(i)) setSelected(i);
                   else selectOnly(i);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Delete" && event.key !== "Backspace")
+                    return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  removeLayers(selection.includes(i) ? selection : [i]);
                 }}
               >
                 <span>{i + 1}</span>
@@ -567,13 +581,7 @@ export function MotionInspector({
           className="control"
           aria-label="Remove motion layer"
           disabled={selection.length === motion.layers.length}
-          onClick={() => {
-            const layers = motion.layers.filter(
-              (_, i) => !selection.includes(i),
-            );
-            put(layers, "Remove motion layers");
-            selectOnly(Math.min(index, layers.length - 1));
-          }}
+          onClick={() => removeLayers(selection)}
         >
           <Trash2 size={14} />
         </button>
@@ -1246,7 +1254,7 @@ export function MotionInspector({
             <Diamond size={12} />
             {key ? "Update layer keyframe" : "Add layer keyframe"}
           </button>
-          <button disabled={!key || !inside} onClick={removeKey}>
+          <button disabled={!key || !inside} onClick={() => removeKey()}>
             Remove layer keyframe
           </button>
         </div>
@@ -1522,6 +1530,14 @@ export function MotionInspector({
                 setMoveFrame(String(Math.max(0, Math.min(moveMax, relative))));
                 setKeyError("");
                 seek(motionKeySeekFrame(layer, clip, k.frame, frame));
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Delete" && event.key !== "Backspace")
+                  return;
+                event.preventDefault();
+                event.stopPropagation();
+                removeKey(k.frame);
+                if (keyTarget === k.frame) setKeyTarget(undefined);
               }}
             >
               ◆ {k.frame} · {Math.round(k[property]! * 100) / 100} ·{" "}
