@@ -1127,7 +1127,8 @@ export function createReelPlan(
   }
   const roles: Roles[] = [
     ...(hook || cta ? ["titles" as const] : []),
-    ...(format !== "montage" || requestedBeats?.length
+    // beats [] turns animations off: no empty animations track.
+    ...((requestedBeats ? requestedBeats.length : format !== "montage")
       ? ["beats" as const]
       : []),
     ...(options.captions !== false ? ["captions" as const] : []),
