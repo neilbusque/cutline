@@ -52,6 +52,7 @@ export function Projects({
   const [folder, setFolder] = useState("");
   const [busy, setBusy] = useState(false);
   const sheet = useRef<HTMLElement>(null);
+  const placed = useRef(false);
   const load = useCallback(() => {
     window.cutline
       .invoke("projects.list")
@@ -61,14 +62,29 @@ export function Projects({
       })
       .catch(report);
   }, [report]);
+  // Return opens the highlighted project, as in Finder, never New project:
+  // Close holds focus until the list is in, then the first other project.
+  const close = () =>
+    sheet.current?.querySelector<HTMLElement>(
+      'button[aria-label="Close projects"]',
+    );
   useEffect(() => {
     load();
     const previous = document.activeElement as HTMLElement | null;
-    sheet.current?.querySelector<HTMLElement>("button")?.focus();
+    close()?.focus();
     return () => {
       if (previous?.isConnected) previous.focus();
     };
   }, [load]);
+  useEffect(() => {
+    if (list === null || placed.current) return;
+    placed.current = true;
+    (
+      sheet.current?.querySelector<HTMLElement>(
+        ".projects-row:not(.current) .projects-open",
+      ) ?? close()
+    )?.focus();
+  }, [list]);
   const act = async (name: string, args?: unknown, close = true) => {
     setBusy(true);
     try {
