@@ -33,7 +33,11 @@ export function captionReplacementPlan(
 ) {
   if (!find) return [];
   const escaped = find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const pattern = new RegExp(escaped, "gi");
+  // Whole words only: fixing "ai" must not touch "said" or "again".
+  const pattern = new RegExp(
+    `(?<![\\p{L}\\p{N}'])${escaped}(?![\\p{L}\\p{N}'])`,
+    "giu",
+  );
   return captions.flatMap((clip) => {
     const text = clip.text.replace(pattern, () => replacement);
     if (text === clip.text) return [];
