@@ -672,3 +672,39 @@ describe("copy points at things that exist", () => {
     }
   });
 });
+
+describe("Draw vector starts a drawing", () => {
+  it("opens the Path designer empty, with Add points on", async () => {
+    const { VectorEditor, startVectorDrawing } = await import(
+      "../src/renderer/VectorEditor"
+    );
+    const { parseEditableSvg } = await import("../src/shared/vector-path");
+    const { createVectorScene } = await import("../src/shared/vector-scenes");
+    const created = createVectorScene(
+      newProject(),
+      0,
+      parseEditableSvg(
+        '<svg viewBox="0 0 100 100"><path d="M15 75 L50 15 L85 75" fill="none" stroke="#81b6ff" stroke-width="4"/></svg>',
+      ),
+      { name: "Custom vector" },
+    );
+    const layer = created.motion.layers[0];
+    const key = `${created.motion.id}:0`;
+    const render = () =>
+      renderToStaticMarkup(
+        React.createElement(VectorEditor, {
+          layer,
+          draftKey: key,
+          onApply: () => {},
+        }),
+      );
+    // Without the seeded draft the starter shape opens in Select.
+    const before = render();
+    expect(before).toMatch(/aria-pressed="true"[^>]*>.*Select/u);
+    expect(before).toContain(layer.vectorPath!);
+    startVectorDrawing(key, layer);
+    const html = render();
+    expect(html).toMatch(/aria-pressed="true"[^>]*>.*Add points/u);
+    expect(html).not.toContain(layer.vectorPath!);
+  });
+});

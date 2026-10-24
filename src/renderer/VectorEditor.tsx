@@ -47,6 +47,13 @@ export function restoreVectorDraft(key: string, layer: MotionLayer) {
 export function forgetVectorDraft(key: string) {
   savedDrafts.delete(key);
 }
+/**
+ * Draw vector: the new layer opens in the Path designer as an empty drawing,
+ * ready for points, instead of with its starter shape.
+ */
+export function startVectorDrawing(key: string, layer: MotionLayer) {
+  rememberVectorDraft(key, layer, { ...fromLayer(layer), path: "" });
+}
 
 export function VectorEditor({
   layer,
@@ -66,7 +73,10 @@ export function VectorEditor({
     () => (draftKey && restoreVectorDraft(draftKey, layer)) || fromLayer(layer),
   );
   const [selected, setSelected] = useState(0);
-  const [tool, setTool] = useState<"select" | "add">("select");
+  // An empty drawing starts with Add points: there is nothing to select yet.
+  const [tool, setTool] = useState<"select" | "add">(() =>
+    draft.path.trim() ? "select" : "add",
+  );
   const [notice, setNotice] = useState("");
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const svg = useRef<SVGSVGElement>(null);

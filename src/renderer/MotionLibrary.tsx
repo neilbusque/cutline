@@ -30,6 +30,7 @@ import { MotionTile } from "./MotionTile";
 import { parseEditableSvg } from "../shared/vector-path";
 import { createVectorScene } from "../shared/vector-scenes";
 import { VectorStudio } from "./VectorStudio";
+import { startVectorDrawing } from "./VectorEditor";
 import { errorText } from "./controls";
 import type { Playhead } from "./playhead";
 import {
@@ -279,8 +280,10 @@ export function MotionLibrary({
         const created = createVectorScene(p, playhead.get(), parsed, {
           name: "Custom vector",
         });
-        if (await edit("Draw custom vector", created.commands))
+        if (await edit("Draw custom vector", created.commands)) {
+          startVectorDrawing(`${created.motion.id}:0`, created.motion.layers[0]);
           select(created.clip.id);
+        }
       }
     } catch (failure) {
       setError(errorText(failure));
