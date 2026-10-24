@@ -1512,6 +1512,15 @@ function register() {
       },
     }),
     edit: (args) => store.transact(args),
+    /**
+     * The editor's own edits: the window gets the new project through the
+     * "state" event already, so the reply carries only what the edit queue
+     * needs instead of a second full copy of the project.
+     */
+    "edit.brief": (args) => {
+      const { project } = store.transact(args);
+      return { project: { id: project.id, revision: project.revision } };
+    },
     "sessions.list": async () => ({
       currentId: sessionContext.id,
       sessions: await sessions.list(),

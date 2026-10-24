@@ -284,7 +284,7 @@ export function App() {
   );
   const pendingLayer = useRef<number | undefined>(undefined);
   const [sendEdit] = useState(() =>
-    createEditQueue((request) => api.invoke("edit", request)),
+    createEditQueue((request) => api.invoke("edit.brief", request)),
   );
   const [playing, setPlaying] = useState(false);
   const [mediaSelection, setMediaSelection] = useState<string[]>([]);

@@ -45,8 +45,12 @@ export class Jobs {
     return j;
   }
   update(j: Job, patch: Partial<Job>) {
+    const shown = `${j.state}|${j.message}|${j.output}|${Math.round(j.progress * 100)}`;
     Object.assign(j, patch);
-    this.changed(j);
+    // Progress arrives many times a second and the editor redraws for each
+    // message, so only a whole-percent step or a real change is sent.
+    if (`${j.state}|${j.message}|${j.output}|${Math.round(j.progress * 100)}` !== shown)
+      this.changed(j);
   }
   cancel(id: string) {
     const j = this.jobs.get(id);
