@@ -28,6 +28,7 @@ import {
   CommandSchema,
   TransactionSchema,
   applyCommands,
+  rippleShifts,
   type Command,
 } from "./commands";
 import { animatedProperties, propertyBounds } from "./animation";
@@ -812,24 +813,38 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           break;
         }
         case "clip.delete": {
-          const c = clip(action.clipId),
-            commands: Command[] = [];
-          if (action.deleteCaptions)
-            for (const caption of working.clips.filter(
-              (part) => part.captionSourceId === c.id,
-            ))
-              commands.push({
-                type: "clip.delete",
-                id: caption.id,
-                ripple: false,
-              });
-          commands.push({
-            type: "clip.delete",
-            id: c.id,
-            ripple: action.ripple,
-            deleteCaptions: action.deleteCaptions,
-          });
-          run(commands);
+          const c = clip(action.clipId);
+          const captions = action.deleteCaptions
+            ? working.clips.filter((part) => part.captionSourceId === c.id)
+            : [];
+          if (action.ripple) {
+            const { shift, short } = rippleShifts(
+              working,
+              c,
+              new Set(captions.map((caption) => caption.id)),
+            );
+            const seconds = (frames: number) =>
+              `${Number((frames / working.fps).toFixed(2))} s`;
+            for (const { track, moved } of short)
+              warnings.push(
+                moved
+                  ? `Track "${track.name}" moved back ${seconds(moved)}, not ${seconds(shift)}: any further would overlap the clip before it.`
+                  : `Track "${track.name}" did not move: moving it back would overlap the clip before it.`,
+              );
+          }
+          run([
+            ...captions.map((caption) => ({
+              type: "clip.delete" as const,
+              id: caption.id,
+              ripple: false,
+            })),
+            {
+              type: "clip.delete",
+              id: c.id,
+              ripple: action.ripple,
+              deleteCaptions: action.deleteCaptions,
+            },
+          ]);
           break;
         }
         case "clip.keyframe": {
@@ -1428,7 +1443,7 @@ export function agentEditingGuide() {
       timeline:
         "at/start/end accept {frame} or {seconds}; seconds round to the project fps. End times are exclusive. Source media sourceIn and word timestamps are seconds; word timestamps are clip-relative. project.update fps (24, 25, 30 or 60) works only while the timeline is empty, so set it before adding clips.",
       clips:
-        "clip.keyframe.frame is clip-relative and automatically includes animationOffset. Split/trim preserve existing animation phase. Semantic clip.move/duplicate follows linked captions by default; clip.trim bounds linked captions; clip.delete deletes linked captions by default. Ripple deletion shifts later clips across all tracks. reverse=true plays a video or audio clip backwards from a reversed copy Cutline makes on this Mac (export waits for it); its sourceIn then counts from the end of the source, and switching reverse with clip.update and no sourceIn keeps the same footage, so the usual way is to place the clip forward, then set reverse. freeze=true holds the clip's first frame, silently, for its whole duration, which may run past the source. Reversed and held clips have no captions, pause removal or beat sync.",
+        "clip.keyframe.frame is clip-relative and automatically includes animationOffset. Split/trim preserve existing animation phase. Semantic clip.move/duplicate follows linked captions by default; clip.trim bounds linked captions; clip.delete deletes linked captions by default. Ripple deletion closes the gap on the clip's track; other tracks move back as far as they can without overlapping. reverse=true plays a video or audio clip backwards from a reversed copy Cutline makes on this Mac (export waits for it); its sourceIn then counts from the end of the source, and switching reverse with clip.update and no sourceIn keeps the same footage, so the usual way is to place the clip forward, then set reverse. freeze=true holds the clip's first frame, silently, for its whole duration, which may run past the source. Reversed and held clips have no captions, pause removal or beat sync.",
       motion:
         "motion.keyframe.frame and motion.keyframe.move fromFrame/toFrame are motion curve frames, including loop endpoints; they do not add a clip animationOffset. Key moves preserve the selected property's easing and Bezier handles and leave sibling curves unchanged. An occupied destination for that property rejects the whole transaction. Layers and track indices start at 0. Last motion layer is on top; track index 0 is topmost. Motion x/y keys are movement offsets from layer placement. Other curves override static values. Easing belongs to the outgoing key segment; cubic-bezier accepts bezier=[x1,y1,x2,y2], x in 0..1 and y in -2..3. Duplicate keys use the last specified value per property. motion.scene.durationFrames retimes choreography; leaving it out uses four seconds. Typography overrides and masked line-reveal timing are editable per layer. Layer name is optional and limited to 80 characters; hidden=true keeps the layer editable but excludes it from rendering and music accents. musicAccent=false keeps a graphical layer steady in accents mode.",
       references:

@@ -191,9 +191,47 @@ function assertOutsideTransitions(p: Project, c: Clip, frame: number) {
 }
 
 /**
- * Removes a clip with the captions generated from it. A ripple closes the gap
- * on every track without stacking the clips that crossfaded with it.
+ * How far a ripple delete of c moves each later clip. Its own track closes
+ * the whole gap without stacking the clips that crossfaded with it. Another
+ * track moves only as far as its own free space allows, so a title or a
+ * second voice never slides onto the clip before it, and generated captions
+ * move with their clip. `short` lists the tracks that moved less.
  */
+export function rippleShifts(p: Project, c: Clip, removed: Set<string>) {
+  const { head, tail } = transitionOverlaps(p, c);
+  const from = c.start + c.duration - tail,
+    shift = Math.max(0, c.duration - head - tail);
+  const kept = p.clips.filter((x) => x.id !== c.id && !removed.has(x.id));
+  const keptIds = new Set(kept.map((x) => x.id));
+  const linked = (x: Clip) =>
+    !!x.captionSourceId && keptIds.has(x.captionSourceId);
+  const moves = new Map<string, number>();
+  const short: { track: Track; moved: number }[] = [];
+  for (const track of p.tracks) {
+    const own = kept.filter((x) => x.trackId === track.id && !linked(x));
+    const later = own.filter((x) => x.start >= from);
+    if (!later.length) continue;
+    let moved = shift;
+    if (track.id !== c.trackId) {
+      const blockEnd = Math.max(
+        0,
+        ...own.filter((x) => x.start < from).map((x) => x.start + x.duration),
+      );
+      moved = Math.min(
+        shift,
+        Math.max(0, Math.min(...later.map((x) => x.start)) - blockEnd),
+      );
+      if (moved < shift) short.push({ track, moved });
+    }
+    for (const x of later) if (moved) moves.set(x.id, moved);
+  }
+  for (const x of kept)
+    if (linked(x) && moves.has(x.captionSourceId!))
+      moves.set(x.id, moves.get(x.captionSourceId!)!);
+  return { shift, moves, short };
+}
+
+/** Removes a clip with the captions generated from it, closing the gap on a ripple. */
 function deleteClip(
   p: Project,
   c: Clip,
@@ -201,9 +239,6 @@ function deleteClip(
   captions: boolean,
   cascaded: Set<string>,
 ) {
-  const { head, tail } = ripple
-    ? transitionOverlaps(p, c)
-    : { head: 0, tail: 0 };
   const removed = new Set([c.id]);
   if (captions)
     for (const x of p.clips)
@@ -211,14 +246,13 @@ function deleteClip(
         removed.add(x.id);
         cascaded.add(x.id);
       }
+  // Planned while c is still in place: its crossfades decide the gap.
+  const moves = ripple ? rippleShifts(p, c, removed).moves : undefined;
   p.clips = p.clips.filter((x) => !removed.has(x.id));
   // A transition from a deleted clip has nothing left to blend from.
   for (const x of p.clips)
     if (x.transition?.fromId === c.id) delete x.transition;
-  if (!ripple) return;
-  const from = c.start + c.duration - tail,
-    shift = Math.max(0, c.duration - head - tail);
-  for (const x of p.clips) if (x.start >= from) x.start -= shift;
+  if (moves) for (const x of p.clips) x.start -= moves.get(x.id) ?? 0;
 }
 
 /** Raw edits must keep every clip it touches on a track of its kind. */

@@ -457,6 +457,93 @@ describe("ripple delete respects crossfades", () => {
   });
 });
 
+describe("ripple delete never slides one clip onto another", () => {
+  function timeline() {
+    const p = newProject();
+    p.tracks.push(
+      { id: "voice", name: "Voice", kind: "audio", muted: false, hidden: false },
+      { id: "talk", name: "Talk", kind: "audio", muted: false, hidden: false },
+    );
+    p.assets = [
+      media("a"),
+      media("b"),
+      media("c"),
+      media("song", "audio", 30),
+      media("vo", "audio", 30),
+    ];
+    const at = (id: string, kind: "video" | "audio", track: string, asset: number, start: number, duration: number) => ({
+      ...makeClip(p, kind, track, start, p.assets[asset]),
+      id,
+      duration,
+    });
+    p.clips = [
+      // 30 fps: three 3 s shots back to back.
+      at("v1", "video", "video", 0, 0, 90),
+      at("v2", "video", "video", 1, 90, 90),
+      at("v3", "video", "video", 2, 180, 90),
+      { ...makeClip(p, "text", "titles", 60), id: "t1", duration: 60 },
+      { ...makeClip(p, "text", "titles", 180), id: "t2", duration: 60 },
+      // Two music clips back to back on one track.
+      at("m1", "audio", "audio", 3, 0, 180),
+      at("m2", "audio", "audio", 3, 180, 150),
+      // A voiceover alone on its track, after the deleted shot.
+      at("vo", "audio", "voice", 4, 200, 60),
+      // A long narration whose own captions sit after the deleted shot.
+      at("narration", "audio", "talk", 4, 0, 600),
+      caption("v3-words", 190, 30, [{ text: "third", start: 0, end: 0.5 }], {
+        captionSourceId: "v3",
+      }),
+      caption("told", 300, 30, [{ text: "told", start: 0, end: 0.5 }], {
+        captionSourceId: "narration",
+      }),
+    ];
+    return validateProject(p);
+  }
+  const overlaps = (p: Project) =>
+    p.clips.some((a) =>
+      p.clips.some(
+        (b) =>
+          a.id < b.id &&
+          a.trackId === b.trackId &&
+          a.start < b.start + b.duration &&
+          b.start < a.start + a.duration,
+      ),
+    );
+
+  it("closes the gap on the shot's track and moves other tracks only into free space", () => {
+    const p = timeline();
+    expect(overlaps(p)).toBe(false);
+    const next = tx(p, [{ type: "clip.delete", id: "v2", ripple: true }]);
+    expect(byId(next, "v3").start).toBe(90);
+    // The title can only close up to the one before it: 60 of 90 frames.
+    expect([byId(next, "t1").start, byId(next, "t2").start]).toEqual([60, 120]);
+    // The second music clip has no room, so the bed never doubles up.
+    expect(byId(next, "m2").start).toBe(180);
+    // A track with nothing before the gap closes all of it.
+    expect(byId(next, "vo").start).toBe(110);
+    // Captions follow their own clip: the third shot's move back, and the
+    // narration's staying put.
+    expect(byId(next, "v3-words").start).toBe(100);
+    expect(byId(next, "told").start).toBe(300);
+    expect(overlaps(next)).toBe(false);
+  });
+
+  it("tells an agent which tracks could not close the whole gap", () => {
+    const p = timeline();
+    const result = applyAgentEdit(p, {
+      projectId: p.id,
+      revision: p.revision,
+      label: "Ripple delete",
+      actions: [{ type: "clip.delete", clipId: "v2", ripple: true }],
+    });
+    expect(result.summary.warnings).toEqual([
+      'Track "Titles" moved back 2 s, not 3 s: any further would overlap the clip before it.',
+      'Track "Music & audio" did not move: moving it back would overlap the clip before it.',
+    ]);
+    expect(overlaps(result.project)).toBe(false);
+  });
+});
+
 describe("deleting a clip removes the captions made from it", () => {
   function fixture() {
     const p = newProject();
