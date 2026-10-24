@@ -141,10 +141,10 @@ try {
     ].entries()) {
       await seekTo(index * 3);
       await page
-        .getByLabel("Describe the vector", { exact: true })
+        .getByLabel("Describe the graphic", { exact: true })
         .fill(run.prompt);
       await page
-        .getByLabel("Vector style", { exact: true })
+        .getByLabel("Graphic style", { exact: true })
         .selectOption(run.style);
       await page
         .locator(".vs-segmented")
@@ -179,6 +179,30 @@ try {
         `${Math.round((Date.now() - started) / 1000)}s, ${hint}`,
       );
     }
+  }
+
+  if (!skipGenerate) {
+    // The assistant's route: cutline_graphic draws, checks and places it.
+    const started = Date.now();
+    let made = await call("cutline_graphic", {
+      ...guard(await project()),
+      prompt: "A friendly robot waving hello",
+      style: "flat",
+      at: { seconds: 24 },
+    });
+    while (made.state === "running" && made.jobId) {
+      const listed = await call("cutline_jobs", { id: made.jobId, waitSeconds: 30 });
+      const job = listed[0] ?? (listed.jobs ?? [listed])[0];
+      assert(!["error", "cancelled"].includes(job.state), JSON.stringify(job));
+      if (job.state === "done") made = job.result;
+    }
+    assert.equal(made.kind, "vector", JSON.stringify(made));
+    const placed = (await project()).clips.find((clip) => clip.id === made.clipId);
+    assert(placed, "cutline_graphic placed no clip");
+    log(
+      "cutline_graphic placed a vector",
+      `${Math.round((Date.now() - started) / 1000)}s, ${made.layers} layers${made.reviewed ? ", reviewed" : ""}`,
+    );
   }
 
   const addLogo = async (name, color, at) => {
@@ -262,7 +286,7 @@ try {
 
   // Frames as export renders them.
   const p = await project();
-  const frames = [1.5, 4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5].map((s) =>
+  const frames = [1.5, 4.5, 7.5, 10.5, 13.5, 16.5, 19.5, 22.5, 25.5].map((s) =>
     Math.round(s * p.fps),
   );
   const sheet = await call("cutline_preview", {

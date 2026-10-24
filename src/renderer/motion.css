@@ -13,9 +13,11 @@
   margin: 4px 0 12px;
   gap: 4px;
 }
+/* Tabs share the row by label length, so "Sequence" never runs into its neighbor. */
 .mg-tabs button {
+  flex: 1 1 auto;
   gap: 5px;
-  padding: 0 4px;
+  padding: 0 6px;
   font-size: 11.5px;
 }
 .mg-tabs button svg {

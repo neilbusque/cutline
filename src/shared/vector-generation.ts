@@ -95,15 +95,21 @@ export function vectorUserPrompt(input: VectorGenerateInput) {
     .join("\n");
 }
 
-/** The first complete svg element in a model reply. */
+/** The first complete svg element in a model reply, nested svg included. */
 export function extractSvg(reply: string): string {
   const start = reply.search(/<svg[\s>]/u);
-  const end = reply.lastIndexOf("</svg>");
-  if (start < 0 || end < start)
-    throw Error(
-      "The assistant did not return an SVG. Try again or reword the request.",
-    );
-  return reply.slice(start, end + 6);
+  if (start >= 0) {
+    const tags = /<svg[\s>]|<\/svg\s*>/gu;
+    tags.lastIndex = start;
+    let depth = 0;
+    for (let tag = tags.exec(reply); tag; tag = tags.exec(reply)) {
+      depth += tag[0].startsWith("</") ? -1 : 1;
+      if (depth === 0) return reply.slice(start, tag.index + tag[0].length);
+    }
+  }
+  throw Error(
+    "The assistant did not return an SVG. Try again or reword the request.",
+  );
 }
 
 /**

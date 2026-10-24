@@ -22,6 +22,12 @@ describe("generated vectors", () => {
     expect(() => extractSvg("I can't draw that.")).toThrow(
       /did not return an SVG/,
     );
+    // Two drawings in one reply: the first, with its nested viewport intact.
+    const nested = '<svg viewBox="0 0 10 10"><svg x="1"><rect width="2" height="2"/></svg></svg>';
+    expect(extractSvg(`Before:\n${nested}\nAfter:\n${good}`)).toBe(nested);
+    expect(() => extractSvg("<svg viewBox='0 0 1 1'><rect/>")).toThrow(
+      /did not return an SVG/,
+    );
   });
 
   it("writes the style, art board and palette into the request", () => {

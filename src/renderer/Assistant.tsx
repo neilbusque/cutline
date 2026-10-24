@@ -25,6 +25,11 @@ const suggestions = [
     prompt: styleShort("locked-split", "Matthew Berman"),
   },
   {
+    label: "Illustrate the key ideas",
+    prompt:
+      "Read the transcript with timings and pick the 2 to 4 key ideas that name no real product. For each, make an original illustration with cutline_graphic and place it on the words that say it, held 2 to 3 seconds and clear of the captions. Real products get their real logo with cutline_reference instead. Preview each moment and fix what looks wrong.",
+  },
+  {
     label: "Make an Ali-inspired Reel",
     prompt:
       "Build an Ali Abdaal-inspired Reel from my imported footage using creator-education, clean styling, short light caption pills, educational cards and gentle punch-ins. Read the reel format guide and real transcript first. Keep my original voice, preserve my existing timeline by appending, and inspect the speaker framing, captions and rendered cards before finishing.",
@@ -73,6 +78,7 @@ export function toolActivity(name: string) {
   if (name === "cutline_voiceover") return "Creating the voiceover…";
   if (name === "cutline_style_reel") return "Laying out the Short…";
   if (name === "cutline_reference") return "Getting the real logo or page…";
+  if (name === "cutline_graphic") return "Drawing a graphic…";
   if (name === "cutline_story") return "Planning the storyline…";
   if (name === "cutline_story_voice") return "Creating scene narration…";
   if (name === "cutline_story_assemble") return "Assembling the story…";
@@ -84,7 +90,8 @@ export function toolActivity(name: string) {
   if (name === "cutline_export") return "Exporting…";
   if (name.startsWith("cutline_music")) return "Working on the music…";
   if (name.startsWith("cutline_caption")) return "Working on captions…";
-  if (name === "cutline_undo" || name === "cutline_redo") return "Undoing…";
+  if (name === "cutline_undo") return "Undoing…";
+  if (name === "cutline_redo") return "Redoing…";
   return "Working on your edit…";
 }
 function InlineText({ parts }: { parts: Inline[] }) {

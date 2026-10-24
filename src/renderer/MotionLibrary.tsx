@@ -667,7 +667,7 @@ export function MotionLibrary({
             </div>
             <div className="mg-vector-actions">
               <button
-                className="import-button primary"
+                className="import-button control"
                 disabled={busy}
                 onClick={() => void addVector(false)}
               >

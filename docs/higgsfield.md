@@ -1,12 +1,12 @@
-# Higgsfield video generation
+# Higgsfield pictures and video
 
-Cutline's Generate library creates video assets using a user-supplied Higgsfield API key. The initial integration supports Seedance 2.0 from text or a starting image and Kling 3.0 Standard from text. Completed clips are downloaded locally before they are imported into Cutline.
+Cutline's Generate library creates video assets using a user-supplied Higgsfield API key. The integration supports Seedance 2.0 from text, a starting image or reference images, and Kling 3.0 Standard from text. Completed clips are downloaded locally before they are imported into Cutline. The same key makes pictures for graphics too detailed to draw as vectors (see [Pictures for detailed graphics](#pictures-for-detailed-graphics-cutline-033)).
 
 The provider contract below was checked against official documentation on **2026-10-12**. Documentation confirms the API shape; it does not confirm access, credits, or generation quality for a particular account. No paid generation was used to verify this document.
 
 ## Credentials and request boundary
 
-Create a key at [Open Higgsfield](https://open.higgsfield.ai/api-keys). In Cutline, open **Settings → Video generation** (or **Open Settings** in Generate) and paste the complete copied credential; you do not need to split the key ID and secret. A saved key is not proof that authentication has succeeded.
+Create a key at [Open Higgsfield](https://open.higgsfield.ai/api-keys). In Cutline, open **Settings → Pictures and video** (or **Open Settings** in Generate) and paste the complete copied credential; you do not need to split the key ID and secret. A saved key is not proof that authentication has succeeded.
 
 Authenticated requests use `https://api.higgsfield.ai` and `Authorization: Key <complete-credential>`. Electron's main process owns provider calls and encrypted credential storage. The renderer receives credential status, never the saved key. A generation intentionally sends its prompt and, when selected, its starting image to Higgsfield.
 
@@ -118,6 +118,16 @@ Story plans persist optional `referenceAssetIds` arrays on the plan and each sce
 Use the numbered previews to write plain descriptions such as “Use image 1 for the character and image 2 for the forest.” The selected API schema does not specify a special image-tag grammar, so Cutline does not inject undocumented tags or role/weight fields. PNG, JPEG, and WebP under 20 MiB are Cutline's local input limits; no additional image dimensions or aspect requirements are published in these API pages.
 
 Sources checked 2026-10-12: [reference-to-video](https://docs.higgsfield.ai/docs/models/seedance-2/reference-to-video), [image-to-video](https://docs.higgsfield.ai/docs/models/seedance-2/image-to-video), [file uploads](https://docs.higgsfield.ai/docs/concepts/file-uploads).
+
+## Pictures for detailed graphics (Cutline 0.33)
+
+Endpoint: `POST /recraft/v4.1/text-to-image` (Recraft V4.1, 1K). Cutline sends only documented fields: `prompt` (the description, the style's look, and "one subject, centered, on a plain flat solid <color> background, no shadow, floor, scenery or text"), `resolution` `1k`, `aspect_ratio` `1:1`, `16:9` or `9:16`, `output_format` `png`, `background_color` `{rgb}` and, with a palette, `colors` `[{rgb}]`. The schema rejects additional properties.
+
+The backdrop is magenta unless the description or palette uses magenta, pink or purple, then green, then blue. After download Cutline measures the backdrop on the picture's border, removes it from the edges inward and from enclosed gaps of the exact color, softens the outline with the backdrop's tint taken out, and crops to the subject. A picture without a flat backdrop stays opaque and says so.
+
+Each request is written to `generated-media/pictures/pictures.json` with its idempotency key before it is sent; the key itself is never stored there. Status polling starts at 1.5 seconds and backs off to 6 seconds, for at most five minutes. Stopping while a request is queued cancels it. Downloads follow the same public-address and redirect checks as videos, accept only image types and stop at 25 MiB. The price shown in Settings comes from `POST /estimate/recraft/v4.1/text-to-image`.
+
+Sources checked 2026-10-24: [Recraft V4.1 text to image](https://docs.higgsfield.ai/docs/models/recraft-v4-1/text-to-image.md), [billing and estimates](https://docs.higgsfield.ai/docs/concepts/billing-and-retention.md).
 
 ## Verification boundary
 

@@ -1,8 +1,8 @@
 # Custom vectors and logo reveals
 
-## Generate a vector
+## Generate a graphic
 
-Open **Motion → Vectors → Generate a vector**, describe the graphic and choose a style:
+Open **Motion → Vectors → Generate a graphic**, describe it and choose a style:
 
 - **Flat:** solid fills in 3 to 5 harmonious colors.
 - **Line icon:** one stroke width with round ends; each stroke draws on separately.
@@ -10,7 +10,13 @@ Open **Motion → Vectors → Generate a vector**, describe the graphic and choo
 - **Soft gradient:** app-icon style gradients and soft highlights.
 - **Badge:** a base shape with a symbol on top.
 
-Choose **Square**, **Wide** or **Tall**, and **Claude** or **ChatGPT** to draw it. Claude uses the Claude Code you are signed in to; ChatGPT uses the Codex in the ChatGPT app. Generation usually takes 15 to 30 seconds. Cutline checks the result and asks for one correction when something would be lost. The preview shows exactly what will be drawn; **Add to timeline** places editable layers at the playhead. Words are added as live titles, not drawn into the vector.
+Choose **Square**, **Wide** or **Tall**, and **Claude** or **ChatGPT** to draw it. Claude uses the Claude Code you are signed in to; ChatGPT uses the Codex in the ChatGPT app.
+
+1. The assistant draws an editable vector. Cutline checks it and asks for one correction when something would be lost.
+2. The assistant then looks at its own drawing exactly as it renders and fixes what reads wrong (proportions, overlaps, missing parts). This takes 20 to 40 seconds in all.
+3. A subject too detailed for a clean vector (a busy scene, realistic texture, a crowd) becomes a picture instead: Higgsfield's Recraft model paints it on a flat backdrop and Cutline removes the backdrop, so it sits on your video like a sticker. This needs Higgsfield connected in **Settings → Pictures and video** and **Detailed graphics as pictures** on. It uses your Higgsfield credits; Settings shows the price. Pictures are added to Media at once, so you never pay twice for the same one.
+
+After a drawing, **Make it a picture with Higgsfield instead** asks for a picture directly. After a picture, **Draw it as a vector instead** goes back to an editable drawing. **Add to timeline** places the result at the playhead: a vector as editable layers, a picture on a Graphics track above your footage, centered above the captions on tall videos. Words are added as live titles, not drawn into the graphic.
 
 ## Real logos and pages
 
@@ -46,4 +52,4 @@ Place music on the timeline, analyze it or compose an original track in **Audio 
 
 Save a `.cutline` project to keep the editable vector geometry and keyframes. SVG paths are embedded in the project; the original SVG file is not a continuing media dependency. Audio, video and image files still need their normal media paths. MP4 export uses the same vector and animation renderer as the editor.
 
-Claude, Codex and the ChatGPT-signed-in assistant receive vector fields and actions through the editing schema. For example: “Import my SVG logo, apply a Draw reveal, keep the brand colors, time three scenes to this music, and export a preview.” The local file import tool is `cutline_vector_import`; structured actions include `motion.svg` (inline SVG text), `motion.vector` and `motion.logoReveal`. `cutline_reference` adds a real logo (`kind: "logo"`, `target`: product name or website) or a page screenshot (`kind: "screenshot"`, `target`: address, optional `selector` and `phone`). Changes are revision checked and undoable. See [Agent setup and tools](agent-control.md).
+Claude, Codex and the ChatGPT-signed-in assistant receive vector fields and actions through the editing schema. For example: “Import my SVG logo, apply a Draw reveal, keep the brand colors, time three scenes to this music, and export a preview.” The local file import tool is `cutline_vector_import`; structured actions include `motion.svg` (inline SVG text), `motion.vector` and `motion.logoReveal`. `cutline_graphic` makes a graphic from a sentence through the same route as the panel (`prompt`, optional `style`, `aspect`, `palette`, `route` auto, vector or picture, and `at` to place it). `cutline_reference` adds a real logo (`kind: "logo"`, `target`: product name or website) or a page screenshot (`kind: "screenshot"`, `target`: address, optional `selector` and `phone`). Changes are revision checked and undoable. See [Agent setup and tools](agent-control.md).
