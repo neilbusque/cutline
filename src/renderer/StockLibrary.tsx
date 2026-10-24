@@ -8,8 +8,6 @@ import {
   X,
   Image as ImageIcon,
   Film,
-  KeyRound,
-  Check,
 } from "lucide-react";
 import type {
   StockItem,
@@ -22,6 +20,7 @@ import type {
 } from "../shared/stock";
 import type { Asset } from "../shared/model";
 import { errorText } from "./controls";
+import { STOCK_SETTINGS_EVENT } from "./StockSettings";
 
 type Filters = {
   provider: StockProvider;
@@ -39,10 +38,13 @@ export function StockLibrary({
   active = true,
   addBroll,
   report,
+  openSettings,
 }: {
   active?: boolean;
   addBroll: (asset: Asset) => Promise<void>;
   report: (error: unknown) => void;
+  /** The Pexels key lives in Settings with the other keys. */
+  openSettings: () => void;
 }) {
   const api = window.cutline;
   const [query, setQuery] = useState(""),
@@ -55,26 +57,28 @@ export function StockLibrary({
   const [preview, setPreview] = useState<string>(),
     [message, setMessage] = useState("");
   const [settings, setSettings] = useState<StockCredentialStatus>();
-  const [key, setKey] = useState(""),
-    [configuring, setConfiguring] = useState(false),
-    [showKey, setShowKey] = useState(false);
   const [quota, setQuota] = useState<StockQuota>();
   const request = useRef(0),
     mounted = useRef(true);
 
   useEffect(() => {
     mounted.current = true;
-    api
-      .invoke("stock.settings")
-      .then((value) => {
-        if (mounted.current) setSettings(value);
-      })
-      .catch((error) => {
-        if (mounted.current) setMessage(errorText(error));
-      });
+    // Connecting or disconnecting Pexels in Settings refreshes this panel.
+    const refresh = () =>
+      api
+        .invoke("stock.settings")
+        .then((value) => {
+          if (mounted.current) setSettings(value);
+        })
+        .catch((error) => {
+          if (mounted.current) setMessage(errorText(error));
+        });
+    refresh();
+    window.addEventListener(STOCK_SETTINGS_EVENT, refresh);
     return () => {
       mounted.current = false;
       request.current++;
+      window.removeEventListener(STOCK_SETTINGS_EVENT, refresh);
     };
   }, []);
 
@@ -139,50 +143,6 @@ export function StockLibrary({
     setQuota(undefined);
     if (updated.provider === "pexels" && !settings?.pexelsConfigured) return;
     if (searched) void search(searched, 0, updated);
-  }
-
-  async function configure() {
-    setConfiguring(true);
-    setMessage("");
-    try {
-      const result: StockCredentialStatus = await api.invoke(
-        "stock.configure",
-        { key },
-      );
-      setKey("");
-      setShowKey(false);
-      setSettings(result);
-      setMessage("Pexels connected. Search photos and videos above.");
-      if (searched && filters.provider === "pexels") void search(searched);
-    } catch (error) {
-      setMessage(errorText(error));
-    } finally {
-      setKey("");
-      setConfiguring(false);
-    }
-  }
-
-  async function disconnect() {
-    setConfiguring(true);
-    setMessage("");
-    try {
-      const result: StockCredentialStatus =
-        await api.invoke("stock.disconnect");
-      setSettings(result);
-      setKey("");
-      request.current++;
-      setItems([]);
-      setNext(undefined);
-      setBusy(false);
-      setQuota(undefined);
-      setMessage("Pexels key removed. Wikimedia Commons is ready to use.");
-      setFilters({ ...filters, provider: "commons" });
-      setSearched("");
-    } catch (error) {
-      setMessage(errorText(error));
-    } finally {
-      setConfiguring(false);
-    }
   }
 
   async function download(item: StockItem, place: boolean) {
@@ -301,78 +261,20 @@ export function StockLibrary({
       </div>
 
       {filters.provider === "pexels" && (
-        <div className="stock-connect">
-          <button
-            className="stock-attribution"
-            onClick={() => openSource("https://www.pexels.com/")}
-          >
-            Photos &amp; videos provided by Pexels <ExternalLink size={11} />
-          </button>
+        <div className="stock-connect stock-connect-line">
           {settings?.pexelsConfigured ? (
-            <div className="stock-connected">
-              <span>
-                <Check size={12} /> API key saved
-              </span>
-              <button disabled={configuring} onClick={() => void disconnect()}>
-                Disconnect
-              </button>
-            </div>
+            <button
+              className="stock-attribution"
+              onClick={() => openSource("https://www.pexels.com/")}
+            >
+              Photos &amp; videos provided by Pexels <ExternalLink size={11} />
+            </button>
           ) : (
-            <>
-              <p className="library-note">
-                Add a free Pexels key to search. It is saved encrypted on this
-                Mac.
-              </p>
-              {settings?.storageError && (
-                <p className="library-note" role="status">
-                  {settings.storageError}
-                </p>
-              )}
-              {!showKey ? (
-                <button className="full" onClick={() => setShowKey(true)}>
-                  <KeyRound size={13} /> Connect Pexels
-                </button>
-              ) : (
-                <form
-                  className="stock-key-form"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void configure();
-                  }}
-                >
-                  <input
-                    type="password"
-                    aria-label="Pexels API key"
-                    autoComplete="off"
-                    spellCheck={false}
-                    placeholder="Paste your Pexels API key"
-                    value={key}
-                    onChange={(event) => setKey(event.target.value)}
-                  />
-                  <div>
-                    <button
-                      type="button"
-                      onClick={() => openSource("https://www.pexels.com/api/")}
-                    >
-                      Get a free key <ExternalLink size={11} />
-                    </button>
-                    <button
-                      type="submit"
-                      className="primary"
-                      disabled={configuring || !key.trim()}
-                    >
-                      {configuring ? "Saving…" : "Save key"}
-                    </button>
-                  </div>
-                  {settings?.secureStorageAvailable === false && (
-                    <p className="library-note">
-                      Unlock your macOS keychain to save a key securely.
-                    </p>
-                  )}
-                </form>
-              )}
-            </>
+            <span>Connect Pexels in Settings to search.</span>
           )}
+          <button onClick={openSettings}>
+            {settings?.pexelsConfigured ? "Manage" : "Open Settings"}
+          </button>
         </div>
       )}
 

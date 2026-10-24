@@ -1097,6 +1097,7 @@ export function App() {
                 setLeft("generate");
               }}
               openCaptions={() => setLeft("captions")}
+              openSettings={() => setSettingsOpen(true)}
               onCreated={(frame) => {
                 seek(frame);
                 setPlaying(false);
@@ -1474,6 +1475,7 @@ export function App() {
               active={left === "stock"}
               addBroll={addBroll}
               report={report}
+              openSettings={() => setSettingsOpen(true)}
             />
           </div>
           {/* Both modes stay mounted: a graphic can take a minute to draw. */}

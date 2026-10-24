@@ -105,3 +105,39 @@ describe("graphics are generated in Generate > Graphic", () => {
     expect(html).toContain("Page screenshot");
   });
 });
+
+describe("keys live in Settings", () => {
+  const h = React.createElement;
+  const noop = () => {};
+  beforeEach(() =>
+    vi.stubGlobal("window", {
+      cutline: {},
+      addEventListener: noop,
+      removeEventListener: noop,
+    }),
+  );
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("puts the Pexels key beside Higgsfield under Pictures and video", async () => {
+    const { HiggsfieldSettings } = await import(
+      "../src/renderer/HiggsfieldSettings"
+    );
+    const html = renderToStaticMarkup(h(HiggsfieldSettings, { report: noop }));
+    expect(html).toContain("Pictures and video");
+    expect(html).toContain('aria-label="Higgsfield API key"');
+    expect(html).toContain('aria-label="Pexels API key"');
+  });
+
+  it("leaves the Stock panel without a key form", async () => {
+    const { StockLibrary } = await import("../src/renderer/StockLibrary");
+    const html = renderToStaticMarkup(
+      h(StockLibrary, {
+        addBroll: async () => {},
+        report: noop,
+        openSettings: noop,
+      }),
+    );
+    expect(html).not.toContain('aria-label="Pexels API key"');
+    expect(html).not.toContain("Save key");
+  });
+});

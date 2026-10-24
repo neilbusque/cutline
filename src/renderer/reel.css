@@ -416,6 +416,26 @@
   width: 100%;
   height: 30px;
 }
+/* Pexels status in one line; the key itself lives in Settings. */
+.stock-connect-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  color: var(--text-2);
+  font-size: 11px;
+}
+.stock-connect-line button {
+  flex: none;
+  width: auto;
+  height: auto;
+  margin-top: 0;
+}
+.stock-connect-line > button:last-child {
+  padding: 4px 0 4px 4px;
+  font-size: 11px;
+}
 .stock-api-field {
   display: flex;
   gap: 7px;

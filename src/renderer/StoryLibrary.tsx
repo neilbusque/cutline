@@ -51,6 +51,7 @@ import {
   refreshExplainerInput,
 } from "./ExplainerStory";
 import { errorText } from "./controls";
+import { GENERATION_SETTINGS_EVENT } from "./HiggsfieldSettings";
 import "./story.css";
 
 type Props = {
@@ -62,6 +63,8 @@ type Props = {
   importMedia: () => void;
   openGenerate: () => void;
   openCaptions: () => void;
+  /** Higgsfield is connected in Settings, like the other keys. */
+  openSettings: () => void;
   onCreated: (frame: number) => void;
   report: (error: unknown) => void;
   onAskAssistant?: (prompt: string) => void;
@@ -144,6 +147,7 @@ export function StoryLibrary({
   importMedia,
   openGenerate,
   openCaptions,
+  openSettings,
   onCreated,
   report,
   onAskAssistant,
@@ -296,6 +300,21 @@ export function StoryLibrary({
   useEffect(() => {
     panel.current?.scrollTo({ top: 0 });
   }, [step]);
+
+  // Connecting Higgsfield in Settings shows here at once.
+  useEffect(() => {
+    const refresh = () =>
+      void api
+        .invoke("generation.settings")
+        .then((value: { configured: boolean }) => {
+          if (!mounted.current) return;
+          setConfigured(value.configured);
+          setGenerationCheckError("");
+        })
+        .catch(() => {});
+    window.addEventListener(GENERATION_SETTINGS_EVENT, refresh);
+    return () => window.removeEventListener(GENERATION_SETTINGS_EVENT, refresh);
+  }, []);
 
   useEffect(() => {
     if (!active) return;
@@ -1797,7 +1816,7 @@ export function StoryLibrary({
                       </p>
                     )}
                     {configured === false ? (
-                      <button className="control" onClick={openGenerate}>
+                      <button className="control" onClick={openSettings}>
                         Connect Higgsfield
                       </button>
                     ) : (
