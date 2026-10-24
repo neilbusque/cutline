@@ -48,7 +48,7 @@ import { linkedCaptionCommands } from "./linked-captions";
 import { newTrack } from "./layers";
 import { captionTextPatch } from "./caption-edit";
 import { captionStylePatch, captionStyles } from "./caption-styles";
-import { captionClips, parseSrt } from "./subtitles";
+import { srtCaptionClips } from "./subtitles";
 import {
   MAX_VECTOR_LAYERS,
   MAX_VECTOR_PATH_LENGTH,
@@ -1081,10 +1081,13 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           break;
         }
         case "caption.import": {
-          const words = parseSrt(action.srt);
-          if (!words.length) throw Error("No valid subtitle cues were found.");
-          const offset = action.at ? toFrame(action.at, working.fps) : 0;
-          const captions = captionClips(working, words, offset / working.fps);
+          const captions = srtCaptionClips(
+            working,
+            action.srt,
+            action.at ? toFrame(action.at, working.fps) : 0,
+          );
+          if (!captions.length)
+            throw Error("No valid subtitle cues were found.");
           if (action.trackId)
             for (const c of captions)
               c.trackId = checkDestination(c, action.trackId);

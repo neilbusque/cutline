@@ -16,8 +16,14 @@ import {
   ProjectSchema,
   type Word,
 } from "../src/shared/model";
-import { captionClips, parseSrt, toSrt } from "../src/shared/subtitles";
+import {
+  captionClips,
+  parseSrt,
+  srtCaptionClips,
+  toSrt,
+} from "../src/shared/subtitles";
 import { reelCaptionClips } from "../src/shared/reel";
+import { applyAgentEdit } from "../src/shared/agent-edit";
 
 const spoken = (text: string, step = 0.34): Word[] =>
   text.split(" ").map((text, index) => ({
@@ -362,6 +368,60 @@ describe("Caption presets and compatible documents", () => {
       { captionTracking: Infinity },
     ])
       expect(ClipSchema.safeParse({ ...c, ...patch }).success).toBe(false);
+  });
+});
+
+describe("Subtitle file import", () => {
+  // Cues meet at 2.033 s and 3.517 s, which fall between frames at every rate.
+  const srt = [
+    "1\n00:00:01,000 --> 00:00:02,033\nThe first line\n",
+    "2\n00:00:02,033 --> 00:00:03,517\nmeets the second\n",
+    "3\n00:00:03,517 --> 00:00:05,250\nYes\n",
+    "4\n00:00:05,250 --> 00:00:05,600\nno\n",
+    "5\n00:00:07,000 --> 00:00:08,000\nDone\n",
+  ].join("\n");
+
+  it.each([24, 25, 30, 60] as const)(
+    "keeps every cue as one caption with no frame showing two at %i fps",
+    (fps) => {
+      const p = { ...newProject(), fps };
+      const clips = srtCaptionClips(p, srt);
+      expect(clips.map((clip) => clip.text)).toEqual([
+        "The first line",
+        "meets the second",
+        "Yes",
+        "no",
+        "Done",
+      ]);
+      // Back-to-back cues share one frame boundary.
+      for (let i = 1; i < 4; i++)
+        expect(clips[i].start).toBe(
+          clips[i - 1].start + clips[i - 1].duration,
+        );
+      // A short cue before a gap ends where its author ended it.
+      expect(clips[3].start + clips[3].duration).toBe(Math.ceil(5.6 * fps));
+    },
+  );
+
+  it("times a file the same in the app and for an agent's caption.import", () => {
+    const p = newProject();
+    const imported = applyAgentEdit(p, {
+      projectId: p.id,
+      revision: p.revision,
+      label: "Import subtitles",
+      actions: [{ type: "caption.import", srt, at: { frame: 30 } }],
+    }).project.clips;
+    const app = srtCaptionClips(p, srt, 30);
+    expect(imported.map(({ start, duration, text }) => [start, duration, text])).toEqual(
+      app.map(({ start, duration, text }) => [start, duration, text]),
+    );
+    expect(app.map((clip) => [clip.start, clip.duration])).toEqual([
+      [60, 31],
+      [91, 45],
+      [136, 52],
+      [188, 10],
+      [240, 30],
+    ]);
   });
 });
 

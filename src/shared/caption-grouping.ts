@@ -117,6 +117,8 @@ export type CaptionBuildOptions = {
   style?: Clip["captionStyle"];
   sourceId?: string;
   pace?: CaptionPace;
+  /** Each entry is one caption at its own times, as cues in a subtitle file are. */
+  cues?: boolean;
 };
 
 /** Preserve source timing except sub-frame clipping at a shared phrase boundary. */
@@ -150,7 +152,12 @@ export function buildCaptionClips(
       end: Math.min(sourceSeconds, word.end),
     }))
     .filter((word) => word.end > word.start);
-  const groups = groupCaptionWords(words, p.fps, options.pace);
+  const groups = options.cues
+    ? words
+        .filter((word) => word.text.trim())
+        .sort((a, b) => a.start - b.start || a.end - b.end)
+        .map((word) => [{ ...word, text: word.text.trim() }])
+    : groupCaptionWords(words, p.fps, options.pace);
   const starts = groups.map((group) =>
     Math.max(0, Math.floor(group[0].start * p.fps)),
   );
@@ -198,10 +205,10 @@ export function buildCaptionClips(
     // or beyond the selected media. Only edge words may lose part of a frame.
     const phraseCount = group.reduce((sum, word) => sum + tokens(word.text), 0);
     const minimumSeconds = Math.min(1.35, 0.4 + phraseCount * 0.12);
-    const readableEnd = Math.min(
-      spokenEnd + 0.18,
-      first.start + minimumSeconds,
-    );
+    // Subtitle cues keep the end their author gave them.
+    const readableEnd = options.cues
+      ? spokenEnd
+      : Math.min(spokenEnd + 0.18, first.start + minimumSeconds);
     const end = Math.min(
       duration,
       nextStart,

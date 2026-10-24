@@ -55,6 +55,19 @@ export function toSrt(clips: Clip[], fps: number) {
     .join("\n");
 }
 
+/**
+ * Captions for a subtitle file, the same in the app and for agents: each cue
+ * stays one caption at its own times, and cues are built together so
+ * back-to-back cues share a frame boundary instead of overlapping by one.
+ */
+export function srtCaptionClips(
+  p: Project,
+  srt: string,
+  startFrame = 0,
+): Clip[] {
+  return buildCaptionClips(p, parseSrt(srt), { startFrame, cues: true });
+}
+
 export function captionClips(
   p: Project,
   words: Word[],
