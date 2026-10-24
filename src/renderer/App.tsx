@@ -414,9 +414,6 @@ export function App() {
     );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
-  // Undo from the menu leaves the project alone while a dialog is open.
-  const modalOpen = useRef(false);
-  modalOpen.current = settingsOpen || projectsOpen;
   const settingsModal = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!settingsOpen) return;
@@ -504,7 +501,10 @@ export function App() {
         if (event?.edit !== "undo" && event?.edit !== "redo") return;
         const focused = document.activeElement as HTMLElement | null;
         if (focused && isTextField(focused)) document.execCommand(event.edit);
-        else if (!modalOpen.current) void run(event.edit);
+        // An open dialog (Settings, Projects or Sessions) leaves the
+        // project alone.
+        else if (!document.querySelector('[aria-modal="true"]'))
+          void run(event.edit);
       },
     );
     return () => {
