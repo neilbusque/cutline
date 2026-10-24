@@ -139,6 +139,18 @@ describe("structured assistant editing", () => {
         { type: "clip.update", clipId: "source", patch: { sourceIn: 19.5 } },
       ]),
     ).toThrow(/^Action 2 \(clip\.update\): .*Trim exceeds source media/u);
+    // A later action that checks the project mid-edit (a track move, a canvas
+    // resize) must not take the blame for an earlier one.
+    for (const later of [
+      { type: "track.move", trackId: "audio", index: 0 },
+      { type: "project.update", patch: { width: 720, height: 1280 } },
+    ])
+      expect(() =>
+        edit(p, [
+          { type: "clip.update", clipId: "source", patch: { sourceIn: 19.5 } },
+          later,
+        ]),
+      ).toThrow(/^Action 1 \(clip\.update\): .*Trim exceeds source media/u);
     expect(JSON.stringify(p)).toBe(before);
   });
 

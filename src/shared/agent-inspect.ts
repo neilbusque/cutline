@@ -477,7 +477,13 @@ export function conflictMessage(
   message: string,
   args: { projectId?: unknown; revision?: unknown },
   project: Project,
-  history: { label: string; project: Project }[],
+  history: {
+    label: string;
+    project: Project;
+    /** Read before project, which may have to be unpacked. */
+    projectId?: string;
+    revision?: number;
+  }[],
 ) {
   if (!/^Project changed/.test(message)) return message;
   if (typeof args.projectId === "string" && args.projectId !== project.id)
@@ -489,9 +495,12 @@ export function conflictMessage(
     `Project changed: you sent revision ${sent}, but the project is now at revision ${project.revision}.`,
   ];
   // Undo steps are checked only when used, so a damaged one is skipped here.
-  const at = history.findIndex(
-    (entry) =>
-      entry?.project?.id === project.id && entry.project.revision === sent,
+  // Older steps are compressed: their id and revision are read without
+  // unpacking every one, and only the matching step is unpacked.
+  const at = history.findIndex((entry) =>
+    entry?.revision !== undefined
+      ? entry.projectId === project.id && entry.revision === sent
+      : entry?.project?.id === project.id && entry.project.revision === sent,
   );
   if (at >= 0) {
     const labels = history.slice(at).map((entry) => entry.label);

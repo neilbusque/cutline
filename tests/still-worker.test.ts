@@ -198,3 +198,11 @@ it("exits after 5 seconds if Chrome never starts or closes, so Remotion's exit h
   expect(mocks.process.kill).not.toHaveBeenCalled();
   expect(mocks.process.send).not.toHaveBeenCalled();
 });
+
+it("serves each preview on a free port, never Remotion's 3000 where dev servers live", async () => {
+  await mocks.handlers.message(request("1", [0]));
+  const port = mocks.selectComposition.mock.calls[0][0].port;
+  expect(port).toBeGreaterThan(1023);
+  expect(mocks.prepareServer.mock.calls[0][0].port).toBe(port);
+  expect(mocks.renderStill.mock.calls[0][0].port).toBe(port);
+});

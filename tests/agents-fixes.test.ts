@@ -585,6 +585,29 @@ describe("errors say how to recover", () => {
     expect(tolerant).toContain(`Retry with revision ${store.project.revision}`);
   });
 
+  it("finds the step a stale edit started from without unpacking the others", () => {
+    const p = newProject();
+    let unpacked = 0;
+    // Compressed undo steps: reading project unpacks a whole project.
+    const steps = Array.from({ length: 40 }, (_, i) => ({
+      label: `Edit ${i}`,
+      projectId: p.id,
+      revision: i + 1,
+      get project() {
+        unpacked++;
+        return { ...p, revision: i + 1 };
+      },
+    }));
+    const message = conflictMessage(
+      "Project changed. Inspect the project and retry.",
+      { projectId: p.id, revision: 30 },
+      { ...p, revision: 41 },
+      steps,
+    );
+    expect(message).toContain("Edits since then:");
+    expect(unpacked).toBe(1);
+  });
+
   it("turns validation dumps into one line with where to look", () => {
     const p = newProject();
     let error: unknown;

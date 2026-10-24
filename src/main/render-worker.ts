@@ -1,4 +1,3 @@
-import net from "node:net";
 import os from "node:os";
 import process from "node:process";
 import { browserOptions } from "../../scripts/browser-config.mjs";
@@ -10,23 +9,9 @@ import {
 } from "@remotion/renderer";
 import { spawn, type ChildProcess } from "node:child_process";
 import { rmSync } from "node:fs";
+import { freePort } from "./free-port";
 let browser: Awaited<ReturnType<typeof openBrowser>> | undefined;
 let sentPercent = -1;
-/**
- * A port the system has free right now. Remotion starts at 3000, where web dev
- * servers live: one starting at the same moment can win the port and the
- * export then loads someone else's page.
- */
-const freePort = () =>
-  new Promise<number>((resolve, reject) => {
-    const server = net.createServer();
-    server.unref();
-    server.on("error", reject);
-    server.listen({ port: 0, host: "::" }, () => {
-      const { port } = server.address() as net.AddressInfo;
-      server.close(() => resolve(port));
-    });
-  });
 let cancel: (() => void) | undefined;
 let mux: ChildProcess | undefined;
 let cancelled = false;

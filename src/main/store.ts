@@ -31,11 +31,16 @@ import { applyCommands, TransactionSchema } from "../shared/commands";
 class HistoryEntry {
   private value?: Project;
   private packed?: Buffer;
+  /** Which version this step holds, readable without unpacking it. */
+  readonly projectId: string;
+  readonly revision: number;
   constructor(
     readonly label: string,
     project: Project,
   ) {
     this.value = project;
+    this.projectId = project?.id;
+    this.revision = project?.revision;
   }
   get project(): Project {
     return (

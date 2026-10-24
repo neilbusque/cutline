@@ -7,6 +7,7 @@ import {
 import { NoReactInternals } from "remotion/no-react";
 import path from "node:path";
 import process from "node:process";
+import { freePort } from "./free-port";
 
 type Browser = Awaited<ReturnType<typeof openBrowser>>;
 export type StillRequest = {
@@ -65,6 +66,8 @@ async function render(request: StillRequest) {
   browser ??= openBrowser("chrome", { browserExecutable, ...browserOptions });
   const instance = await browser;
   if (stopping) throw Error("Editor disconnected");
+  // Its own free port, never Remotion's 3000 where web dev servers live.
+  const port = await freePort().catch(() => null);
   const composition = await selectComposition({
     serveUrl,
     id: "Cutline",
@@ -73,10 +76,11 @@ async function render(request: StillRequest) {
     ...browserOptions,
     puppeteerInstance: instance,
     timeoutInMilliseconds: 30000,
+    port,
   });
   const server = await RenderInternals.prepareServer({
     webpackConfigOrServeUrl: serveUrl,
-    port: null,
+    port,
     remotionRoot: RenderInternals.findRemotionRoot(),
     offthreadVideoThreads: 2,
     logLevel: "info",
@@ -122,7 +126,7 @@ async function render(request: StillRequest) {
           onLog: RenderInternals.defaultOnLog,
           cancelSignal: null,
           indent: false,
-          port: null,
+          port,
           logLevel: "info",
           offthreadVideoCacheSizeInBytes: null,
           offthreadVideoThreads: null,

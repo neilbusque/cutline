@@ -1225,6 +1225,9 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
         }
       }
     } catch (error) {
+      // Unchecked, an earlier action's mistake can surface here, so the
+      // checked replay finds the action that really broke the project.
+      if (!checkEach) throw new UncheckedEditError((error as Error).message);
       throw Error(
         `Action ${index + 1} (${action.type}): ${(error as Error).message}`,
       );
