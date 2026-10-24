@@ -27,6 +27,15 @@ const aspects = [
   ["tall", "Tall"],
 ] as const;
 
+/**
+ * What to offer when a graphic fails: drawing it when Higgsfield is what
+ * failed, otherwise a Higgsfield picture when Higgsfield is connected.
+ */
+export function fallbackRoute(failedStep: Step, pictures: boolean) {
+  if (failedStep === "picture") return "vector";
+  return pictures ? "picture" : undefined;
+}
+
 /** The vector exactly as Cutline will draw it, on a neutral board. */
 function VectorPreview({ svg }: { svg: string }) {
   const project = useMemo(() => {
@@ -214,6 +223,8 @@ export function GraphicStudio({
     result?.kind === "picture"
       ? p.assets.find((item) => item.id === result.assetId)
       : undefined;
+  // The step a failed graphic stopped at says whether Higgsfield failed.
+  const fallback = fallbackRoute(step, pictures);
   return (
     <div className="library-content graphic-studio">
       <section className="vs-section" aria-labelledby="vs-generate">
@@ -293,12 +304,14 @@ export function GraphicStudio({
             {error}
           </p>
         )}
-        {error && pictures && !generating && (
+        {error && !generating && fallback && (
           <button
             className="vs-link vs-switch"
-            onClick={() => void generate("picture")}
+            onClick={() => void generate(fallback)}
           >
-            Make it a picture with Higgsfield instead
+            {fallback === "vector"
+              ? "Draw it as a vector instead"
+              : "Make it a picture with Higgsfield instead"}
           </button>
         )}
         {result && !generating && (

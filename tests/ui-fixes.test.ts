@@ -111,6 +111,17 @@ describe("graphics are generated in Generate > Graphic", () => {
     expect(html).toContain("Generate a graphic");
   });
 
+  it("after a failure offers the other route, never the one that failed", async () => {
+    const { fallbackRoute } = await import("../src/renderer/GraphicStudio");
+    // Higgsfield failed (asked for, or the automatic fallback): draw it.
+    expect(fallbackRoute("picture", true)).toBe("vector");
+    expect(fallbackRoute("picture", false)).toBe("vector");
+    // The drawing failed: a picture, only when Higgsfield is connected.
+    expect(fallbackRoute("drawing", true)).toBe("picture");
+    expect(fallbackRoute("reviewing", true)).toBe("picture");
+    expect(fallbackRoute("drawing", false)).toBeUndefined();
+  });
+
   it("leaves Motion > Vectors one row that opens the generator", async () => {
     const { MotionLibrary } = await import("../src/renderer/MotionLibrary");
     const html = renderToStaticMarkup(
