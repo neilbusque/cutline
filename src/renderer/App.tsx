@@ -486,6 +486,7 @@ export function App() {
       .invoke("state")
       .then((s) => {
         started = true;
+        snapRef.current = s.snapshot;
         setSnap(s.snapshot);
         setBase(s.mediaBase);
         setSettings(s.settings);
@@ -493,7 +494,11 @@ export function App() {
       })
       .catch(report);
     const off = api.on("state", (next: Snapshot) => {
-      if (started) setSnap(next);
+      if (!started) return;
+      // Agent requests read the project straight after an update arrives,
+      // before React renders it: keep the ref current now, not on render.
+      snapRef.current = next;
+      setSnap(next);
     });
     const offJob = api.on("job", (j: Job) =>
       jobs.set([...jobs.get().filter((x) => x.id !== j.id), j]),

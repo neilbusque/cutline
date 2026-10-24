@@ -129,7 +129,12 @@ try {
     args: packaged ? [initialFile] : [root, initialFile], env });
   page = await app.firstWindow();
   page.on("pageerror", (error) => rendererErrors.push(error.message));
-  page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(message.text()); });
+  page.on("console", (message) => {
+    if (message.type() !== "error") return;
+    // A failed load names its address, so a 404 says what was missing.
+    const where = message.location()?.url;
+    consoleErrors.push(where ? `${message.text()} (${where})` : message.text());
+  });
   await page.waitForSelector(".titlebar");
   await waitFile(connectionFile);
   client = new Client({ name: "cutline-agent-control-qa", version: "1.0" });
