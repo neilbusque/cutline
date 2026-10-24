@@ -147,10 +147,13 @@ it("runs the CLI isolated: only Cutline tools, no user settings, no built-ins", 
     },
   });
   expect(args).toContain("--session-id");
-  // The persona is appended; the workflow arrives as the MCP server's
-  // instructions, so it must not be repeated here.
-  expect(at("--append-system-prompt")).toMatch(/editor inside Cutline/);
-  expect(at("--append-system-prompt")).not.toMatch(/cutline_inspect/);
+  // The persona and the whole workflow are the system prompt: as MCP server
+  // instructions Claude Code kept only their first 2,048 characters.
+  expect(args).not.toContain("--append-system-prompt");
+  expect(at("--system-prompt")).toMatch(/editor inside Cutline/);
+  expect(at("--system-prompt")).toMatch(/cutline_inspect/);
+  expect(at("--system-prompt")).toMatch(/Professional standards/);
+  expect(at("--system-prompt").length).toBeGreaterThan(10_000);
 });
 
 it("streams text with step breaks, reports tools and completes", async () => {

@@ -30,6 +30,7 @@ function cliEnv() {
     "ELECTRON_RUN_AS_NODE",
   ])
     delete env[key];
+  env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = "1";
   const home = os.homedir();
   env.PATH = [
     env.PATH,

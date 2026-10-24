@@ -46,6 +46,7 @@ import { readTranscript, searchTranscript } from "../src/shared/transcript";
 import { effectsGuideResult } from "../src/shared/agent-guide";
 import {
   assistantInstructions,
+  cutlineCore,
   cutlineWorkflow,
 } from "../src/shared/assistant-instructions";
 import { parseMarkdown } from "../src/shared/chat-markdown";
@@ -1345,17 +1346,24 @@ describe("the launcher works and explains itself when Cutline is closed", () => 
     const client = new Client({ name: "test", version: "1.0" });
     await client.connect(clientSide);
     try {
+      // Claude Code keeps 2,048 characters of server instructions: the core
+      // fits and points at the full workflow, which one call returns.
       const instructions = client.getInstructions()!;
-      expect(instructions).toBe(cutlineWorkflow);
+      expect(instructions).toBe(cutlineCore);
+      expect(instructions.length).toBeLessThan(2_000);
       for (const phrase of [
         "cutline_inspect",
         "revision",
         "image true",
         "cutline_jobs",
-        "cutline_search_transcript",
+        'cutline_editing_schema {section: "workflow"}',
       ])
         expect(instructions).toContain(phrase);
       expect(instructions).not.toContain("Never use a shell");
+      expect(editingSchemaSection("workflow")).toEqual({
+        workflow: cutlineWorkflow,
+      });
+      expect(cutlineWorkflow).toContain("cutline_search_transcript");
       const listed = await client.listTools();
       expect(size(listed)).toBeLessThan(50_000);
       expect(
@@ -1442,7 +1450,12 @@ describe("guides match the tools", () => {
   });
 
   it("gives the built-in assistant the same workflow plus its limits", () => {
-    expect(assistantInstructions).toContain(cutlineWorkflow);
+    // Everything but the sessions guide: the built-in is bound to its window.
+    expect(assistantInstructions).toContain(
+      cutlineWorkflow.slice(cutlineWorkflow.indexOf("How to work")),
+    );
+    expect(assistantInstructions).not.toContain("cutline_sessions action list");
+    expect(cutlineWorkflow).toContain("cutline_sessions action list");
     expect(assistantInstructions).toContain("Never use a shell");
     expect(assistantInstructions).not.toMatch(/\u2014/);
     expect(cutlineWorkflow).not.toMatch(/\u2014/);

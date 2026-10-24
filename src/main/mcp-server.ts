@@ -1,5 +1,5 @@
 import { CUTLINE_VERSION } from "../shared/version";
-import { cutlineWorkflow } from "../shared/assistant-instructions";
+import { cutlineCore } from "../shared/assistant-instructions";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import {
   CallToolRequestSchema,
@@ -35,7 +35,7 @@ export function mcpResult(value: any) {
 export function createMcpServer(
   list: () => Promise<Tool[]>,
   call: (name: string, args: any) => Promise<unknown>,
-  instructions: string = cutlineWorkflow,
+  instructions: string = cutlineCore,
 ) {
   const server = new Server(
     { name: "cutline", version: CUTLINE_VERSION },

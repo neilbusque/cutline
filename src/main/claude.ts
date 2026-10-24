@@ -9,7 +9,7 @@ import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { EventEmitter } from "node:events";
-import { assistantPersona } from "../shared/assistant-instructions";
+import { assistantInstructions } from "../shared/assistant-instructions";
 
 export type ClaudeModel = "opus" | "sonnet";
 const TOOL_PREFIX = "mcp__cutline__";
@@ -50,6 +50,8 @@ function childEnv() {
   // allow long local jobs such as transcription to finish.
   env.ENABLE_TOOL_SEARCH = "false";
   env.MCP_TOOL_TIMEOUT = "600000";
+  // Claude Code's file memory would promise to remember things it can't use here.
+  env.CLAUDE_CODE_DISABLE_AUTO_MEMORY = "1";
   return env;
 }
 
@@ -262,9 +264,11 @@ export class ClaudeAssistant extends EventEmitter {
         "dontAsk",
         "--model",
         this.model,
-        "--append-system-prompt",
-        // The workflow arrives as the Cutline MCP server's instructions.
-        assistantPersona,
+        // The whole editing workflow as the system prompt, in place of
+        // Claude Code's coding prompt. Delivered as MCP server instructions
+        // it was cut to its first 2,048 characters.
+        "--system-prompt",
+        assistantInstructions,
         ...sessionArgs,
       ],
       { cwd: this.cwd, env: childEnv(), stdio: "pipe" },

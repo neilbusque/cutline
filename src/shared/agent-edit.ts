@@ -1,3 +1,4 @@
+import { cutlineWorkflow } from "./assistant-instructions";
 import { regroupCaptionCommands } from "./caption-grouping";
 import { z } from "zod";
 import { StoryPlanSchema, StorySceneSchema } from "./story-schema";
@@ -1410,6 +1411,7 @@ const schemaSections: Record<string, () => z.ZodType> = {
   transaction: () => TransactionSchema,
 };
 export const editingSchemaSections = [
+  "workflow",
   "guide",
   "actions",
   "commands",
@@ -1500,6 +1502,8 @@ export function agentEditingGuide() {
 
 /** One section of the editing schema, with every field, bound and default. */
 export function editingSchemaSection(section: string): unknown {
+  // External clients keep only the start of the server instructions.
+  if (section === "workflow") return { workflow: cutlineWorkflow };
   if (section === "guide") return agentEditingGuide();
   if (section === "motionRecipes") return motionRecipeCatalog();
   if (section === "actions")

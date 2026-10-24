@@ -49,10 +49,13 @@ export async function startBridge(
           return;
         }
         const local = parts[2] === "local" && options.localCall;
+        // The built-in assistants get the full workflow as their system
+        // prompt, so their server sends no instructions of its own.
         const protocol = createMcpServer(
           async () =>
             (local ? (options.localTools ?? toolList) : toolList) as Tool[],
           local ? options.localCall! : call,
+          ...(local ? [""] : []),
         );
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: undefined,
