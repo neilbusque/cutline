@@ -174,10 +174,6 @@ export function ExplainerStory({
           onChange={(event) => change({ script: event.target.value })}
         />
       </label>
-      <p className="story-hint">
-        Your words become the narration. Cutline organizes them into scenes you
-        can edit.
-      </p>
       <details className="explainer-context">
         <summary>Audience &amp; next step</summary>
         <label className="story-field">
@@ -197,13 +193,10 @@ export function ExplainerStory({
             maxLength={160}
             value={input.cta ?? ""}
             placeholder="What should viewers do next?"
+            title="Shown on screen. Add it to your script if you want it spoken."
             onChange={(event) => change({ cta: event.target.value })}
           />
         </label>
-        <p className="story-hint">
-          The closing action appears on screen. Add it to your script if you
-          want it spoken.
-        </p>
       </details>
       {selected?.requiresMedia && (
         <p className="story-hint">

@@ -749,8 +749,7 @@ export function ReelBuilder({
             <p className="reel-hint">
               {format !== "montage" && automaticAnimations
                 ? "Uses spoken phrases automatically. Add your own timings to replace them."
-                : "Add a callout or step at a moment in your source."}{" "}
-              Every animation stays editable.
+                : "Add a callout or step at a moment in your source."}
             </p>
             {beats.map((beat, index) => {
               const asset = p.assets.find((item) => item.id === beat.assetId);

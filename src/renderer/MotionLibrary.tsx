@@ -386,10 +386,6 @@ export function MotionLibrary({
       >
         {tab === "sequence" && (
           <div className="mg-sequence">
-            <p className="mg-sequence-intro">
-              A strong opening, a developing idea, and a resolved ending.
-              Connected by one traveling mark.
-            </p>
             {sequencePreview && (
               <div
                 className="mg-sequence-preview"
@@ -528,6 +524,7 @@ export function MotionLibrary({
               </span>
               <select
                 aria-label="Sequence screen demo"
+                title="An imported screenshot or recording for the middle act. Recordings play once, muted."
                 value={sequence.assetId ?? ""}
                 onChange={(event) =>
                   updateSequence({ assetId: event.target.value || undefined })
@@ -545,10 +542,6 @@ export function MotionLibrary({
                   ))}
               </select>
             </label>
-            <p className="mg-sequence-hint">
-              Choose an imported screenshot or recording for the middle act.
-              Recordings play once, with their sound muted.
-            </p>
             <details className="mg-sequence-palette">
               <summary>Brand colors</summary>
               <div>
@@ -586,10 +579,6 @@ export function MotionLibrary({
                   : `Add ${sequence.seconds}s sequence`}
               </button>
             </div>
-            <p className="mg-sequence-hint">
-              New tracks at the playhead · one undo step · every layer stays
-              editable.
-            </p>
             {sequenceAdded && (
               <p className="mg-sequence-result" role="status">
                 {sequenceAdded}

@@ -251,10 +251,6 @@ export function AgentConnections({
         <h3>Connect an assistant</h3>
         <span>Live editing</span>
       </div>
-      <p className="ac-lead">
-        Give Claude or Codex control of the open project, including editable
-        motion graphics and the timeline.
-      </p>
       <div className="ac-status" role="status">
         <span className={`ac-status-dot ${status?.ready ? "ready" : ""}`} />
         <div>

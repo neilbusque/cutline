@@ -1053,10 +1053,6 @@ export function StoryLibrary({
               </h3>
               <span>{plural(draft.scenes.length, "scene")}</span>
             </div>
-            <p className="story-hint">
-              Create local narration, time the captions, and put your editable
-              scenes on the timeline.
-            </p>
             <div className="story-voice-settings">
               <label className="story-field">
                 Voice
@@ -1182,12 +1178,12 @@ export function StoryLibrary({
                   : "Create explainer"}
               </button>
             </div>
-            <p className="story-hint">
-              {draft.assembly
-                ? "Saves your outline and replaces its previous story sequence. Other timeline clips stay in place."
-                : "Saves your outline first. All scenes stay editable after creation."}{" "}
-              Follow progress or cancel in Jobs.
-            </p>
+            {draft.assembly && (
+              <p className="story-hint">
+                Replaces the previous story sequence. Other timeline clips stay
+                in place.
+              </p>
+            )}
           </section>
         )}
         {step === 0 && (
@@ -1269,17 +1265,13 @@ export function StoryLibrary({
               className="story-reference-section"
               open={sharedReferenceIds.length > 0}
             >
-              <summary>
+              <summary title="Keeps characters, wardrobe and visual style consistent across every generated scene">
                 <ImagePlus size={14} aria-hidden="true" />
                 Shared reference images
                 <span>
                   {sharedReferenceIds.length} / {STORY_REFERENCE_LIMIT}
                 </span>
               </summary>
-              <p className="story-hint">
-                Keep characters, wardrobe, and visual style consistent across
-                every generated scene.
-              </p>
               <ReferenceImages
                 images={sharedReferenceIds.map((id) => referenceImage(id))}
                 label="Shared story reference images"
@@ -1313,15 +1305,12 @@ export function StoryLibrary({
               <button
                 className="story-inline-action"
                 disabled={sharedReferenceCapacity >= STORY_REFERENCE_LIMIT}
+                title="PNG, JPEG or WebP. Up to 9 images per shot, including scene references. Images stay on this Mac until you generate a shot."
                 onClick={() => void importReferences()}
               >
                 <ImagePlus size={13} aria-hidden="true" /> Import shared
                 reference images
               </button>
-              <p className="story-hint">
-                PNG, JPEG, or WebP. Up to 9 images per shot, including scene
-                references. Images stay on this Mac until you generate a shot.
-              </p>
               {sharedReferenceCapacity >= STORY_REFERENCE_LIMIT && (
                 <p className="story-hint">
                   A scene has 9 references. Remove one before importing more
@@ -1344,10 +1333,6 @@ export function StoryLibrary({
                       onChange={(event) => setScript(event.target.value)}
                     />
                   </label>
-                  <p className="story-hint">
-                    Separate scenes with a blank line. You can edit every scene
-                    afterward.
-                  </p>
                   <button
                     className="primary"
                     disabled={!script.trim()}
@@ -1621,11 +1606,11 @@ export function StoryLibrary({
                     base={base}
                     aspectRatio={project.width / project.height}
                   />
-                  <p className="story-hint">
-                    {sceneNeedsMedia(selected)
-                      ? "Add a screenshot or screen recording below. Cutline adds the frame, copy, and motion locally."
-                      : "Created locally. This scene uses editable text and graphics, so no Higgsfield generation is needed."}
-                  </p>
+                  {sceneNeedsMedia(selected) && (
+                    <p className="story-hint">
+                      Add a screenshot or screen recording below.
+                    </p>
+                  )}
                   <button
                     className="story-inline-action"
                     onClick={() => setStep(0)}
@@ -1918,7 +1903,10 @@ export function StoryLibrary({
                   }
                 />
               </label>
-              <div className="story-voice-settings">
+              <div
+                className="story-voice-settings"
+                title="Voice and pace apply to the whole story. Narration is made on this Mac."
+              >
                 <label className="story-field">
                   Voice
                   <select
@@ -1961,10 +1949,6 @@ export function StoryLibrary({
                   </select>
                 </label>
               </div>
-              <p className="story-hint">
-                Voice and pace apply to the whole story. Narration is created
-                locally on this Mac.
-              </p>
               {voiceCheckError && (
                 <p className="story-error" role="alert">
                   Could not check the voice engine: {voiceCheckError}
@@ -2211,10 +2195,6 @@ export function StoryLibrary({
                 building.
               </p>
             )}
-            <p className="story-hint">
-              Shots, graphics, voiceovers, captions, and music stay editable.
-              Short video shots loop to cover narration.
-            </p>
             {needsSave && (
               <p className="story-warning">
                 Save your storyline before building.
@@ -2224,6 +2204,7 @@ export function StoryLibrary({
               <button
                 className="primary story-build"
                 disabled={!assemblyReady}
+                title="Short video shots loop to cover their narration"
                 onClick={() => void assemble()}
               >
                 {action === "assemble" ? (

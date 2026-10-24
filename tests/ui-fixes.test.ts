@@ -141,3 +141,63 @@ describe("keys live in Settings", () => {
     expect(html).not.toContain("Save key");
   });
 });
+
+describe("no always-on filler text", () => {
+  const h = React.createElement;
+  const noop = () => {};
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("@remotion/player", () => ({
+      Player: () => h("i"),
+      Thumbnail: () => h("i"),
+    }));
+    vi.stubGlobal("window", {
+      cutline: {},
+      matchMedia: () => ({
+        matches: false,
+        addEventListener: noop,
+        removeEventListener: noop,
+      }),
+      addEventListener: noop,
+      removeEventListener: noop,
+    });
+  });
+  afterEach(() => {
+    vi.doUnmock("@remotion/player");
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it("keeps the Generate video form to its controls", async () => {
+    const { GenerateLibrary } = await import("../src/renderer/GenerateLibrary");
+    const html = renderToStaticMarkup(
+      h(GenerateLibrary, {
+        active: false,
+        projectId: "p",
+        aspectRatio: "9:16",
+        addBroll: async () => {},
+        report: noop,
+        openSettings: noop,
+      }),
+    );
+    expect(html).not.toContain("Create a clip, then bring it into your edit.");
+    expect(html).not.toContain("Describe the subject, movement, and camera.");
+    // The cost note before a paid generation stays.
+    expect(html).toContain("Uses your Higgsfield API credits");
+  });
+
+  it("drops the Motion sequence intro and footer line", async () => {
+    const { MotionLibrary } = await import("../src/renderer/MotionLibrary");
+    const html = renderToStaticMarkup(
+      h(MotionLibrary, {
+        p: newProject(),
+        playhead: createValueStore(0),
+        edit: async () => true,
+        select: noop,
+        addText: noop,
+      }),
+    );
+    expect(html).not.toContain("A strong opening");
+    expect(html).not.toContain("one undo step");
+  });
+});

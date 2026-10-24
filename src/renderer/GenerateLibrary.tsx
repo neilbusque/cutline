@@ -379,9 +379,6 @@ export function GenerateLibrary({
           Higgsfield <ExternalLink size={11} aria-hidden="true" />
         </button>
       </div>
-      <p className="generation-intro">
-        Create a clip, then bring it into your edit.
-      </p>
 
       <div className="generation-connect">
         <div className="generation-connected">
@@ -426,22 +423,20 @@ export function GenerateLibrary({
             value={prompt}
             onChange={(event) => setPrompt(event.target.value)}
             placeholder="A slow push through a sunlit coffee shop, steam rising from a ceramic cup…"
+            title="Describe the subject, movement and camera"
             rows={4}
             maxLength={maxPromptLength}
             required
             disabled={submitting}
-            aria-describedby="generation-prompt-hint"
+            aria-describedby={promptTooLong ? "generation-prompt-hint" : undefined}
             aria-invalid={promptTooLong || undefined}
           />
         </label>
-        <p
-          className={promptTooLong ? "generation-error" : "generation-note"}
-          id="generation-prompt-hint"
-        >
-          {promptTooLong
-            ? `${modelName(model)} prompts must be ${maxPromptLength.toLocaleString()} characters or fewer. Shorten your prompt to continue.`
-            : "Describe the subject, movement, and camera."}
-        </p>
+        {promptTooLong && (
+          <p className="generation-error" id="generation-prompt-hint">
+            {`${modelName(model)} prompts must be ${maxPromptLength.toLocaleString()} characters or fewer. Shorten your prompt to continue.`}
+          </p>
+        )}
         <div className="generation-options">
           <label className="generation-field generation-model">
             <span>Model</span>
@@ -716,10 +711,7 @@ export function GenerateLibrary({
           </div>
         )}
         {!loading && !projectJobs.length && !historyError && (
-          <p className="generation-empty">
-            Your generated videos appear here. Import a finished clip to media,
-            then add it at the playhead.
-          </p>
+          <p className="generation-empty">No videos yet.</p>
         )}
         <div className="generation-jobs">
           {projectJobs.map((job) => {

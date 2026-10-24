@@ -181,16 +181,11 @@
   display: grid;
   gap: 11px;
 }
-.mg-sequence-intro,
 .mg-sequence-hint {
   margin: 0;
   color: var(--text-3);
   font-size: 11px;
   line-height: 1.55;
-}
-.mg-sequence-intro {
-  color: var(--text-2);
-  font-size: 12px;
 }
 .mg-sequence-preview {
   position: relative;

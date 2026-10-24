@@ -625,6 +625,7 @@ export function MotionInspector({
           <button
             className="control"
             disabled={selection.length < 3}
+            title="Select three or more layers for equal gaps"
             onClick={() =>
               applyBatch(
                 distributeMotionLayers(
@@ -642,6 +643,7 @@ export function MotionInspector({
           <button
             className="control"
             disabled={selection.length < 3}
+            title="Select three or more layers for equal gaps"
             onClick={() =>
               applyBatch(
                 distributeMotionLayers(
@@ -657,10 +659,6 @@ export function MotionInspector({
             <Rows3 size={14} /> Space down
           </button>
         </div>
-        <p className="hint">
-          Aligns transformed layer boxes at the playhead and preserves their
-          motion paths. Select three layers for equal gaps.
-        </p>
         <details className="motion-batch-timing">
           <summary>
             Timing for {selection.length} selected{" "}
@@ -760,6 +758,7 @@ export function MotionInspector({
             </label>
             <button
               disabled={!timingScale.trim()}
+              title="50% is faster, 200% is slower. Clip duration stays the same."
               onClick={() =>
                 applyBatch(
                   scaleMotionLayerTiming(
@@ -774,11 +773,6 @@ export function MotionInspector({
               Retime
             </button>
           </div>
-          <p className="hint">
-            50% is faster; 200% is slower. Retimes keys and masked line reveals
-            from scene frame 0. Word and character spacing stays in Text reveal.
-            Clip duration stays the same.
-          </p>
         </details>
         {batchError && (
           <p role="alert" className="motion-batch-feedback error">
@@ -1154,7 +1148,9 @@ export function MotionInspector({
         )}
       </details>
       <details>
-        <summary>Transform & effects</summary>
+        <summary title="Animated values override these. Move X and Y keys are offsets.">
+          Transform & effects
+        </summary>
         <div className="two-col">
           <button onClick={() => update({ x: (clip.width - layer.width) / 2 })}>
             Center horizontally
@@ -1181,9 +1177,6 @@ export function MotionInspector({
           {layer.type !== "text" &&
             number("Stroke reveal", "trim", layer.trim, 0, 1, 0.05)}
         </div>
-        <p className="hint">
-          Animated values override these. Move X and Y keys are offsets.
-        </p>
       </details>
       <details open className="motion-curves">
         <summary>Animate layer</summary>

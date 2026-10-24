@@ -744,9 +744,6 @@ export function CaptionLibrary({
                   placeholder="Replacement text"
                 />
               </label>
-              <p className="cs-hint">
-                Finds the search words in every caption.
-              </p>
               <button
                 className="control"
                 disabled={!query}

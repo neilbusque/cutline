@@ -8,6 +8,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 12px;
   color: var(--text);
 }
 .ac-heading > svg {
@@ -22,11 +23,6 @@
   margin-left: auto;
   font-size: 11px;
   color: var(--text-3);
-}
-.agent-connections .ac-lead {
-  color: var(--text-2);
-  line-height: 1.55;
-  margin: 6px 0 14px;
 }
 .ac-status {
   display: flex;
