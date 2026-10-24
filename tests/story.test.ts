@@ -264,6 +264,23 @@ describe("Story timeline assembly", () => {
     );
   });
 
+  it("puts the story's visuals under the project's Titles and Captions, so a later title still shows", () => {
+    const result = buildStoryTimeline(preparedStory(), { mode: "append" });
+    const names = result.project.tracks.map((track) => track.name);
+    expect(names).toEqual([
+      "Story captions",
+      "Titles",
+      "Captions",
+      "Story visuals",
+      "Video",
+      "Music & audio",
+      "Story voiceover",
+    ]);
+    // Earlier tracks draw on top: a toolbar or agent title goes on Titles.
+    expect(names.indexOf("Titles")).toBeLessThan(names.indexOf("Story visuals"));
+    expect(result.project.story!.assembly!.trackIds).toHaveLength(3);
+  });
+
   it("rebuilds only its recorded clips and preserves custom work even on an owned track", () => {
     const first = buildStoryTimeline(preparedStory(), {
       mode: "append",

@@ -322,8 +322,21 @@ export function buildStoryTimeline(
     throw Error(
       "This story needs more timeline tracks than the project can hold. Remove unused tracks first.",
     );
-  // Earlier tracks appear above later tracks in both preview and export.
-  next.tracks.unshift(...newTracks);
+  // Earlier tracks draw above later ones, in preview and export. Story
+  // captions go on top like any new text track. The visuals, with the product
+  // graphics drawn under them, go above the project's own video but below its
+  // Titles and Captions, so a title added later still shows. Audio goes last.
+  const media = newTracks.filter(
+    (track) => track.id === videoTrack || track.id === graphicsTrack,
+  );
+  const firstMedia = next.tracks.findIndex((track) => track.kind !== "text");
+  next.tracks.splice(
+    firstMedia < 0 ? next.tracks.length : firstMedia,
+    0,
+    ...media,
+  );
+  next.tracks.unshift(...newTracks.filter((track) => track.id === captionTrack));
+  next.tracks.push(...newTracks.filter((track) => track.kind === "audio"));
   const clips: Clip[] = [];
   const motionIds: string[] = [];
   const push = (...items: Clip[]) => {
