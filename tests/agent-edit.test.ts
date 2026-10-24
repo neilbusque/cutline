@@ -621,7 +621,7 @@ describe("structured assistant editing", () => {
       edit(p, [
         { type: "clip.update", clipId: "source", patch: { assetId: "photo" } },
       ]),
-    ).toThrow("does not support this clip kind");
+    ).toThrow('cannot play the image "Photo"');
     expect(() =>
       edit(p, [
         {
@@ -631,7 +631,7 @@ describe("structured assistant editing", () => {
           patch: { assetId: "photo" },
         },
       ]),
-    ).toThrow("does not support this clip kind");
+    ).toThrow('cannot play the image "Photo"');
   });
 
   it("commits a prepared multi-action edit as one undo entry and dry-run leaves the store untouched", () => {

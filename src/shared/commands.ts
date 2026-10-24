@@ -224,13 +224,39 @@ function deleteClip(
 /** Raw edits must keep every clip it touches on a track of its kind. */
 /** Where every clip sat before an edit, kept apart from the project the edit changes. */
 type TrackPlaces = {
-  clips: Map<string, Pick<Clip, "trackId" | "kind">>;
+  clips: Map<string, Pick<Clip, "trackId" | "kind" | "assetId">>;
   tracks: Map<string, Track["kind"]>;
 };
 const trackPlaces = (p: Project): TrackPlaces => ({
-  clips: new Map(p.clips.map((c) => [c.id, { trackId: c.trackId, kind: c.kind }])),
+  clips: new Map(
+    p.clips.map((c) => [
+      c.id,
+      { trackId: c.trackId, kind: c.kind, assetId: c.assetId },
+    ]),
+  ),
   tracks: new Map(p.tracks.map((t) => [t.id, t.kind])),
 });
+
+/**
+ * A clip added or changed in this edit must be able to play its media: an
+ * mp3 in a video clip or a picture in an audio clip shows nothing and stops
+ * the export.
+ */
+function checkMediaKinds(before: TrackPlaces, p: Project) {
+  const assets = new Map(p.assets.map((a) => [a.id, a]));
+  for (const c of p.clips) {
+    if (c.kind !== "video" && c.kind !== "audio" && c.kind !== "image")
+      continue;
+    const old = before.clips.get(c.id);
+    // A mismatch saved by an older build stays editable until it changes.
+    if (old && old.kind === c.kind && old.assetId === c.assetId) continue;
+    const a = c.assetId ? assets.get(c.assetId) : undefined;
+    if (a && (c.kind === "audio" ? a.kind === "image" : a.kind !== c.kind))
+      throw Error(
+        `Clip ${c.id} is ${c.kind === "image" ? "an" : "a"} ${c.kind} clip, so it cannot play the ${a.kind} "${a.name}".`,
+      );
+  }
+}
 
 function checkTrackKinds(before: TrackPlaces, p: Project) {
   const tracks = new Map(p.tracks.map((t) => [t.id, t]));
@@ -428,6 +454,7 @@ export function applyCommands(
     }
   }
   checkTrackKinds(before, p);
+  checkMediaKinds(before, p);
   collectMotions(p, putMotions);
   p.revision++;
   return options.validate === false ? p : validateProject(p);

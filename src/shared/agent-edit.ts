@@ -563,17 +563,6 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
       };
     return result;
   };
-  const checkMedia = (c: Pick<Clip, "kind" | "assetId">) => {
-    if (!["video", "audio", "image"].includes(c.kind)) return;
-    const a = working.assets.find((asset) => asset.id === c.assetId);
-    if (!a) throw Error("Media clips require an imported asset.");
-    if (
-      (c.kind === "video" && a.kind !== "video") ||
-      (c.kind === "image" && a.kind !== "image") ||
-      (c.kind === "audio" && a.kind === "image")
-    )
-      throw Error("The selected asset does not support this clip kind.");
-  };
   const run = (commands: Command[]) => {
     if (commands.length)
       working = applyCommands(
@@ -694,7 +683,6 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           });
           if (created.kind !== action.kind)
             throw Error("Set the clip kind in clip.add rather than its patch.");
-          checkMedia(created);
           if (created.trackId === destination.id) {
             if (!compatibleTrack(created, destination))
               throw Error(
@@ -717,7 +705,6 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
             { kind: patch.kind ?? c.kind },
             patch.trackId ?? c.trackId,
           );
-          checkMedia({ ...c, ...patch });
           run([{ type: "clip.update", id: c.id, patch }]);
           break;
         }
