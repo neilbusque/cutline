@@ -99,6 +99,9 @@ export async function capturePage(
           if (box.height < vh * 0.9 && /cookie|consent|privacy|accept all|sign up to|log in to|get the app|open in app/i.test(text))
             el.remove();
         }
+        // Fundraising and site notices that sit in the page, not over it.
+        for (const el of document.querySelectorAll("#siteNotice, #centralNotice, .frb, .cn-fundraising, [id^=frb-], .mw-dismissable-notice"))
+          el.remove();
         document.documentElement.style.scrollBehavior = "auto";
         window.scrollTo(0, ${Math.max(0, Math.round(options.scroll ?? 0))});
         const target = ${JSON.stringify(options.selector ?? "")};

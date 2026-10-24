@@ -374,8 +374,9 @@ describe("explicit session routing", () => {
     expect(cutlineTools).toEqual(original);
     // Measure the public tools/list response, including the session wrapper.
     // The raw built-in definitions alone miss the external client's overhead.
-    // 51,000 since cutline_reference (0.30); trim descriptions before raising again.
-    expect(JSON.stringify({ tools }).length).toBeLessThan(51_000);
+    // 52,000 since cutline_reference and cutline_style_reel (0.30, 0.31);
+    // trim descriptions before raising again.
+    expect(JSON.stringify({ tools }).length).toBeLessThan(52_000);
     for (const [index, tool] of cutlineTools.entries()) {
       const { sessionId, ...properties } =
         tools[index + 1].inputSchema.properties!;

@@ -321,6 +321,23 @@ export function regroupCaptionCommands(
       })),
     );
   }
+  // Per-caption splitting rounds each end up to a whole frame; trim so the
+  // next caption on the track never shares a frame with this one.
+  const kept = timed.filter((c) => !removed.includes(c.id));
+  const byTrack = [...added, ...kept].sort(
+    (a, b) => a.trackId.localeCompare(b.trackId) || a.start - b.start,
+  );
+  for (let i = 0; i + 1 < byTrack.length; i++) {
+    const current = byTrack[i],
+      next = byTrack[i + 1];
+    if (
+      current.trackId === next.trackId &&
+      added.includes(current) &&
+      current.start + current.duration > next.start &&
+      next.start > current.start
+    )
+      current.duration = next.start - current.start;
+  }
   return {
     count: added.length,
     commands: [

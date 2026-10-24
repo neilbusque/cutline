@@ -9,7 +9,21 @@ import "./assistant.css";
 type Provider = "claude" | "codex";
 type Message = { role: "user" | "assistant"; text: string };
 const names: Record<Provider, string> = { claude: "Claude", codex: "Codex" };
+const styleShort = (style: string, name: string) =>
+  `Make my speaker video on the timeline into a ${name}-inspired Short with cutline_style_reel style ${style}. Transcribe first if there are no captions. Read the transcript with timings, plan the beats by the style's rules (real logos and pages for every product, site or repo I name, short lines only from my actual words), build it, then preview the opening, several beats and the ending and fix what looks wrong. Keep my voice.`;
 const suggestions = [
+  {
+    label: "Jack Roberts-style Short",
+    prompt: styleShort("split", "Jack Roberts"),
+  },
+  {
+    label: "sebintel-style Short",
+    prompt: styleShort("cards", "sebintel"),
+  },
+  {
+    label: "Matthew Berman-style Short",
+    prompt: styleShort("locked-split", "Matthew Berman"),
+  },
   {
     label: "Make an Ali-inspired Reel",
     prompt:
@@ -57,6 +71,8 @@ export function toolActivity(name: string) {
   if (name === "cutline_import_media") return "Importing media…";
   if (name === "cutline_stock_import") return "Getting stock media…";
   if (name === "cutline_voiceover") return "Creating the voiceover…";
+  if (name === "cutline_style_reel") return "Laying out the Short…";
+  if (name === "cutline_reference") return "Getting the real logo or page…";
   if (name === "cutline_story") return "Planning the storyline…";
   if (name === "cutline_story_voice") return "Creating scene narration…";
   if (name === "cutline_story_assemble") return "Assembling the story…";

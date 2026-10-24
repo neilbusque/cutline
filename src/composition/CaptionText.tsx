@@ -97,8 +97,16 @@ export function CaptionText({
   if (c.exitAnimation === "shrink")
     transforms.push(`scale(${1 - exitEased * 0.2})`);
   const stroke = layout.strokeWidth;
+  // Dark words on a light canvas read cleanly without a dark halo.
+  const darkInk =
+    /^#[0-9a-f]{6}/iu.test(c.color) &&
+    Number.parseInt(c.color.slice(1, 3), 16) * 0.299 +
+      Number.parseInt(c.color.slice(3, 5), 16) * 0.587 +
+      Number.parseInt(c.color.slice(5, 7), 16) * 0.114 <
+      90;
   const textShadow =
-    style === "box" && c.background !== "transparent"
+    (style === "box" && c.background !== "transparent") ||
+    (style === "clean" && darkInk)
       ? "none"
       : style === "minimal"
         ? "0 1px 5px #000b"

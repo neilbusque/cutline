@@ -25,6 +25,7 @@ import type { StockKind, StockProvider } from "../shared/stock";
 import type { BrandLogo } from "./vector-studio";
 import { parseEditableSvg } from "../shared/vector-path";
 import { createVectorScene } from "../shared/vector-scenes";
+import { buildStyleReel, type StyleBeat } from "../shared/style-reel";
 
 /**
  * Stock, narration, Auto edit and relink for agents: the same work as the
@@ -92,6 +93,23 @@ export const ReferenceArgsSchema = z.strictObject({
   color: z.enum(["brand", "white", "black"]).optional(),
   at: AgentTimeSchema.optional(),
 });
+export const StyleReelArgsSchema = z.strictObject({
+  ...guard,
+  style: z.enum(["split", "cards", "locked-split"]),
+  beats: z
+    .array(
+      z.strictObject({
+        from: z.number().min(0),
+        to: z.number().min(0),
+        layout: z.enum(["split", "full", "face", "speaker"]).optional(),
+        kind: z.enum(["logo", "page", "asset", "text"]).optional(),
+        show: z.string().trim().min(1).max(2000).optional(),
+        selector: z.string().max(300).optional(),
+      }),
+    )
+    .min(1)
+    .max(80),
+});
 export const RelinkArgsSchema = z.strictObject({
   ...guard,
   assetId: id,
@@ -104,6 +122,7 @@ const schemas = {
   cutline_auto_edit: AutoEditArgsSchema,
   cutline_relink: RelinkArgsSchema,
   cutline_reference: ReferenceArgsSchema,
+  cutline_style_reel: StyleReelArgsSchema,
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   cutline_stock_import:
@@ -116,6 +135,8 @@ const descriptions: Record<keyof typeof schemas, string> = {
     "Relink asset/other missing folder files to absolute local path. Keeps credits; transcript/beats require matching length. Undoable.",
   cutline_reference:
     "Show what the script names: kind logo (target=product or domain) or screenshot (target=url, CSS selector, phone view). at places it.",
+  cutline_style_reel:
+    "Lay out a creator-style Short on the speaker video from timed beats; show = logo name, page url, assetId or text.",
 };
 const hints: Record<
   keyof typeof schemas,
@@ -126,6 +147,7 @@ const hints: Record<
   cutline_auto_edit: { destructive: true, network: true },
   cutline_relink: { destructive: false, network: false },
   cutline_reference: { destructive: false, network: true },
+  cutline_style_reel: { destructive: true, network: true },
 };
 
 export const agentMediaTools: Tool[] = Object.entries(schemas).map(
@@ -674,8 +696,113 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     };
   }
 
+  async function styleReel(raw: unknown) {
+    const args = StyleReelArgsSchema.parse(raw ?? {});
+    assertRevision(args);
+    const projectId = store.project.id;
+    const stillOpen = () => {
+      if (store.project.id !== projectId)
+        throw Error(
+          "A different project was opened meanwhile. Inspect it and try again.",
+        );
+    };
+    const warnings: string[] = [];
+    const imported: Asset[] = [];
+    const beats: StyleBeat[] = [];
+    for (const beat of args.beats) {
+      const base = { from: beat.from, to: beat.to, layout: beat.layout };
+      const kind =
+        beat.kind ??
+        (!beat.show
+          ? undefined
+          : /^https?:\/\//u.test(beat.show)
+            ? "page"
+            : "logo");
+      try {
+        if (!kind || !beat.show) beats.push(base);
+        else if (kind === "text")
+          beats.push({ ...base, visual: { kind: "text", text: beat.show } });
+        else if (kind === "asset")
+          beats.push({
+            ...base,
+            visual: { kind: "asset", assetId: beat.show },
+          });
+        else {
+          if (!deps.references)
+            throw Error("References are not available here.");
+          if (kind === "logo") {
+            const site = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/iu.test(beat.show);
+            const logo = await deps.references.logo(
+              site ? { domain: beat.show } : { name: beat.show },
+            );
+            stillOpen();
+            if (logo.kind === "vector")
+              beats.push({
+                ...base,
+                visual: {
+                  kind: "svg",
+                  svg: logo.svg,
+                  color: logo.color,
+                  title: logo.title,
+                },
+              });
+            else {
+              const asset = await deps.media.import(logo.file);
+              asset.name = `${logo.title} logo`;
+              imported.push(asset);
+              beats.push({
+                ...base,
+                visual: { kind: "asset", assetId: asset.id, logo: true },
+              });
+            }
+          } else {
+            const shot = await deps.jobs.run(
+              "reference",
+              "Capturing the page",
+              () =>
+                deps.references!.screenshot(beat.show!, {
+                  device: "desktop",
+                  selector: beat.selector,
+                }),
+            );
+            stillOpen();
+            const asset = await deps.media.import(shot.file);
+            asset.name = shot.title.slice(0, 150);
+            imported.push(asset);
+            beats.push({
+              ...base,
+              visual: { kind: "asset", assetId: asset.id },
+            });
+          }
+        }
+      } catch (error) {
+        warnings.push(
+          `Beat at ${beat.from}s (${beat.show}): ${(error as Error).message}`,
+        );
+        beats.push(base);
+      }
+    }
+    stillOpen();
+    assertRevision(args);
+    const built = buildStyleReel(
+      { ...store.project, assets: [...store.project.assets, ...imported] },
+      {
+        style: args.style,
+        beats,
+      },
+    );
+    store.commit(built.project, "Creator-style Short");
+    return {
+      revision: store.project.revision,
+      ...built.summary,
+      warnings: [...warnings, ...built.warnings],
+    };
+  }
+
   return async (name: string, raw: unknown): Promise<unknown> => {
     switch (name) {
+      case "cutline_style_reel":
+        return styleReel(raw);
       case "cutline_reference":
         return reference(raw);
       case "cutline_stock_import":

@@ -63,13 +63,14 @@ Adding media to a local project does not submit it for cloud generation. Review 
 | Build an educational Reel            | [Creator education](docs/creator-education-style.md)                                                                      |
 | Edit motion layers and timing        | [Motion controls](docs/motion-controls.md)                                                                                |
 | Create vectors and logo reveals      | [Vector and logo workflow](docs/vector-logo.md)                                                                           |
+| Make Jack Roberts, sebintel or Matthew Berman-style Shorts | [Creator-style Shorts](docs/creator-styles.md) |
 | Direct a sequence                    | [AI director](docs/ai-director.md)                                                                                        |
 | Explore motion collections           | [Studio](docs/studio-motion.md), [professional motion](docs/professional-motion.md), [promo motion](docs/promo-motion.md) |
 | Use narration and music              | [Local voiceover](docs/kokoro-tts.md), [music sync](docs/music-sync.md)                                                   |
 | Connect an editing assistant         | [Agent control](docs/agent-control.md)                                                                                    |
 | Build and test                       | [Development](docs/development.md)                                                                                        |
 | Resolve a problem                    | [Troubleshooting](docs/troubleshooting.md)                                                                                |
-| Review the current source release    | [Changes in 0.30.1](docs/release-0.30.md)                                                                                 |
+| Review the current source release    | [Changes in 0.31.0](docs/release-0.31.md)                                                                                 |
 
 ## Contribute
 

@@ -146,4 +146,42 @@ describe("creator caption looks", () => {
     );
     expect(pill).toContain("#3c3c3ccc");
   });
+  it("never shows two captions in the same frame after splitting subtitle cues", () => {
+    let p = newProject();
+    // Subtitle-file style cues: one timed phrase each, ending exactly where
+    // the next begins, on fractional frames.
+    const cues = [
+      { text: "every trace", start: 2.333, end: 3.033 },
+      { text: "of AI Slop", start: 3.033, end: 4.033 },
+      { text: "from any text", start: 4.033, end: 5.267 },
+      { text: "And it's open source", start: 5.267, end: 6.7 },
+    ];
+    for (const cue of cues)
+      p = applyCommands(p, {
+        projectId: p.id,
+        revision: p.revision,
+        label: "Cue",
+        commands: buildCaptionClips(p, [cue]).map((clip) => ({
+          type: "clip.add" as const,
+          clip,
+        })),
+      });
+    const short = regroupCaptionCommands(p, p.clips, "short");
+    p = applyCommands(p, {
+      projectId: p.id,
+      revision: p.revision,
+      label: "Short",
+      commands: short.commands,
+    });
+    const sorted = p.clips
+      .filter((c) => c.kind === "caption")
+      .sort((a, b) => a.start - b.start);
+    for (let i = 1; i < sorted.length; i++)
+      expect(sorted[i - 1].start + sorted[i - 1].duration).toBeLessThanOrEqual(
+        sorted[i].start,
+      );
+    expect(sorted.map((c) => c.text).join(" ")).toBe(
+      cues.map((c) => c.text).join(" "),
+    );
+  });
 });
