@@ -78,6 +78,10 @@ it("uses the reviewed full browser for both composition loading and video render
         offthreadVideoCacheSizeInBytes: expect.any(Number),
       }),
     );
+  // Its own free port, never Remotion's default 3000 where dev servers live.
+  const port = mocks.renderMedia.mock.calls[0][0].port;
+  expect(port).toBeGreaterThan(1023);
+  expect(mocks.selectComposition.mock.calls[0][0].port).toBe(port);
   const cache = mocks.renderMedia.mock.calls[0][0].offthreadVideoCacheSizeInBytes;
   expect(cache).toBeGreaterThanOrEqual(256 * 1024 ** 2);
   expect(cache).toBeLessThanOrEqual(1024 ** 3);
