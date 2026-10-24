@@ -53,7 +53,7 @@ import {
   withDraft,
 } from "./edit-gestures";
 import { kindLabel } from "./labels";
-import { keyStaysInFocus } from "./timeline-focus";
+import { isTextField, keyStaysInFocus } from "./timeline-focus";
 import {
   createValueStore,
   usePlayheadFrame,
@@ -321,6 +321,9 @@ export function App() {
   const [snapGuides, setSnapGuides] = useState<{ x?: number; y?: number }>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
+  // Undo from the menu leaves the project alone while a dialog is open.
+  const modalOpen = useRef(false);
+  modalOpen.current = settingsOpen || projectsOpen;
   const settingsModal = useRef<HTMLElement>(null);
   useEffect(() => {
     if (!settingsOpen) return;
@@ -396,13 +399,21 @@ export function App() {
     const offJob = api.on("job", (j: Job) =>
       setJobs((list) => [...list.filter((x) => x.id !== j.id), j]),
     );
-    // File › Projects… (⌘O) opens the projects sheet.
-    const offUi = api.on("ui", (event: { show?: string }) => {
-      if (event?.show === "projects") {
-        setSettingsOpen(false);
-        setProjectsOpen(true);
-      }
-    });
+    // File › Projects… (⌘O) opens the projects sheet. Edit › Undo and Redo
+    // (⌘Z, ⇧⌘Z) undo typing in a text field, otherwise the last project edit.
+    const offUi = api.on(
+      "ui",
+      (event: { show?: string; edit?: "undo" | "redo" }) => {
+        if (event?.show === "projects") {
+          setSettingsOpen(false);
+          setProjectsOpen(true);
+        }
+        if (event?.edit !== "undo" && event?.edit !== "redo") return;
+        const focused = document.activeElement as HTMLElement | null;
+        if (focused && isTextField(focused)) document.execCommand(event.edit);
+        else if (!modalOpen.current) void run(event.edit);
+      },
+    );
     return () => {
       off();
       offJob();
@@ -574,10 +585,6 @@ export function App() {
           button?.blur();
           player.current?.toggle();
         }
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        void run(e.shiftKey ? "redo" : "undo");
       }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();

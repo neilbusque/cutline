@@ -88,6 +88,19 @@ export function clipFocusTarget(
   return undefined;
 }
 
+/** Where typing goes: ⌘Z there undoes the typing, not a project edit. */
+export function isTextField(
+  el: Pick<HTMLElement, "tagName" | "isContentEditable"> & {
+    type?: string;
+  },
+) {
+  if (el.isContentEditable || el.tagName === "TEXTAREA") return true;
+  return (
+    el.tagName === "INPUT" &&
+    /^(?:text|search|url|email|password|number|tel)?$/u.test(el.type ?? "")
+  );
+}
+
 /**
  * Keys the editor leaves to the focused control. Delete and the left and right
  * arrows act on what is focused in Properties, a library panel or a dialog (a

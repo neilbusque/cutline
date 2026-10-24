@@ -6,7 +6,10 @@ import { makeClip, newProject, type Project } from "../src/shared/model";
 import { errorText } from "../src/renderer/controls";
 import { timingCommands, trimCommands } from "../src/renderer/edit-gestures";
 import { createValueStore } from "../src/renderer/playhead";
-import { keyStaysInFocus } from "../src/renderer/timeline-focus";
+import {
+  isTextField,
+  keyStaysInFocus,
+} from "../src/renderer/timeline-focus";
 
 const remote = (message: string) =>
   Error(`Error invoking remote method 'cutline': Error: ${message}`);
@@ -357,5 +360,24 @@ describe("keys pressed in a panel act on what is focused there", () => {
   it("Space opens a focused section instead of playing", () => {
     expect(keyStaysInFocus(at("SUMMARY", true), " ")).toBe(true);
     expect(keyStaysInFocus(at("BUTTON", true), " ")).toBe(false);
+  });
+});
+
+describe("Cmd+Z in a text field", () => {
+  const el = (tagName: string, type?: string, isContentEditable = false) =>
+    ({ tagName, type, isContentEditable }) as unknown as HTMLElement;
+
+  it("undoes the typing in fields where you type", () => {
+    expect(isTextField(el("TEXTAREA"))).toBe(true);
+    expect(isTextField(el("INPUT", "text"))).toBe(true);
+    expect(isTextField(el("INPUT", "number"))).toBe(true);
+    expect(isTextField(el("DIV", undefined, true))).toBe(true);
+  });
+
+  it("undoes the project edit everywhere else", () => {
+    expect(isTextField(el("INPUT", "range"))).toBe(false);
+    expect(isTextField(el("INPUT", "checkbox"))).toBe(false);
+    expect(isTextField(el("SELECT"))).toBe(false);
+    expect(isTextField(el("BUTTON"))).toBe(false);
   });
 });
