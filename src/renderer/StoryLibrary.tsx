@@ -946,29 +946,32 @@ export function StoryLibrary({
           />
         </div>
       )}
-      <div className={`story-savebar${needsSave ? " is-dirty" : ""}`}>
-        <span>
-          {needsSave ? (
-            "Storyline has unsaved edits"
-          ) : (
-            <>
-              <Check size={12} aria-hidden="true" /> Storyline saved
-            </>
-          )}
-        </span>
-        <button
-          className={needsSave ? "control" : ""}
-          disabled={busy || !needsSave}
-          onClick={() => void save()}
-        >
-          <Save size={13} aria-hidden="true" />
-          {action === "save"
-            ? "Saving…"
-            : conflict
-              ? "Save my version"
-              : "Save storyline"}
-        </button>
-      </div>
+      {/* A new project has nothing to save until something is typed. */}
+      {(editor.dirty || !!project.story) && (
+        <div className={`story-savebar${needsSave ? " is-dirty" : ""}`}>
+          <span>
+            {needsSave ? (
+              "Storyline has unsaved edits"
+            ) : (
+              <>
+                <Check size={12} aria-hidden="true" /> Storyline saved
+              </>
+            )}
+          </span>
+          <button
+            className={needsSave ? "control" : ""}
+            disabled={busy || !needsSave}
+            onClick={() => void save()}
+          >
+            <Save size={13} aria-hidden="true" />
+            {action === "save"
+              ? "Saving…"
+              : conflict
+                ? "Save my version"
+                : "Save storyline"}
+          </button>
+        </div>
+      )}
       {conflict && (
         <div className="story-warning" role="status">
           <p>

@@ -335,7 +335,8 @@
 .agent-connections .ac-error {
   color: var(--danger);
 }
-.higgsfield-settings > h3 {
+/* Beats ".settings-modal h3", which loads later and added an uneven gap. */
+.settings-modal .higgsfield-settings > h3 {
   margin: 0;
 }
 .ac-toggle {

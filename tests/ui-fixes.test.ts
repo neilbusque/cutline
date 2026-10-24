@@ -201,3 +201,58 @@ describe("no always-on filler text", () => {
     expect(html).not.toContain("one undo step");
   });
 });
+
+describe("Story on a new project", () => {
+  const h = React.createElement;
+  const noop = () => {};
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("@remotion/player", () => ({
+      Player: () => h("i"),
+      Thumbnail: () => h("i"),
+    }));
+    vi.stubGlobal("window", {
+      cutline: {},
+      addEventListener: noop,
+      removeEventListener: noop,
+    });
+  });
+  afterEach(() => {
+    vi.doUnmock("@remotion/player");
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  const story = async (project: ReturnType<typeof newProject>) => {
+    const { StoryLibrary } = await import("../src/renderer/StoryLibrary");
+    return renderToStaticMarkup(
+      h(StoryLibrary, {
+        project,
+        base: "",
+        jobs: [],
+        active: true,
+        importMedia: noop,
+        openGenerate: noop,
+        openCaptions: noop,
+        openSettings: noop,
+        onCreated: noop,
+        report: noop,
+      }),
+    );
+  };
+
+  it("says nothing about unsaved edits before anything is typed", async () => {
+    const html = await story(newProject());
+    expect(html).not.toContain("Storyline has unsaved edits");
+    expect(html).not.toContain("Save storyline");
+  });
+
+  it("still shows a saved storyline as saved", async () => {
+    const { StoryPlanSchema } = await import("../src/shared/story-schema");
+    const html = await story({
+      ...newProject(),
+      story: StoryPlanSchema.parse({ brief: "A morning routine" }),
+    });
+    expect(html).toContain("Storyline saved");
+  });
+});
