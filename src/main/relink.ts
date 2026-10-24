@@ -56,6 +56,7 @@ export async function relinkMedia(
   chosen: string,
 ) {
   const start = store.project;
+  const opening = store.openSession;
   const old = start.assets.find((a) => a.id === assetId);
   if (!old) throw Error("Asset missing");
   const probe = await media.probe(chosen);
@@ -80,7 +81,7 @@ export async function relinkMedia(
       moved.set(other.id, { ...found, path: candidate });
   }
   const now = store.project;
-  if (now.id !== start.id)
+  if (store.openSession !== opening)
     throw Error(
       "Another project was opened while relinking. Open this project again and retry.",
     );

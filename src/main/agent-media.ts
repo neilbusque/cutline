@@ -192,6 +192,8 @@ export const agentMediaTools: Tool[] = Object.entries(schemas).map(
 export type AgentMediaDeps = {
   store: {
     project: Project;
+    /** Changes whenever a project is opened, even a copy of this one. */
+    openSession: string;
     commit: (next: Project, label: string) => unknown;
   };
   media: { import: (file: string) => Promise<Asset> };
@@ -471,9 +473,9 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     const args = StockImportArgsSchema.parse(raw ?? {});
     assertRevision(args);
     if (args.trackId) checkTrack(store.project, args.trackId, "video");
-    const projectId = store.project.id;
+    const opening = store.openSession;
     const asset = await deps.stock.download(args.id, args.provider, args.kind);
-    if (store.project.id !== projectId)
+    if (store.openSession !== opening)
       throw Error(
         "A different project was opened during the download. The file stays in Cutline's stock folder; inspect the project and import it again.",
       );
@@ -505,14 +507,14 @@ export function createAgentMedia(deps: AgentMediaDeps) {
       );
     const voice = speechVoices.find((item) => item.id === args.voice)!;
     const name = args.name ?? `${voice.name} voiceover`;
-    const projectId = store.project.id;
+    const opening = store.openSession;
     return deps.jobs.run(
       "voiceover",
       "Creating your narration",
       async (job) => {
         const check = () => {
           if (job.state === "cancelled") throw Error("Narration cancelled");
-          if (store.project.id !== projectId)
+          if (store.openSession !== opening)
             throw Error(
               "A different project was opened while the narration was being made. The audio stays in Cutline's speech folder; inspect the project and try again.",
             );
@@ -638,9 +640,9 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     const args = ReferenceArgsSchema.parse(raw ?? {});
     assertRevision(args);
     if (!deps.references) throw Error("References are not available here.");
-    const projectId = store.project.id;
+    const opening = store.openSession;
     const stillOpen = () => {
-      if (store.project.id !== projectId)
+      if (store.openSession !== opening)
         throw Error(
           "A different project was opened meanwhile. Inspect it and try again.",
         );
@@ -754,9 +756,9 @@ export function createAgentMedia(deps: AgentMediaDeps) {
   async function styleReel(raw: unknown) {
     const args = StyleReelArgsSchema.parse(raw ?? {});
     assertRevision(args);
-    const projectId = store.project.id;
+    const opening = store.openSession;
     const stillOpen = () => {
-      if (store.project.id !== projectId)
+      if (store.openSession !== opening)
         throw Error(
           "A different project was opened meanwhile. Inspect it and try again.",
         );
@@ -927,10 +929,10 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     const args = GraphicArgsSchema.parse(raw ?? {});
     assertRevision(args);
     if (!deps.graphic) throw Error("Graphics are not available here.");
-    const projectId = store.project.id;
+    const opening = store.openSession;
     const { projectId: _, revision: __, at, ...request } = args;
     const made = await deps.graphic(GraphicGenerateSchema.parse(request));
-    if (store.project.id !== projectId)
+    if (store.openSession !== opening)
       throw Error(
         "A different project was opened meanwhile. Inspect it and try again.",
       );

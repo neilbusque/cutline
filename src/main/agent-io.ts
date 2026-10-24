@@ -241,7 +241,7 @@ export function createAgentIO(options: {
         };
       }
       case "cutline_import_media": {
-        const projectId = store.project.id;
+        const opening = store.openSession;
         const failures: { path: string; error: string }[] = [];
         const files: string[] = [];
         for (const file of args.paths as string[]) {
@@ -261,7 +261,7 @@ export function createAgentIO(options: {
           } catch (error) {
             failures.push({ path: file, error: (error as Error).message });
           }
-          if (store.project.id !== projectId)
+          if (store.openSession !== opening)
             throw Error(
               "A different project was opened during the import. Inspect it and import again.",
             );

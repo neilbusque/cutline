@@ -1483,6 +1483,27 @@ describe("cutline_voiceover makes local narration and can place it", () => {
     );
     expect(store.project.assets).toEqual([]);
   });
+
+  it("never lands stock in a Finder duplicate of the project opened during the download", async () => {
+    const { call, guard, store, download, directory } = setup();
+    const file = path.join(directory, "Reel.cutline");
+    store.save(file);
+    // A Finder duplicate keeps the project's ID.
+    const copy = path.join(directory, "Reel copy.cutline");
+    writeFileSync(copy, readFileSync(file, "utf8"));
+    const original = download.getMockImplementation()!;
+    download.mockImplementationOnce(async (...args) => {
+      store.load(copy);
+      return original(...args);
+    });
+    await expect(
+      call("cutline_stock_import", { ...guard(), id: 7, at: { frame: 0 } }),
+    ).rejects.toThrow(/different project/);
+    expect(store.filePath).toBe(copy);
+    expect(store.project.assets.some((a) => a.id.startsWith("stock-"))).toBe(
+      false,
+    );
+  });
 });
 
 describe("cutline_auto_edit runs Auto edit with the app's options", () => {

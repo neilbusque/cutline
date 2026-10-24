@@ -1286,11 +1286,11 @@ function register() {
     "tts.status": () => speech.status(),
     "tts.setup": () => speech.setup(),
     "tts.generate": async (args) => {
-      const projectId = store.project.id;
+      const opening = store.openSession;
       return jobs.run("voiceover", "Creating your narration", async (job) => {
         const check = () => {
           if (job.state === "cancelled") throw Error("Narration cancelled");
-          if (store.project.id !== projectId)
+          if (store.openSession !== opening)
             throw Error(
               "The project changed while generating narration. Your edit was kept; the audio remains in Cutline's local speech folder.",
             );
@@ -1415,8 +1415,9 @@ function register() {
         throw Error("Project changed. Import into the current project.");
       const existing = store.project.assets.find((a) => a.id === id);
       if (existing) return existing;
+      const opening = store.openSession;
       const asset = await generation.importAsset(id);
-      if (store.project.id !== projectId)
+      if (store.openSession !== opening)
         throw Error(
           "Project changed during import. Your generated file is saved; import it into the project you want.",
         );
@@ -1451,13 +1452,13 @@ function register() {
         },
       ),
     "stock.download": async (args) => {
-      const projectId = store.project.id;
+      const opening = store.openSession;
       const asset = await stock.download(
         z.number().int().positive().parse(args.id),
         z.enum(["commons", "pexels"]).parse(args.provider ?? "commons"),
         z.enum(["video", "image"]).parse(args.kind ?? "video"),
       );
-      if (store.project.id !== projectId)
+      if (store.openSession !== opening)
         throw Error(
           "Project changed while downloading. The file remains in your local stock folder.",
         );
@@ -1744,19 +1745,19 @@ function register() {
         if (d.canceled) return;
         files = d.filePaths;
       }
-      const projectId = store.project.id;
+      const opening = store.openSession;
       const failures: string[] = [];
       for (const file of files) {
         try {
           const asset = await media.import(file);
-          if (projectId !== store.project.id)
+          if (store.openSession !== opening)
             throw Error("Project changed during import");
           store.commit(
             { ...store.project, assets: [...store.project.assets, asset] },
             "Import media",
           );
         } catch (error) {
-          if (projectId !== store.project.id) throw error;
+          if (store.openSession !== opening) throw error;
           failures.push(`${path.basename(file)}: ${(error as Error).message}`);
         }
       }

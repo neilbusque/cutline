@@ -62,13 +62,14 @@ export async function buildAutoReel(raw: unknown, deps: AutoReelDependencies) {
       );
   };
   assertCurrent();
+  const opening = store.openSession;
   const start = store.project;
   const prepared = structuredClone(start);
   const downloaded: Asset[] = [];
   return jobs.run("auto-reel", "1 of 5 · Reading your video", async (job) => {
     const check = () => {
       if (job.state === "cancelled") throw Error("Automatic edit cancelled");
-      if (store.project.id !== args.projectId)
+      if (store.openSession !== opening)
         throw Error(
           "Another project was opened while the Reel was being prepared. Open this project again and try again.",
         );

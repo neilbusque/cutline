@@ -17,6 +17,7 @@ import { analyzeMusicFile } from "./music-analysis";
 import { createMusicBed } from "./music";
 import type { Store } from "./store";
 import type { Media, Jobs } from "./media";
+import { sameOpening } from "./edit-jobs";
 import { isMotionAccentLayer } from "../shared/motion";
 
 const guard = {
@@ -117,11 +118,8 @@ export function createMusicControl({
    * Slow work (composing, analysis) lands on the project as it is when it
    * finishes, so edits made meanwhile are kept.
    */
-  const current = (a: any, what: string) => {
-    if (store.project.id !== a.projectId)
-      throw Error(
-        `Another project was opened while ${what}. Open this project again and retry.`,
-      );
+  const current = (opening: string, what: string) => {
+    sameOpening(store, opening, what);
     return store.project;
   };
   const sourceClip = (p: Project, id: string) => {
@@ -139,6 +137,7 @@ export function createMusicControl({
     if (!schemas[action]) throw Error("Unknown music command");
     const a = schemas[action].parse(raw ?? {}) as any;
     if ("revision" in a) assertRevision(a);
+    const opening = store.openSession;
     const p = store.project;
     if (action === "create") {
       const asset = await createMusicBed({
@@ -148,7 +147,7 @@ export function createMusicControl({
         media,
         jobs,
       });
-      const now = current(a, "the music was being composed");
+      const now = current(opening, "the music was being composed");
       const track =
         now.tracks.find(
           (t) =>
@@ -248,7 +247,7 @@ export function createMusicControl({
               envelope: asset.rhythm?.envelope ?? { step: 0.05, values: [] },
             },
       );
-      const now = current(a, "the music was being analyzed");
+      const now = current(opening, "the music was being analyzed");
       const target = now.assets.find((item) => item.id === asset.id);
       if (!target || target.path !== asset.path)
         throw Error(
