@@ -467,12 +467,26 @@ export function VectorStudio({
         )}
         {query.trim().length >= 2 &&
           found.query === query.trim() &&
-          !matches.length && (
+          !matches.length &&
+          (/^[a-z0-9-]+(\.[a-z0-9-]+)+$/iu.test(query.trim()) ? (
+            <button
+              className="import-button control"
+              disabled={!!working}
+              onClick={() =>
+                void addReference(
+                  { kind: "logo", target: query.trim(), color: logoColor },
+                  `Getting the logo from ${query.trim()}…`,
+                )
+              }
+            >
+              Add the logo from {query.trim()}
+            </button>
+          ) : (
             <p className="mg-sequence-hint">
-              Not in the library. Type its website below to capture the page, or
-              ask the assistant to add the logo from its domain.
+              Not in the library. Type its website, such as gamma.app, to use
+              the logo from its site.
             </p>
-          )}
+          ))}
       </section>
 
       <section className="vs-section" aria-labelledby="vs-page">

@@ -1984,6 +1984,7 @@ app.whenReady().then(async () => {
     graphic: (input) => makeGraphic(input),
     references: {
       logo: (query) => references.logo(query),
+      inLibrary: (name) => references.inLibrary(name),
       screenshot: async (url, options) => {
         const file = references.screenshotPath(url);
         const shot = await capturePage(url, file, options);

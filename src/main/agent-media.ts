@@ -240,6 +240,8 @@ export type AgentMediaDeps = {
   graphic?: (input: GraphicGenerateInput) => Promise<GraphicResult>;
   references?: {
     logo: (query: { name?: string; domain?: string }) => Promise<BrandLogo>;
+    /** Whether the logo library has this exact product name. */
+    inLibrary?: (name: string) => Promise<boolean>;
     screenshot: (
       url: string,
       options: { device: "desktop" | "phone"; selector?: string },
@@ -624,6 +626,14 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     };
   }
 
+  /** A logo found by name alone may be another company with that name. */
+  const nameOnly = (logo: BrandLogo) =>
+    logo.matchedBy === "name"
+      ? [
+          `Matched by name only (${logo.source}). Give its website if that is the wrong company.`,
+        ]
+      : [];
+
   async function reference(raw: unknown) {
     const args = ReferenceArgsSchema.parse(raw ?? {});
     assertRevision(args);
@@ -636,9 +646,10 @@ export function createAgentMedia(deps: AgentMediaDeps) {
         );
     };
     if (args.kind === "logo") {
-      const site = /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/iu.test(
-        args.target,
-      );
+      // "Node.js" and "Next.js" are library names, not web addresses.
+      const site =
+        /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/iu.test(args.target) &&
+        !(await deps.references.inLibrary?.(args.target));
       const logo = await deps.references.logo(
         site
           ? { domain: args.target.replace(/^https?:\/\//u, "").split("/")[0] }
@@ -692,7 +703,7 @@ export function createAgentMedia(deps: AgentMediaDeps) {
           motionId: created.motion.id,
           title: logo.title,
           source: logo.source,
-          warnings: parsed.warnings ?? [],
+          warnings: [...(parsed.warnings ?? []), ...nameOnly(logo)],
         };
       }
       const asset = await deps.media.import(logo.file);
@@ -708,6 +719,7 @@ export function createAgentMedia(deps: AgentMediaDeps) {
       );
       return {
         ...landed,
+        warnings: [...landed.warnings, ...nameOnly(logo)],
         kind: "image",
         title: logo.title,
         source: logo.source,
@@ -837,10 +849,16 @@ export function createAgentMedia(deps: AgentMediaDeps) {
           if (!deps.references)
             throw Error("References are not available here.");
           if (kind === "logo") {
-            const site = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/iu.test(beat.show);
+            const site =
+              /^[a-z0-9-]+(\.[a-z0-9-]+)+$/iu.test(beat.show) &&
+              !(await deps.references.inLibrary?.(beat.show));
             const logo = await deps.references.logo(
               site ? { domain: beat.show } : { name: beat.show },
             );
+            if (logo.matchedBy === "name")
+              warnings.push(
+                `${beat.show}: matched by name only (${logo.source}). Give its website if that is the wrong company.`,
+              );
             stillOpen();
             if (logo.kind === "vector")
               beats.push({

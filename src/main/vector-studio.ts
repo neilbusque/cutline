@@ -364,6 +364,16 @@ const brandSites: Record<string, string> = {
   v0: "v0.app",
   grok: "grok.com",
   kling: "klingai.com",
+  gamma: "gamma.app",
+  descript: "descript.com",
+  opusclip: "opus.pro",
+  capcut: "capcut.com",
+  runway: "runwayml.com",
+  pika: "pika.art",
+  notebooklm: "notebooklm.google",
+  napkin: "napkin.ai",
+  synthesia: "synthesia.io",
+  tella: "tella.tv",
 };
 const iconAliases: Record<string, string> = {
   claudecode: "claude",
@@ -377,7 +387,7 @@ const iconAliases: Record<string, string> = {
   yt: "youtube",
 };
 
-export type BrandLogo =
+export type BrandLogo = (
   | {
       kind: "vector";
       svg: string;
@@ -385,7 +395,11 @@ export type BrandLogo =
       color: string;
       source: string;
     }
-  | { kind: "image"; file: string; title: string; source: string };
+  | { kind: "image"; file: string; title: string; source: string }
+) & {
+  /** Set when an official logo was found by its name alone, not its website. */
+  matchedBy?: "name";
+};
 
 export class References {
   constructor(
@@ -473,6 +487,14 @@ export class References {
    * has one, otherwise the brand site's own icon (SVG when offered, else its
    * largest PNG).
    */
+  /**
+   * Whether the logo library has this exact product, so "Node.js" or
+   * "Next.js" is looked up as a name and never as a web address.
+   */
+  async inLibrary(name: string) {
+    return !!(await this.exactIcon(name).catch(() => undefined));
+  }
+
   /** The library mark whose name or alias is exactly this, never a near miss. */
   private async exactIcon(name: string) {
     const q = normalize(name);
@@ -535,7 +557,8 @@ export class References {
     name: string,
     domain?: string,
   ): Promise<BrandLogo | undefined> {
-    const cacheFile = path.join(this.dir, "wikidata-logos.json");
+    // v2: website lookups must match the website, so older matches are redone.
+    const cacheFile = path.join(this.dir, "wikidata-logos-2.json");
     let cache: Record<string, string | null> = {};
     try {
       cache = JSON.parse(readFileSync(cacheFile, "utf8"));
@@ -561,44 +584,52 @@ export class References {
         ).json();
         const base = (host: string) =>
           host.toLowerCase().replace(/^www\./u, "");
-        for (const id of ids) {
+        const candidates = ids.flatMap((id) => {
           const entity = data.entities?.[id];
           const logo = entity?.claims?.P154?.[0]?.mainsnak?.datavalue?.value;
-          if (typeof logo !== "string") continue;
+          if (typeof logo !== "string") return [];
           const sites: string[] = (entity.claims.P856 ?? [])
             .map((claim: any) => claim.mainsnak?.datavalue?.value)
             .filter((value: unknown) => typeof value === "string");
-          const label = normalize(entity.labels?.en?.value ?? "");
-          // The label must match exactly or the entity must own the website,
-          // so "Make" never becomes a song's cover art.
-          const matches =
-            label === normalize(name) ||
-            (!!domain &&
-              sites.some((site) => {
-                try {
-                  const host = base(new URL(site).host);
-                  const wanted = base(domain);
-                  return (
-                    host === wanted ||
-                    host.endsWith(`.${wanted}`) ||
-                    wanted.endsWith(`.${host}`)
-                  );
-                } catch {
-                  return false;
-                }
-              }));
-          if (matches) {
-            file = logo;
-            break;
-          }
-        }
+          const owns =
+            !!domain &&
+            sites.some((site) => {
+              try {
+                const host = base(new URL(site).host);
+                const wanted = base(domain);
+                return (
+                  host === wanted ||
+                  host.endsWith(`.${wanted}`) ||
+                  wanted.endsWith(`.${host}`)
+                );
+              } catch {
+                return false;
+              }
+            });
+          const named = normalize(entity.labels?.en?.value ?? "") === normalize(name);
+          return [{ logo, owns, named, sites: sites.length }];
+        });
+        // The entity owning the website wins. Otherwise the label must match
+        // exactly, so "Make" never becomes a song's cover art, and with a
+        // known website a same-name entity counts only when it records no
+        // website, since a different one means a different company
+        // ("gamma.app" never becomes the Gamma hardware chain).
+        const owner = candidates.find((c) => c.owns);
+        const namesake = candidates.find(
+          (c) => c.named && (!domain || !c.sites),
+        );
+        file = owner ? owner.logo : namesake ? `name:${namesake.logo}` : null;
       }
       cache[key] = file;
       writeFileSync(cacheFile, JSON.stringify(cache));
     }
     if (!file) return undefined;
+    // Name-only matches are kept with a "name:" mark so callers can warn.
+    const byName = file.startsWith("name:");
+    if (byName) file = file.slice(5);
     const title = name;
     const source = `Wikimedia Commons: ${file}`;
+    const matchedBy = byName ? { matchedBy: "name" as const } : {};
     const filePath = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}`;
     if (/\.svg$/iu.test(file)) {
       try {
@@ -611,7 +642,7 @@ export class References {
             /left out|replaced|combined/u.test(w),
           )
         )
-          return { kind: "vector", svg, title, color: "", source };
+          return { kind: "vector", svg, title, color: "", source, ...matchedBy };
       } catch {}
     }
     const response = await this.get(`${filePath}?width=640`, "image/*");
@@ -625,7 +656,7 @@ export class References {
       `${normalize(title) || "logo"}-${createHash("sha1").update(file).digest("hex").slice(0, 8)}.${ext}`,
     );
     writeFileSync(out, bytes);
-    return { kind: "image", file: out, title, source };
+    return { kind: "image", file: out, title, source, ...matchedBy };
   }
 
   private async siteIcon(domain: string, name?: string): Promise<BrandLogo> {

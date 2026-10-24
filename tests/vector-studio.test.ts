@@ -235,6 +235,44 @@ describe("references", () => {
     );
   });
 
+  it("finds dotted product names in the library and never trades a website for a namesake", async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "cutline-refs-"));
+    const wikidata = "https://www.wikidata.org/w/api.php?format=json";
+    const refs = new References(
+      dir,
+      fake({
+        [`${icons}/data/simple-icons.json`]: () =>
+          new Response(JSON.stringify([...library, { title: "Node.js", hex: "5FA04E" }])),
+        [`${wikidata}&action=wbsearchentities&type=item&language=en&limit=6&search=Gamma`]:
+          () => new Response(JSON.stringify({ search: [{ id: "Q9" }] })),
+        [`${wikidata}&action=wbgetentities&props=claims|labels&languages=en&ids=Q9`]:
+          () =>
+            new Response(
+              JSON.stringify({
+                entities: {
+                  Q9: {
+                    labels: { en: { value: "Gamma" } },
+                    claims: {
+                      P154: [{ mainsnak: { datavalue: { value: "Gamma logo 2010.png" } } }],
+                      P856: [{ mainsnak: { datavalue: { value: "https://www.gamma.nl" } } }],
+                    },
+                  },
+                },
+              }),
+            ),
+        "https://gamma.app/": () =>
+          new Response('<link rel="apple-touch-icon" href="/touch.png" sizes="180x180">'),
+        "https://gamma.app/touch.png": () =>
+          new Response(png(180), { headers: { "content-type": "image/png" } }),
+      }),
+    );
+    expect(await refs.inLibrary("Node.js")).toBe(true);
+    expect(await refs.inLibrary("next.js")).toBe(false);
+    const gamma = await refs.logo({ name: "Gamma" });
+    expect(gamma).toMatchObject({ kind: "image", source: "https://gamma.app/touch.png" });
+    expect(gamma.matchedBy).toBeUndefined();
+  });
+
   it("frames a screenshot as a card above the captions on a tall reel", () => {
     const p = { ...newProject(), width: 1080, height: 1920 };
     const asset = {
