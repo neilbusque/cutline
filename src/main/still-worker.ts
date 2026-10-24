@@ -44,8 +44,8 @@ function shutDown() {
   });
 }
 // The editor quit, closed this worker after a quiet minute, or stopped it.
-process.once("disconnect", shutDown);
-process.once("SIGTERM", shutDown);
+process.on("disconnect", shutDown);
+process.on("SIGTERM", shutDown);
 
 const serialized = (data: Record<string, unknown>) =>
   NoReactInternals.serializeJSONWithSpecialTypes({

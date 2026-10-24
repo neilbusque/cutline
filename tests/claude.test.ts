@@ -370,3 +370,35 @@ it("stop also stops the Cutline work of the turn, and the next turn starts fresh
   await c.send("Try again", "p1");
   expect(c.turnSignal.aborted).toBe(false);
 });
+
+it("watches for silence again once Claude streams after its tools, even without a tool result", async () => {
+  vi.useFakeTimers();
+  try {
+    const c = make({ watchdogMs: 1000 });
+    const seen = events(c);
+    control.onUser = (child) => {
+      child.emitLine({ type: "system", subtype: "init", mcp_servers: [] });
+      child.emitLine({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              id: "tool-2",
+              name: "mcp__cutline__cutline_edit",
+            },
+          ],
+        },
+      });
+      child.emitLine({
+        type: "stream_event",
+        event: { type: "message_start" },
+      });
+    };
+    await c.send("Trim the intro", "p1");
+    await vi.advanceTimersByTimeAsync(1001);
+    expect(seen.at(-1)).toMatchObject({ type: "error" });
+  } finally {
+    vi.useRealTimers();
+  }
+});

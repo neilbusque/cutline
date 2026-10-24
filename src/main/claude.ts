@@ -339,7 +339,10 @@ export class ClaudeAssistant extends EventEmitter {
       for (const block of m.message?.content ?? [])
         if (block?.type === "tool_result")
           this.toolsRunning.delete(String(block.tool_use_id));
-    if (m.type === "result") this.toolsRunning.clear();
+    // Claude streams only while no tool is running, and a turn's result ends
+    // them all, so a missed tool result never leaves the watchdog off.
+    if (m.type === "result" || m.type === "stream_event")
+      this.toolsRunning.clear();
     this.touch();
     if (m.type === "system" && m.subtype === "init") {
       this.resumable = true;
