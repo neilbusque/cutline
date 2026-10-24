@@ -114,6 +114,8 @@ const content = (project: Project) =>
   });
 const moved = "it was moved, renamed or deleted outside Cutline";
 const changedElsewhere = "it was changed outside this session";
+const sha256 = (bytes: string | Buffer) =>
+  createHash("sha256").update(bytes).digest("hex");
 const safeInRecovery =
   "Your work is safe in Cutline's recovery copy. Press Save to choose a new location.";
 const reason = (error: unknown) =>
@@ -185,6 +187,14 @@ export class Store extends EventEmitter {
    * deleted or changed by something else is never recreated or overwritten.
    */
   private fileStamp: FileStamp | null = null;
+  /**
+   * The SHA-256 of the document this store last wrote to the file, kept in
+   * recovery too: a file that went missing and comes back with exactly these
+   * bytes (a drive mounting late) is safe to keep autosaving to.
+   */
+  private writeHash: string | null = null;
+  /** A stamp already found to hold someone else's version. */
+  private rejectedStamp: FileStamp | null = null;
   past: HistoryEntry[] = [];
   future: HistoryEntry[] = [];
   /** Why the latest autosave failed. The editor keeps working either way. */
@@ -307,6 +317,7 @@ export class Store extends EventEmitter {
     this.future = [];
     this.filePath = null;
     this.fileStamp = null;
+    this.writeHash = null;
     this.setSaveError(null);
     this.notify();
     return this.snapshot();
@@ -335,9 +346,24 @@ export class Store extends EventEmitter {
       // Other errors are reported by the write itself.
       return (error as NodeJS.ErrnoException).code === "ENOENT" ? moved : null;
     }
-    return this.fileStamp && sameStamp(this.fileStamp, now)
-      ? null
-      : changedElsewhere;
+    if (this.fileStamp && sameStamp(this.fileStamp, now)) return null;
+    // The file is back (a drive mounted again) holding exactly what this
+    // session last wrote: autosave carries on.
+    if (
+      this.writeHash &&
+      !(this.rejectedStamp && sameStamp(this.rejectedStamp, now))
+    ) {
+      try {
+        if (sha256(readFileSync(this.filePath)) === this.writeHash) {
+          this.fileStamp = now;
+          return null;
+        }
+      } catch {
+        /* Unreadable: not this session's write. */
+      }
+      this.rejectedStamp = now;
+    }
+    return changedElsewhere;
   }
   /** Writes a complete copy, undo history included, to file. */
   persist(file: string) {
@@ -354,9 +380,11 @@ export class Store extends EventEmitter {
     const project = JSON.stringify(this.project);
     const release = this.claimTarget(file);
     let stamp: FileStamp;
+    const document = this.projectDocument(project, file);
+    const savedHash = sha256(document);
     try {
       mkdirSync(path.dirname(file), { recursive: true });
-      writeWhole(file, this.projectDocument(project, file));
+      writeWhole(file, document);
       stamp = stampOf(file);
     } catch (error) {
       release?.();
@@ -370,6 +398,8 @@ export class Store extends EventEmitter {
     const unsaved = !this.filePath;
     this.filePath = file;
     this.fileStamp = stamp;
+    this.rejectedStamp = null;
+    this.writeHash = savedHash;
     this.setSaveError(null);
     this.writeRecovery(project);
     if (this.historyFile() !== previousHistory) {
@@ -472,6 +502,12 @@ export class Store extends EventEmitter {
       this.future = history.future;
       this.filePath = filePath;
       this.fileStamp = filePath ? fileStamp : null;
+      this.rejectedStamp = null;
+      // A recovered session's last write, so its file is known when it returns.
+      this.writeHash =
+        filePath && recover && typeof raw.fileHash === "string"
+          ? raw.fileHash
+          : null;
       this.setSaveError(filePath ? saveError : null);
       // Older files carry their undo history inline; move it to the history file.
       if (legacy) this.scheduleHistory();
@@ -712,7 +748,7 @@ export class Store extends EventEmitter {
       mkdirSync(path.dirname(this.recovery), { recursive: true });
       writeWhole(
         this.recovery,
-        `{"project":${project},"filePath":${JSON.stringify(this.filePath)},"fileStamp":${JSON.stringify(this.fileStamp)},"saveError":${JSON.stringify(this.saveError)},"session":${JSON.stringify(this.session)},"revision":${this.project.revision}}`,
+        `{"project":${project},"filePath":${JSON.stringify(this.filePath)},"fileStamp":${JSON.stringify(this.fileStamp)},"fileHash":${JSON.stringify(this.writeHash)},"saveError":${JSON.stringify(this.saveError)},"session":${JSON.stringify(this.session)},"revision":${this.project.revision}}`,
       );
       return null;
     } catch (error) {
@@ -722,18 +758,27 @@ export class Store extends EventEmitter {
   /** Autosaves the current project (without undo history) to recovery and the project file. */
   private writeCurrent() {
     const project = JSON.stringify(this.project);
+    const toFile = !!this.filePath && this.filePath !== this.recovery;
+    // Never recreate a folder or a file that was moved, renamed, deleted or
+    // ejected, and never write over a file something else changed.
+    const folderGone = toFile && !existsSync(path.dirname(this.filePath!));
+    const problem = !toFile || folderGone ? null : this.fileProblem();
+    const document =
+      toFile && !folderGone && !problem
+        ? this.projectDocument(project, this.filePath!)
+        : "";
+    // Recovery records the bytes about to reach the file, so a relaunch can
+    // recognise them if the file goes missing and comes back.
+    if (document) this.writeHash = sha256(document);
     const recoveryError = this.writeRecovery(project);
     let saveError: string | null = null;
-    if (this.filePath && this.filePath !== this.recovery) {
+    if (toFile) {
       try {
-        // Never recreate a folder or a file that was moved, renamed, deleted
-        // or ejected, and never write over a file something else changed.
-        if (!existsSync(path.dirname(this.filePath)))
+        if (folderGone)
           throw Object.assign(Error("missing folder"), { code: "ENOENT" });
-        const problem = this.fileProblem();
         if (problem) throw Error(problem);
-        writeWhole(this.filePath, this.projectDocument(project, this.filePath));
-        this.fileStamp = stampOf(this.filePath);
+        writeWhole(this.filePath!, document);
+        this.fileStamp = stampOf(this.filePath!);
       } catch (error) {
         saveError = `Couldn't save to ${this.filePath} because ${reason(error)}. ${recoveryError ? "Save the project somewhere else now to keep your work." : safeInRecovery}`;
       }

@@ -113,7 +113,11 @@ import {
   type GraphicResult,
 } from "../shared/graphics";
 import { HiggsfieldPictures } from "./higgsfield-pictures";
-import { AgentTasks, ASSISTANT_DEADLINE_MS } from "./agent-tasks";
+import {
+  AgentTasks,
+  ASSISTANT_DEADLINE_MS,
+  LOCAL_CLAUDE_DEADLINE_MS,
+} from "./agent-tasks";
 import {
   previewContent,
   previewFrames,
@@ -2221,15 +2225,14 @@ app.whenReady().then(async () => {
     externalCall,
     externalTools,
     {
-      // The built-in Claude waits for long tools instead of polling, and
-      // its Stop ends the turn's work even while the request stays open.
-      localCall: (name, args, signal) => {
-        const turn = claude?.turnSignal;
-        return toolCall(name, args, {
-          signal: turn && signal ? AbortSignal.any([signal, turn]) : (turn ?? signal),
-          deadlineMs: ASSISTANT_DEADLINE_MS,
-        });
-      },
+      // The built-in Claude waits up to four minutes for a long tool, then
+      // gets a task to follow. Only its Stop ends the turn's work: its HTTP
+      // client closing a slow request must never throw finished work away.
+      localCall: (name, args) =>
+        toolCall(name, args, {
+          signal: claude?.turnSignal,
+          deadlineMs: LOCAL_CLAUDE_DEADLINE_MS,
+        }),
       localTools: tools,
     },
   );
@@ -2436,9 +2439,20 @@ app.whenReady().then(async () => {
       },
     ]),
   );
-  if (process.env.CUTLINE_DEV_URL)
-    await win.loadURL(process.env.CUTLINE_DEV_URL);
-  else await win.loadFile(path.join(root, "dist/ui/index.html"));
+  // A reload (Cmd+R, or the automatic one after a crash) or closing the
+  // window during this first load interrupts it; that is not a failed start.
+  try {
+    if (process.env.CUTLINE_DEV_URL)
+      await win.loadURL(process.env.CUTLINE_DEV_URL);
+    else await win.loadFile(path.join(root, "dist/ui/index.html"));
+  } catch (error) {
+    const code = (error as { code?: string }).code ?? "";
+    if (
+      !win.isDestroyed() &&
+      !/ERR_ABORTED|ERR_FAILED/u.test(code + (error as Error).message)
+    )
+      throw error;
+  }
   // Startup problems, such as an unreadable autosave that was set aside or a
   // project file that changed while this session was closed.
   if (store.notices.length && !process.env.CUTLINE_QA)

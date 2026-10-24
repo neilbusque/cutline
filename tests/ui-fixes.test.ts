@@ -579,6 +579,78 @@ describe("Generate subtitles twice runs whisper once", () => {
   });
 });
 
+describe("Stop in the assistant leaves your own transcription alone", () => {
+  async function setup() {
+    const folder = mkdtempSync(path.join(os.tmpdir(), "cutline-shared-whisper-"));
+    const whisper = path.join(folder, "whisper"),
+      model = path.join(folder, "model.bin"),
+      file = path.join(folder, "talk.wav");
+    for (const made of [whisper, model, file]) writeFileSync(made, "x");
+    const jobs = new Jobs(() => {});
+    const media = new Media(
+      path.join(folder, "cache"),
+      { ffmpeg: "", ffprobe: "", whisper, model },
+      jobs,
+    );
+    const original = jobs.run.bind(jobs);
+    const whisperRun: { job?: { state: string }; finish?: (w: unknown) => void } = {};
+    vi.spyOn(jobs, "run").mockImplementation(((kind: string, message: string, fn: any) =>
+      kind === "transcribe"
+        ? original(kind, message, (j) => {
+            whisperRun.job = j;
+            return new Promise((resolve) => (whisperRun.finish = resolve));
+          })
+        : original(kind, message, fn)) as never);
+    const asset = AssetSchema.parse({
+      id: "talk",
+      name: "Talk",
+      kind: "audio",
+      path: file,
+      duration: 3,
+      hasAudio: true,
+    });
+    return { folder, jobs, media, asset, whisperRun };
+  }
+  const words = [{ text: "Hello", start: 0, end: 1 }];
+
+  it("a cancelled agent stops waiting while your captions still get the words", async () => {
+    const { folder, jobs, media, asset, whisperRun } = await setup();
+    try {
+      let agentId = "";
+      const agent = jobs.run("agent", "Running cutline_transcribe", (j) => {
+        agentId = j.id;
+        return media.transcribe(asset);
+      });
+      const yours = jobs.run("captions", "Captions", () => media.transcribe(asset));
+      await new Promise((resolve) => setImmediate(resolve));
+      jobs.cancel(agentId);
+      await expect(agent).rejects.toThrow("Cancelled");
+      expect(whisperRun.job?.state).toBe("running");
+      whisperRun.finish!(words);
+      expect(await yours).toEqual(words);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+
+  it("stops whisper once nobody is waiting for it", async () => {
+    const { folder, jobs, media, asset, whisperRun } = await setup();
+    try {
+      let agentId = "";
+      const agent = jobs.run("agent", "Running cutline_transcribe", (j) => {
+        agentId = j.id;
+        return media.transcribe(asset);
+      });
+      await new Promise((resolve) => setImmediate(resolve));
+      jobs.cancel(agentId);
+      await expect(agent).rejects.toThrow("Cancelled");
+      expect(whisperRun.job?.state).toBe("cancelled");
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("Properties shows when subtitles or pauses are running", () => {
   it("disables both buttons and says what is running", async () => {
     const { Inspector } = await import("../src/renderer/Inspector");

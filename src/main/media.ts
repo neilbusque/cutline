@@ -34,6 +34,8 @@ export class Jobs {
   cancellers = new Map<string, () => void>();
   private scope = new AsyncLocalStorage<string>();
   private parents = new Map<string, string>();
+  /** Calls to make when a job is cancelled, by job. */
+  private watchers = new Map<string, Set<() => void>>();
   constructor(private changed: (j: Job) => void) {}
   create(kind: string, message: string) {
     const parent = this.scope.getStore();
@@ -60,6 +62,7 @@ export class Jobs {
     const j = this.jobs.get(id);
     if (!j || j.state !== "running") return;
     this.update(j, { state: "cancelled", message: "Cancelled" });
+    for (const watch of this.watchers.get(id) ?? []) watch();
     for (const [child, parent] of this.parents)
       if (parent === id) this.cancel(child);
     const cancel = this.cancellers.get(id);
@@ -86,6 +89,24 @@ export class Jobs {
   /** Runs fn outside any running job, so work it starts is not tied to that job. */
   detached<T>(fn: () => T): T {
     return this.scope.exit(fn);
+  }
+  /**
+   * Calls stop when the job this code runs under, or one it runs within, is
+   * cancelled. Returns a function that stops watching.
+   */
+  whenCancelled(stop: () => void) {
+    const ids: string[] = [];
+    for (let id = this.scope.getStore(); id; id = this.parents.get(id))
+      ids.push(id);
+    for (const id of ids)
+      this.watchers.set(id, (this.watchers.get(id) ?? new Set()).add(stop));
+    return () => {
+      for (const id of ids) {
+        const set = this.watchers.get(id);
+        set?.delete(stop);
+        if (set && !set.size) this.watchers.delete(id);
+      }
+    };
   }
   /**
    * Throws when the job this code runs under, or one it runs within, was
@@ -239,7 +260,15 @@ const timeIn = (line: string, key: string) => {
 export class Media extends EventEmitter {
   private transcripts = new Map<string, Word[]>();
   /** Transcriptions running now, by file contents. */
-  private transcribing = new Map<string, Promise<Word[]>>();
+  /**
+   * Transcriptions running, by file. Whisper belongs to none of the callers
+   * waiting on it: cancelling one (Stop in the assistant) ends only that
+   * wait, and whisper stops when nobody is left waiting.
+   */
+  private transcribing = new Map<
+    string,
+    { work: Promise<Word[]>; waiters: number; jobId: string }
+  >();
   /** Preview work by asset id and source path, for this session. */
   private proxyNeeded = new Map<string, boolean>();
   private previewWork = new Set<string>();
@@ -500,88 +529,117 @@ export class Media extends EventEmitter {
     // A second request for the same recording, such as a double click,
     // waits for the running whisper instead of starting another one.
     const running = key ? this.transcribing.get(key) : undefined;
-    if (running) return structuredClone(await running);
-    const work = this.jobs.run(
-      "transcribe",
-      `Transcribing ${a.name} locally`,
-      async (j) => {
-        await mkdir(this.cache, { recursive: true });
-        const wav = path.join(this.cache, uid() + ".wav");
-        const out = wav + ".transcript";
-        try {
-          await this.jobs.exec(
-            this.bin.ffmpeg,
-            [
-              "-y",
-              "-v",
-              "error",
-              "-i",
-              a.path,
-              "-vn",
-              "-sn",
-              "-dn",
-              "-ar",
-              "16000",
-              "-ac",
-              "1",
-              "-c:a",
-              "pcm_s16le",
-              wav,
-            ],
-            j,
-          );
-          await this.jobs.exec(
-            this.bin.whisper,
-            [
-              "-m",
-              this.bin.model,
-              "-f",
-              wav,
-              "-l",
-              "auto",
-              "-ojf",
-              "-of",
-              out,
-              "-ml",
-              "1",
-              "-sow",
-              "-pp",
-            ],
-            j,
-          );
-          const json = JSON.parse(await readFile(out + ".json", "utf8"));
-          const words: Word[] = (json.transcription ?? []).flatMap((s: any) => {
-            const text = String(s.text).trim();
-            if (!text || text.startsWith("[")) return [];
-            return [
-              {
-                text,
-                start: s.offsets.from / 1000,
-                end: s.offsets.to / 1000,
-              },
-            ];
-          });
-          if (key) {
-            this.transcripts.delete(key);
-            this.transcripts.set(key, structuredClone(words));
-            for (const old of this.transcripts.keys()) {
-              if (this.transcripts.size <= keptTranscripts) break;
-              this.transcripts.delete(old);
+    if (running) return this.waitFor(running);
+    this.jobs.assertActive();
+    const start = () =>
+      this.jobs.run(
+        "transcribe",
+        `Transcribing ${a.name} locally`,
+        async (j) => {
+          await mkdir(this.cache, { recursive: true });
+          const wav = path.join(this.cache, uid() + ".wav");
+          const out = wav + ".transcript";
+          try {
+            await this.jobs.exec(
+              this.bin.ffmpeg,
+              [
+                "-y",
+                "-v",
+                "error",
+                "-i",
+                a.path,
+                "-vn",
+                "-sn",
+                "-dn",
+                "-ar",
+                "16000",
+                "-ac",
+                "1",
+                "-c:a",
+                "pcm_s16le",
+                wav,
+              ],
+              j,
+            );
+            await this.jobs.exec(
+              this.bin.whisper,
+              [
+                "-m",
+                this.bin.model,
+                "-f",
+                wav,
+                "-l",
+                "auto",
+                "-ojf",
+                "-of",
+                out,
+                "-ml",
+                "1",
+                "-sow",
+                "-pp",
+              ],
+              j,
+            );
+            const json = JSON.parse(await readFile(out + ".json", "utf8"));
+            const words: Word[] = (json.transcription ?? []).flatMap((s: any) => {
+              const text = String(s.text).trim();
+              if (!text || text.startsWith("[")) return [];
+              return [
+                {
+                  text,
+                  start: s.offsets.from / 1000,
+                  end: s.offsets.to / 1000,
+                },
+              ];
+            });
+            if (key) {
+              this.transcripts.delete(key);
+              this.transcripts.set(key, structuredClone(words));
+              for (const old of this.transcripts.keys()) {
+                if (this.transcripts.size <= keptTranscripts) break;
+                this.transcripts.delete(old);
+              }
             }
+            return words;
+          } finally {
+            // The audio copy is about 115 MB per hour; never keep it.
+            await removeQuietly([wav, out + ".json"]);
           }
-          return words;
-        } finally {
-          // The audio copy is about 115 MB per hour; never keep it.
-          await removeQuietly([wav, out + ".json"]);
-        }
-      },
-    );
-    if (!key) return work;
-    this.transcribing.set(key, work);
+        },
+      );
+    if (!key) return start();
+    // The job is created as the run starts, before its first await.
+    const before = new Set(this.jobs.jobs.keys());
+    const work = this.jobs.detached(start);
+    const jobId =
+      [...this.jobs.jobs.keys()].find((id) => !before.has(id)) ?? "";
+    const shared = { work, waiters: 0, jobId };
+    this.transcribing.set(key, shared);
+    shared.work
+      .finally(() => {
+        if (this.transcribing.get(key) === shared)
+          this.transcribing.delete(key);
+      })
+      .catch(() => {});
+    return this.waitFor(shared);
+  }
+  /** One caller's wait on a shared transcription, ended by its own cancel. */
+  private async waitFor(shared: {
+    work: Promise<Word[]>;
+    waiters: number;
+    jobId: string;
+  }) {
+    shared.waiters++;
+    let stop!: (error: Error) => void;
+    const stopped = new Promise<never>((_, reject) => (stop = reject));
+    const unwatch = this.jobs.whenCancelled(() => stop(Error("Cancelled")));
     try {
-      return structuredClone(await work);
+      this.jobs.assertActive();
+      return structuredClone(await Promise.race([shared.work, stopped]));
     } finally {
-      if (this.transcribing.get(key) === work) this.transcribing.delete(key);
+      unwatch();
+      // Nobody is waiting any more: stop whisper (a finished one is untouched).
+      if (--shared.waiters === 0) this.jobs.cancel(shared.jobId);
     }
   }
   async silences(a: Asset) {

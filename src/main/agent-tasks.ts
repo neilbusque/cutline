@@ -16,11 +16,16 @@ export type PendingTask = {
   message: string;
 };
 /**
- * How long Cutline's own assistants wait for a long tool. Claude Code allows
- * 10 minutes per tool call here and Codex has no limit, so they wait for the
- * result instead of polling cutline_jobs every 30 seconds.
+ * How long the built-in Codex waits for a long tool. Codex has no tool limit,
+ * so it waits for the result instead of polling cutline_jobs every 30 seconds.
  */
 export const ASSISTANT_DEADLINE_MS = 540_000;
+/**
+ * The built-in Claude's wait. Claude Code's HTTP client gives up on a request
+ * after 300 seconds whatever its tool timeout says, so a longer tool answers
+ * with a task well before then and the work carries on.
+ */
+export const LOCAL_CLAUDE_DEADLINE_MS = 240_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

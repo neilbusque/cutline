@@ -444,6 +444,48 @@ describe("project files changed or moved outside Cutline", () => {
     ]);
   });
 
+  it("resumes autosave when a file missing at relaunch comes back unchanged (an external drive mounting late)", () => {
+    const directory = folder();
+    const file = path.join(directory, "Trip.cutline");
+    const away = path.join(directory, "elsewhere.cutline");
+    const recovery = session(directory, "drive");
+    const store = new Store(recovery);
+    store.save(file);
+    work(store, "Trip");
+    work(store, "Trip, cut", 2);
+    store.close();
+    // The drive isn't mounted yet when Cutline opens again.
+    renameSync(file, away);
+    const relaunched = new Store(recovery);
+    expect(relaunched.saveError).toContain("moved, renamed or deleted");
+    // It mounts: the very file this session last wrote is back.
+    renameSync(away, file);
+    expect(relaunched.fileProblem()).toBeNull();
+    work(relaunched, "Trip, after the drive came back", 3);
+    expect(relaunched.saveError).toBeNull();
+    expect(read(file).project.name).toBe("Trip, after the drive came back");
+  });
+
+  it("still refuses a returned file that holds someone else's version", () => {
+    const directory = folder();
+    const file = path.join(directory, "Shared.cutline");
+    const recovery = session(directory, "shared");
+    const store = new Store(recovery);
+    store.save(file);
+    work(store, "Mine");
+    store.close();
+    const theirs = read(file);
+    rmSync(file);
+    const relaunched = new Store(recovery);
+    writeFileSync(
+      file,
+      JSON.stringify({ ...theirs, session: "another-session", project: { ...theirs.project, name: "Theirs" } }),
+    );
+    expect(relaunched.fileProblem()).toContain("changed outside this session");
+    work(relaunched, "Mine, edited", 2);
+    expect(read(file).project.name).toBe("Theirs");
+  });
+
   it("keeps a backup on New when the open project's file was deleted, even before another edit", () => {
     const directory = folder();
     const file = path.join(directory, "Launch.cutline");
