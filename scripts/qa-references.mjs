@@ -392,6 +392,11 @@ try {
   await page.waitForSelector(".titlebar", { timeout: 60000 });
   assert.equal((await invoke("generation.settings")).configured, false);
   await tab("Generate").click();
+  // Generate opens on Graphic; Higgsfield video is its second mode.
+  await page
+    .locator(".generate-mode")
+    .getByRole("button", { name: "Video", exact: true })
+    .click();
   await panel()
     .getByRole("button", { name: "Open Settings", exact: true })
     .click();
@@ -708,6 +713,14 @@ try {
   await story()
     .getByRole("button", { name: "Produce scenes", exact: true })
     .click();
+  // Higgsfield is the fallback, so its section (shot references included)
+  // starts closed.
+  const openShotGenerator = async () => {
+    const generator = story().locator("details.story-shot-generator");
+    if (!(await generator.evaluate((element) => element.open)))
+      await generator.locator(":scope > summary").click();
+  };
+  await openShotGenerator();
   const shotDetails = story().locator("details.story-scene-references");
   if (!(await shotDetails.evaluate((element) => element.open)))
     await shotDetails.locator("summary").click();
@@ -847,6 +860,7 @@ try {
     .getByRole("navigation", { name: "Story workflow" })
     .getByRole("button", { name: /Produce/ })
     .click();
+  await openShotGenerator();
   await story()
     .getByRole("button", { name: "Generate this shot", exact: true })
     .click();
