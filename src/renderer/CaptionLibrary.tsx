@@ -1,5 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  captionPaceOf,
+  regroupCaptionCommands,
+  type CaptionPace,
+} from "../shared/caption-grouping";
+import {
   Captions,
   Check,
   Pause,
@@ -273,6 +278,21 @@ export function CaptionLibrary({
       setCommitting(false);
     }
   };
+  const pace = captionPaceOf(captions);
+  const changePace = async (next: CaptionPace) => {
+    if (next === pace || committing) return;
+    const { commands, count } = regroupCaptionCommands(p, captions, next);
+    if (!commands.length) return;
+    if (
+      await commit(
+        next === "short" ? "Short captions" : "Phrase captions",
+        commands,
+      )
+    )
+      setNotice(
+        `Captions regrouped into ${count} ${next === "short" ? "short chunks" : "phrases"}.`,
+      );
+  };
   const applyStyle = async () => {
     if (!dirty || !targets.length || committing) return;
     const saved = await commit(
@@ -492,10 +512,26 @@ export function CaptionLibrary({
               value={scope}
               onChange={(e) => setScope(e.target.value as "all" | "selected")}
             >
-              <option value="all">All {captions.length} captions</option>
+              <option value="all">
+                {captions.length === 1
+                  ? "The 1 caption"
+                  : `All ${captions.length} captions`}
+              </option>
               <option value="selected" disabled={!selectedCaption}>
                 Selected caption{selectedCaption ? "" : " (select one first)"}
               </option>
+            </select>
+          </label>
+          <label className="cs-field">
+            Words per caption
+            <select
+              aria-label="Words per caption"
+              value={pace}
+              disabled={!captions.some((c) => c.words.length) || committing}
+              onChange={(e) => void changePace(e.target.value as CaptionPace)}
+            >
+              <option value="phrases">Natural phrases</option>
+              <option value="short">Short: 1 to 3 words</option>
             </select>
           </label>
           <div className="cs-presets" aria-label="Caption style presets">
@@ -590,6 +626,15 @@ export function CaptionLibrary({
                 </button>
               ))}
             </div>
+            <label className="checkbox cs-highlight">
+              <input
+                type="checkbox"
+                aria-label="Highlight the spoken word"
+                checked={styled.highlight}
+                onChange={(e) => change({ highlight: e.target.checked })}
+              />
+              Highlight the spoken word
+            </label>
             <div className="cs-control-row">
               <label className="cs-field">
                 Letter case
@@ -643,7 +688,7 @@ export function CaptionLibrary({
             >
               {scope === "selected"
                 ? "Apply to selected caption"
-                : `Apply to ${captions.length} captions`}
+                : `Apply to ${captions.length} caption${captions.length === 1 ? "" : "s"}`}
             </button>
             {dirty && (
               <button

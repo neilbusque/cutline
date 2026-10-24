@@ -371,6 +371,9 @@ export const ClipSchema = z.object({
       "outline",
       "focus",
       "minimal",
+      "pill",
+      "clean",
+      "heavy",
     ])
     .default("standard"),
   captionLayout: z.enum(["legacy", "balanced"]).default("legacy"),

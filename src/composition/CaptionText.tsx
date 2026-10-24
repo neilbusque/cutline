@@ -200,6 +200,25 @@ export function CaptionText({
       tokens: line.tokens.map((token) => ({ ...token, wordIndex: focusIndex })),
     }));
   }
+  const pill = style === "pill" && c.background !== "transparent";
+  const wrap = (children: React.ReactNode) =>
+    pill ? (
+      <div
+        data-caption-pill="true"
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          padding: `${layout.fontSize * 0.16}px ${layout.fontSize * 0.42}px`,
+          background: c.background,
+          borderRadius: layout.fontSize * 0.3,
+        }}
+      >
+        {children}
+      </div>
+    ) : (
+      children
+    );
   return (
     <div
       data-caption-layout="balanced"
@@ -213,7 +232,8 @@ export function CaptionText({
         justifyContent: "center",
         boxSizing: "border-box",
         padding: `${layout.paddingY}px ${layout.paddingX}px`,
-        background: c.background,
+        // A pill hugs its words; other styles fill the caption box.
+        background: pill ? "transparent" : c.background,
         borderRadius: Math.max(6, Math.min(22, layout.fontSize * 0.25)),
         fontFamily: c.fontFamily,
         fontWeight: c.fontWeight,
@@ -234,28 +254,30 @@ export function CaptionText({
           c.preset === "wipe" ? `inset(0 ${(1 - move) * 100}% 0 0)` : undefined,
       }}
     >
-      {lines.map((line, index) => (
-        <div
-          key={index}
-          data-caption-line={index}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: align,
-            gap: layout.gap,
-            flex: "0 0 auto",
-            height: layout.lineHeight,
-            width: "100%",
-            whiteSpace: "nowrap",
-            transform:
-              c.align === "center" && line.centerOffset
-                ? `translateX(${line.centerOffset}px)`
-                : undefined,
-          }}
-        >
-          {line.tokens.map(renderWord)}
-        </div>
-      ))}
+      {wrap(
+        lines.map((line, index) => (
+          <div
+            key={index}
+            data-caption-line={index}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: align,
+              gap: layout.gap,
+              flex: "0 0 auto",
+              height: layout.lineHeight,
+              width: pill ? "auto" : "100%",
+              whiteSpace: "nowrap",
+              transform:
+                c.align === "center" && line.centerOffset
+                  ? `translateX(${line.centerOffset}px)`
+                  : undefined,
+            }}
+          >
+            {line.tokens.map(renderWord)}
+          </div>
+        )),
+      )}
     </div>
   );
 }

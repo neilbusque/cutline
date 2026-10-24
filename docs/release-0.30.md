@@ -1,3 +1,17 @@
+# Changes in 0.30.1
+
+## Captions
+
+- **Highlight on or off:** Captions → Style → **Highlight the spoken word** applies to every caption at once. Turn it off for captions that never color the current word.
+- **Three new looks** taken from popular short-form creators, none of which highlight words: **Pill** (two or three words on a soft grey pill), **Clean** (bold white type with a soft shadow, no box) and **Heavy** (heavy white type with a black outline).
+- **Words per caption:** choose **Natural phrases** or **Short: 1 to 3 words**. Existing captions are re-split from their word timing in one undoable step, keeping their look and position. Captions imported from a subtitle file are split too. Assistants use `caption.style` with `pace: "short"`.
+
+## Logos and screenshots
+
+- Brand logos now come from the official logo files on Wikidata and Wikimedia Commons when the icon library lacks a brand, so ChatGPT, Slack, LinkedIn and HeyGen arrive as sharp vectors. Website icons smaller than 120 pixels are never used.
+- A brand name only matches its exact library entry ("Slack" never becomes "Slackware").
+- Page screenshots explain failures plainly ("Couldn't open example.com. Check the address and your internet connection.").
+
 # Changes in 0.30.0
 
 Cutline can now make high-quality vector graphics from a sentence, import far more real-world SVG files, and show the real logo or web page a video talks about.

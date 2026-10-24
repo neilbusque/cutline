@@ -142,10 +142,10 @@ export function TextGraphicAtFrame({
                     ? "#111813"
                     : c.accent
                   : c.color,
-              background: state.filled ? c.accent : undefined,
+              background: c.highlight && state.filled ? c.accent : undefined,
               borderRadius: 7,
               padding: c.captionStyle === "karaoke" ? "2px 6px" : undefined,
-              transform: `scale(${state.scale})`,
+              transform: `scale(${c.highlight ? state.scale : 1})`,
               opacity: state.visible ? 1 : 0,
               WebkitTextStroke:
                 c.captionStyle === "outline" ? "2px #141816" : undefined,

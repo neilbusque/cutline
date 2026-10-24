@@ -101,7 +101,7 @@ try {
   await page.getByRole("button", { name: "Captions", exact: true }).click();
   const studio = page.locator(".caption-studio");
   await studio.waitFor({ state: "visible" });
-  assert.equal(await studio.locator(".cs-presets button").count(), 8);
+  assert.equal(await studio.locator(".cs-presets button").count(), 11);
   const positions = [];
   for (let i = 0; i < 4; i++) {
     positions.push(

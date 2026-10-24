@@ -206,6 +206,22 @@
   -webkit-text-stroke: 1px var(--preset-accent);
   color: transparent;
 }
+.cs-preset-pill {
+  color: #fff;
+  background: #3c3c3c;
+  border-radius: 999px;
+  padding: 0 7px;
+  font-size: 18px;
+}
+.cs-preset-clean {
+  color: #fff;
+  text-shadow: 0 1px 3px #000c;
+}
+.cs-preset-heavy {
+  color: #fff;
+  -webkit-text-stroke: 1.5px #000;
+  paint-order: stroke fill;
+}
 .cs-preset-minimal {
   font-size: 18px;
   font-weight: 400;

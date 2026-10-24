@@ -281,8 +281,9 @@ export class References {
     const response = await this.fetcher(url, {
       headers: {
         accept,
-        "user-agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36",
+        "user-agent": /wikidata|wikimedia/u.test(url)
+          ? "Cutline/0.30 (local video editor)"
+          : "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36",
       },
       redirect: "follow",
       signal: AbortSignal.timeout(20000),
@@ -354,20 +355,41 @@ export class References {
    * has one, otherwise the brand site's own icon (SVG when offered, else its
    * largest PNG).
    */
-  async logo(query: {
-    name?: string;
-    domain?: string;
-    slug?: string;
-  }): Promise<BrandLogo> {
-    const slug =
-      query.slug ??
-      (query.domain
-        ? `site:${query.domain}`
-        : (await this.searchLogos(query.name ?? "", 1))[0]?.slug);
-    const fallbackSite = brandSites[normalize(query.name ?? "")];
-    if (slug && !slug.startsWith("site:")) {
-      const record = (await this.icons()).find((r) => slugOf(r) === slug);
+  /** The library mark whose name or alias is exactly this, never a near miss. */
+  private async exactIcon(name: string) {
+    const q = normalize(name);
+    if (!q) return undefined;
+    const target = iconAliases[q] ?? q;
+    return (await this.icons()).find((record) =>
+      [
+        record.title,
+        slugOf(record),
+        ...(record.aliases?.aka ?? []),
+        ...(record.aliases?.dup ?? []).map((d) => d.title),
+      ]
+        .map(normalize)
+        .includes(target),
+    );
+  }
+
+  /**
+   * The real mark for a product: Simple Icons as an editable vector when it has
+   * the brand, else the official logo Wikidata records (Wikimedia Commons),
+   * else the icon the brand's own site publishes.
+   */
+  async logo(query: { name?: string; domain?: string }): Promise<BrandLogo> {
+    const domain =
+      query.domain
+        ?.replace(/^https?:\/\//u, "")
+        .replace(/\/.*$/u, "")
+        .toLowerCase() ?? brandSites[normalize(query.name ?? "")];
+    const name =
+      query.name?.trim() ||
+      (domain ? domain.replace(/^www\./u, "").split(".")[0] : "");
+    if (!query.domain) {
+      const record = await this.exactIcon(name);
       if (record) {
+        const slug = slugOf(record);
         const svg = await (
           await this.get(`${SIMPLE_ICONS}/icons/${slug}.svg`, "image/svg+xml")
         ).text();
@@ -380,14 +402,112 @@ export class References {
         };
       }
     }
-    const site = slug?.startsWith("site:")
-      ? slug.slice(5)
-      : (query.domain ?? fallbackSite);
-    if (!site)
-      throw Error(
-        `No logo found for "${query.name}". Give the product's website domain (for example chatgpt.com) to use its own icon.`,
-      );
-    return this.siteIcon(site, query.name);
+    const official = name
+      ? await this.wikidataLogo(name, domain).catch(() => undefined)
+      : undefined;
+    if (official) return official;
+    if (domain) return this.siteIcon(domain, query.name);
+    throw Error(
+      `No logo found for "${query.name}". Try its website instead, for example chatgpt.com.`,
+    );
+  }
+
+  /** Official logo from Wikidata (property P154), matched by name or website. */
+  private async wikidataLogo(
+    name: string,
+    domain?: string,
+  ): Promise<BrandLogo | undefined> {
+    const cacheFile = path.join(this.dir, "wikidata-logos.json");
+    let cache: Record<string, string | null> = {};
+    try {
+      cache = JSON.parse(readFileSync(cacheFile, "utf8"));
+    } catch {}
+    const key = `${normalize(name)}|${domain ?? ""}`;
+    let file = cache[key];
+    if (file === undefined) {
+      const api = "https://www.wikidata.org/w/api.php?format=json";
+      const found = await (
+        await this.get(
+          `${api}&action=wbsearchentities&type=item&language=en&limit=6&search=${encodeURIComponent(name)}`,
+          "application/json",
+        )
+      ).json();
+      const ids: string[] = (found.search ?? []).map((item: any) => item.id);
+      file = null;
+      if (ids.length) {
+        const data = await (
+          await this.get(
+            `${api}&action=wbgetentities&props=claims|labels&languages=en&ids=${ids.join("|")}`,
+            "application/json",
+          )
+        ).json();
+        const base = (host: string) =>
+          host.toLowerCase().replace(/^www\./u, "");
+        for (const id of ids) {
+          const entity = data.entities?.[id];
+          const logo = entity?.claims?.P154?.[0]?.mainsnak?.datavalue?.value;
+          if (typeof logo !== "string") continue;
+          const sites: string[] = (entity.claims.P856 ?? [])
+            .map((claim: any) => claim.mainsnak?.datavalue?.value)
+            .filter((value: unknown) => typeof value === "string");
+          const label = normalize(entity.labels?.en?.value ?? "");
+          // The label must match exactly or the entity must own the website,
+          // so "Make" never becomes a song's cover art.
+          const matches =
+            label === normalize(name) ||
+            (!!domain &&
+              sites.some((site) => {
+                try {
+                  const host = base(new URL(site).host);
+                  const wanted = base(domain);
+                  return (
+                    host === wanted ||
+                    host.endsWith(`.${wanted}`) ||
+                    wanted.endsWith(`.${host}`)
+                  );
+                } catch {
+                  return false;
+                }
+              }));
+          if (matches) {
+            file = logo;
+            break;
+          }
+        }
+      }
+      cache[key] = file;
+      writeFileSync(cacheFile, JSON.stringify(cache));
+    }
+    if (!file) return undefined;
+    const title = name;
+    const source = `Wikimedia Commons: ${file}`;
+    const filePath = `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(file)}`;
+    if (/\.svg$/iu.test(file)) {
+      try {
+        const svg = await (await this.get(filePath, "image/svg+xml")).text();
+        const parsed = parseEditableSvg(svg);
+        // Keep the editable vector only when nothing would be lost; a logo
+        // with filters or text keeps its true look as a sharp bitmap instead.
+        if (
+          !(parsed.warnings ?? []).some((w) =>
+            /left out|replaced|combined/u.test(w),
+          )
+        )
+          return { kind: "vector", svg, title, color: "", source };
+      } catch {}
+    }
+    const response = await this.get(`${filePath}?width=640`, "image/*");
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if ((imageSize(bytes)?.width ?? 0) < 120) return undefined;
+    const ext = /jpeg/u.test(response.headers.get("content-type") ?? "")
+      ? "jpg"
+      : "png";
+    const out = path.join(
+      this.dir,
+      `${normalize(title) || "logo"}-${createHash("sha1").update(file).digest("hex").slice(0, 8)}.${ext}`,
+    );
+    writeFileSync(out, bytes);
+    return { kind: "image", file: out, title, source };
   }
 
   private async siteIcon(domain: string, name?: string): Promise<BrandLogo> {
@@ -395,11 +515,13 @@ export class References {
     if (!/^[a-z0-9.-]+\.[a-z]{2,}$/iu.test(host))
       throw Error("Give a website domain such as chatgpt.com.");
     const home = `https://${host}/`;
-    const html = await (
-      await this.get(home, "text/html")
-    )
-      .text()
-      .catch(() => "");
+    let reachable = true;
+    const html = await this.get(home, "text/html")
+      .then((response) => response.text())
+      .catch(() => {
+        reachable = false;
+        return "";
+      });
     type Candidate = { url: string; size: number; svg: boolean };
     const candidates: Candidate[] = [];
     for (const tag of html.match(/<link\b[^>]*>/giu) ?? []) {
@@ -437,11 +559,15 @@ export class References {
               svg: /svg/u.test(icon.type ?? icon.src),
             });
       } catch {}
-    candidates.push({
-      url: `${home}apple-touch-icon.png`,
-      size: 180,
-      svg: false,
-    });
+    candidates.push(
+      { url: `${home}apple-touch-icon.png`, size: 180, svg: false },
+      // Google's icon service often has a large copy when the site's own fails.
+      {
+        url: `https://www.google.com/s2/favicons?domain=${host}&sz=256`,
+        size: 1,
+        svg: false,
+      },
+    );
     const title = name?.trim() || host.replace(/^www\./u, "");
     // Vector first when it imports cleanly, then the sharpest bitmap.
     for (const candidate of candidates.filter((c) => c.svg))
@@ -466,7 +592,8 @@ export class References {
         const type = response.headers.get("content-type") ?? "";
         if (!/png|jpeg|webp/u.test(type)) continue;
         const bytes = Buffer.from(await response.arrayBuffer());
-        if (bytes.length < 400) continue;
+        // A 32px favicon turns to mush at reel size: keep icons of 120px or more.
+        if ((imageSize(bytes)?.width ?? 0) < 120) continue;
         const ext = /jpeg/u.test(type)
           ? "jpg"
           : /webp/u.test(type)
@@ -479,8 +606,12 @@ export class References {
         writeFileSync(file, bytes);
         return { kind: "image", file, title, source: candidate.url };
       } catch {}
+    if (!reachable && !candidates.some((c) => c.svg))
+      throw Error(
+        `Couldn't reach ${host}. Check the address and your internet connection.`,
+      );
     throw Error(
-      `${host} doesn't offer an icon Cutline can use. Import a logo file instead.`,
+      `${host} doesn't offer a sharp enough icon. Import a logo file instead.`,
     );
   }
 
@@ -495,6 +626,56 @@ export class References {
       `${host || "page"}-${stamp}-${randomUUID().slice(0, 6)}.png`,
     );
   }
+}
+
+/** Pixel size of a PNG, JPEG or WebP from its header, without decoding it. */
+export function imageSize(
+  bytes: Buffer,
+): { width: number; height: number } | undefined {
+  if (bytes.length > 24 && bytes.readUInt32BE(0) === 0x89504e47)
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let at = 2;
+    while (at + 9 < bytes.length) {
+      if (bytes[at] !== 0xff) return undefined;
+      const marker = bytes[at + 1];
+      if (
+        marker >= 0xc0 &&
+        marker <= 0xcf &&
+        ![0xc4, 0xc8, 0xcc].includes(marker)
+      )
+        return {
+          height: bytes.readUInt16BE(at + 5),
+          width: bytes.readUInt16BE(at + 7),
+        };
+      at += 2 + bytes.readUInt16BE(at + 2);
+    }
+    return undefined;
+  }
+  if (
+    bytes.toString("ascii", 0, 4) === "RIFF" &&
+    bytes.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    const chunk = bytes.toString("ascii", 12, 16);
+    if (chunk === "VP8X")
+      return {
+        width: 1 + bytes.readUIntLE(24, 3),
+        height: 1 + bytes.readUIntLE(27, 3),
+      };
+    if (chunk === "VP8L") {
+      const bits = bytes.readUInt32LE(21);
+      return {
+        width: (bits & 0x3fff) + 1,
+        height: ((bits >> 14) & 0x3fff) + 1,
+      };
+    }
+    if (chunk === "VP8 ")
+      return {
+        width: bytes.readUInt16LE(26) & 0x3fff,
+        height: bytes.readUInt16LE(28) & 0x3fff,
+      };
+  }
+  return undefined;
 }
 
 /** Recolors a single-color library mark: Simple Icons paths carry no fill. */

@@ -72,7 +72,17 @@ describe("references", () => {
     { title: "Claude", slug: "claude", hex: "D97757" },
     { title: "Cursor", hex: "000000" },
     { title: "Google Gemini", slug: "googlegemini", hex: "8E75B2" },
+    { title: "Slackware", hex: "000000" },
   ];
+  /** A PNG header of the given size, padded like a real file. */
+  const png = (size: number) => {
+    const bytes = Buffer.alloc(1200, 7);
+    bytes.writeUInt32BE(0x89504e47, 0);
+    bytes.writeUInt32BE(0x0d0a1a0a, 4);
+    bytes.writeUInt32BE(size, 16);
+    bytes.writeUInt32BE(size, 20);
+    return bytes;
+  };
   const fake = (routes: Record<string, () => Response>) =>
     (async (url: string) => {
       const route = routes[String(url)];
@@ -110,9 +120,8 @@ describe("references", () => {
     });
   });
 
-  it("falls back to the brand site's largest icon", async () => {
+  it("falls back to the brand site's largest sharp icon, never a tiny favicon", async () => {
     dir = mkdtempSync(path.join(os.tmpdir(), "cutline-refs-"));
-    const png = new Uint8Array(1200).fill(7);
     const refs = new References(
       dir,
       fake({
@@ -123,11 +132,9 @@ describe("references", () => {
             '<link rel="icon" href="/favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">',
           ),
         "https://chatgpt.com/apple-touch-icon.png": () =>
-          new Response(png, { headers: { "content-type": "image/png" } }),
+          new Response(png(180), { headers: { "content-type": "image/png" } }),
         "https://chatgpt.com/favicon-32.png": () =>
-          new Response(new Uint8Array(500), {
-            headers: { "content-type": "image/png" },
-          }),
+          new Response(png(32), { headers: { "content-type": "image/png" } }),
       }),
     );
     const logo = await refs.logo({ name: "ChatGPT" });
@@ -136,7 +143,72 @@ describe("references", () => {
       expect(logo.source).toBe("https://chatgpt.com/apple-touch-icon.png");
       expect(readFileSync(logo.file)).toHaveLength(1200);
     }
-    await expect(refs.logo({ name: "zzqq unknown" })).rejects.toThrow(/domain/);
+    await expect(refs.logo({ name: "zzqq unknown" })).rejects.toThrow(
+      /website/,
+    );
+  });
+
+  it("never swaps a brand for a near miss, prefers the official logo, and rejects tiny icons", async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "cutline-refs-"));
+    const wikidata = "https://www.wikidata.org/w/api.php?format=json";
+    const refs = new References(
+      dir,
+      fake({
+        [`${icons}/data/simple-icons.json`]: () =>
+          new Response(JSON.stringify(library)),
+        [`${wikidata}&action=wbsearchentities&type=item&language=en&limit=6&search=Slack`]:
+          () =>
+            new Response(
+              JSON.stringify({ search: [{ id: "Q1" }, { id: "Q2" }] }),
+            ),
+        [`${wikidata}&action=wbgetentities&props=claims|labels&languages=en&ids=Q1|Q2`]:
+          () =>
+            new Response(
+              JSON.stringify({
+                entities: {
+                  Q1: {
+                    labels: { en: { value: "Slack (band)" } },
+                    claims: {
+                      P154: [
+                        { mainsnak: { datavalue: { value: "Band.svg" } } },
+                      ],
+                    },
+                  },
+                  Q2: {
+                    labels: { en: { value: "Slack" } },
+                    claims: {
+                      P154: [
+                        {
+                          mainsnak: { datavalue: { value: "Slack logo.svg" } },
+                        },
+                      ],
+                    },
+                  },
+                },
+              }),
+            ),
+        "https://commons.wikimedia.org/wiki/Special:FilePath/Slack%20logo.svg":
+          () =>
+            new Response(
+              '<svg viewBox="0 0 10 10"><rect width="10" height="10" fill="#4a154b"/></svg>',
+            ),
+        "https://tiny.example/": () =>
+          new Response('<link rel="icon" href="/f.png" sizes="32x32">'),
+        "https://tiny.example/f.png": () =>
+          new Response(png(32), { headers: { "content-type": "image/png" } }),
+      }),
+    );
+    const slack = await refs.logo({ name: "Slack" });
+    expect(slack).toMatchObject({
+      kind: "vector",
+      source: "Wikimedia Commons: Slack logo.svg",
+    });
+    await expect(refs.logo({ domain: "tiny.example" })).rejects.toThrow(
+      /sharp enough/,
+    );
+    await expect(refs.logo({ domain: "unreachable.example" })).rejects.toThrow(
+      /Couldn't reach/,
+    );
   });
 
   it("frames a screenshot as a card above the captions on a tall reel", () => {

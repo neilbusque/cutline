@@ -1,3 +1,4 @@
+import { regroupCaptionCommands } from "./caption-grouping";
 import { z } from "zod";
 import { StoryPlanSchema, StorySceneSchema } from "./story-schema";
 import { ExplainerInputSchema } from "./explainer";
@@ -414,10 +415,12 @@ export const AgentActionSchema = z.discriminatedUnion("type", [
       clipIds: z.array(id).min(1).max(10000),
       style: ClipSchema.shape.captionStyle.removeDefault().optional(),
       patch: captionPatch.optional(),
+      pace: z.enum(["phrases", "short"]).optional(),
     })
     .refine(
-      (a) => a.style !== undefined || a.patch !== undefined,
-      "Specify a caption style or patch.",
+      (a) =>
+        a.style !== undefined || a.patch !== undefined || a.pace !== undefined,
+      "Specify a caption style, patch or pace.",
     ),
   z.strictObject({
     type: z.literal("caption.import"),
@@ -1057,14 +1060,23 @@ export function applyAgentEdit(project: Project, raw: unknown) {
             ...(action.style ? captionStylePatch(action.style, working) : {}),
             ...action.patch,
           };
-          run(
-            action.clipIds.map((value) => {
-              const c = clip(value);
-              if (c.kind !== "caption")
-                throw Error("Caption styling requires caption clips.");
-              return { type: "clip.update" as const, id: c.id, patch };
-            }),
-          );
+          const ids = action.clipIds.map((value) => {
+            const c = clip(value);
+            if (c.kind !== "caption")
+              throw Error("Caption styling requires caption clips.");
+            return c.id;
+          });
+          if (Object.keys(patch).length)
+            run(ids.map((id) => ({ type: "clip.update" as const, id, patch })));
+          // short = one to three words per caption, re-split from word timing.
+          if (action.pace)
+            run(
+              regroupCaptionCommands(
+                working,
+                working.clips.filter((c) => ids.includes(c.id)),
+                action.pace,
+              ).commands,
+            );
           break;
         }
         case "caption.import": {

@@ -317,7 +317,7 @@ describe("Caption presets and compatible documents", () => {
     );
   });
 
-  it("scales all eight complete presets while preserving a custom clip position and content", () => {
+  it("scales all eleven complete presets while preserving a custom clip position and content", () => {
     const p = newProject(),
       c = {
         ...makeClip(p, "caption", "captions", 64),
@@ -326,8 +326,8 @@ describe("Caption presets and compatible documents", () => {
         text: "My words",
         words: spoken("My words"),
       };
-    expect(captionStyles).toHaveLength(8);
-    expect(new Set(captionStyles.map((style) => style.id)).size).toBe(8);
+    expect(captionStyles).toHaveLength(11);
+    expect(new Set(captionStyles.map((style) => style.id)).size).toBe(11);
     for (const style of captionStyles) {
       const full = captionStylePatch(style.id, { width: 1080, height: 1920 });
       const half = captionStylePatch(style.id, { width: 540, height: 960 });

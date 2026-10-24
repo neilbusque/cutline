@@ -324,9 +324,7 @@ export function VectorStudio({
                     void addReference(
                       {
                         kind: "logo",
-                        target: match.slug.startsWith("site:")
-                          ? match.slug.slice(5)
-                          : match.title,
+                        target: match.title,
                         color: logoColor,
                       },
                       `Adding ${match.title}…`,

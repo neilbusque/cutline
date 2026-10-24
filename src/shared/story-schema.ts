@@ -91,6 +91,9 @@ export const StoryPlanSchema = z
         "outline",
         "focus",
         "minimal",
+        "pill",
+        "clean",
+        "heavy",
       ])
       .default("standard"),
     musicAssetId: id.optional(),

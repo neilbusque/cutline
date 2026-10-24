@@ -25,7 +25,12 @@ export async function capturePage(
   file: string,
   options: PageCaptureOptions,
 ): Promise<{ width: number; height: number; title: string }> {
-  const parsed = new URL(url);
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw Error("Enter a web address such as github.com/owner/repo.");
+  }
   if (!["http:", "https:"].includes(parsed.protocol))
     throw Error("Screenshots need a web address starting with https://");
   const device = devices[options.device];
@@ -58,16 +63,29 @@ export async function capturePage(
     win.webContents.setUserAgent(
       "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
     );
+  let timer: NodeJS.Timeout | undefined;
   try {
+    const loading = win.loadURL(parsed.toString()).catch((error: Error) => {
+      // Chromium's codes (ERR_NAME_NOT_RESOLVED…) mean nothing to people.
+      throw Error(
+        /NAME_NOT_RESOLVED|INTERNET_DISCONNECTED|CONNECTION|ADDRESS_UNREACHABLE|TIMED_OUT/u.test(
+          error.message,
+        )
+          ? `Couldn't open ${parsed.host}. Check the address and your internet connection.`
+          : `${parsed.host} didn't load that page. Check the address, or try the site's home page.`,
+      );
+    });
+    // A load that fails after the timeout already answered is not an error.
+    loading.catch(() => {});
     await Promise.race([
-      win.loadURL(parsed.toString()),
-      new Promise((_, reject) =>
-        setTimeout(
+      loading,
+      new Promise((_, reject) => {
+        timer = setTimeout(
           () => reject(Error("The page took too long to load.")),
           30000,
-        ),
-      ),
-    ]);
+        );
+      }),
+    ]).finally(() => clearTimeout(timer));
     // Late images and web fonts.
     await new Promise((resolve) => setTimeout(resolve, 1800));
     const rect = (await win.webContents.executeJavaScript(

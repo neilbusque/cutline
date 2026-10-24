@@ -365,13 +365,10 @@
 .vs-section .section-heading {
   margin: 0;
 }
+/* One choice group per row: the side panel is too narrow to pair them. */
 .vs-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.vs-row > * {
-  flex: 1 1 120px;
+  display: grid;
+  gap: 9px;
 }
 .vs-segmented {
   border: 0;

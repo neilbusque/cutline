@@ -9,8 +9,19 @@ const clauseStart = /^(and|but|because|so|while|when|although|however)$/iu;
 const tokens = (text: string) =>
   text.trim().split(/\s+/u).filter(Boolean).length;
 
+/**
+ * How much each caption shows: natural phrases (about four words), or short
+ * creator-style chunks of one to three words.
+ */
+export type CaptionPace = "phrases" | "short";
+
 /** Group source words naturally; only actual overlaps form inseparable atoms. */
-export function groupCaptionWords(input: Word[], fps: number): Word[][] {
+export function groupCaptionWords(
+  input: Word[],
+  fps: number,
+  pace: CaptionPace = "phrases",
+): Word[][] {
+  const short = pace === "short";
   if (!Number.isFinite(fps) || fps <= 0)
     throw Error("Captions need a valid frame rate.");
   const words = input
@@ -63,16 +74,17 @@ export function groupCaptionWords(input: Word[], fps: number): Word[][] {
       for (let j = i; j < block.length; j++) {
         phrase.push(...block[j]);
         const count = phrase.reduce((sum, word) => sum + tokens(word.text), 0);
-        if (j > i && count > 7) break;
+        if (j > i && count > (short ? 3 : 7)) break;
         const first = phrase[0],
           last = phrase.at(-1)!;
         const duration =
           Math.max(...phrase.map((word) => word.end)) - first.start;
         const length = phrase.map((word) => word.text).join(" ").length;
-        let score = 2 + Math.pow(count - 4, 2) * 0.4;
-        if (count === 1) score += duration < 0.8 ? 12 : 6;
-        if (count === 2) score += 1;
-        score += Math.max(0, 0.7 - duration) * 4;
+        let score = 2 + Math.pow(count - (short ? 2 : 4), 2) * 0.4;
+        if (count === 1)
+          score += short ? (duration < 0.35 ? 3 : 1) : duration < 0.8 ? 12 : 6;
+        if (count === 2 && !short) score += 1;
+        score += Math.max(0, (short ? 0.35 : 0.7) - duration) * 4;
         score += Math.pow(Math.max(0, duration - 3), 2) * 5;
         score += Math.pow(Math.max(0, length - 44), 2) * 0.03;
         score +=
@@ -104,6 +116,7 @@ export type CaptionBuildOptions = {
   maxDurationFrames?: number;
   style?: Clip["captionStyle"];
   sourceId?: string;
+  pace?: CaptionPace;
 };
 
 /** Preserve source timing except sub-frame clipping at a shared phrase boundary. */
@@ -137,7 +150,7 @@ export function buildCaptionClips(
       end: Math.min(sourceSeconds, word.end),
     }))
     .filter((word) => word.end > word.start);
-  const groups = groupCaptionWords(words, p.fps);
+  const groups = groupCaptionWords(words, p.fps, options.pace);
   const starts = groups.map((group) =>
     Math.max(0, Math.floor(group[0].start * p.fps)),
   );
@@ -212,4 +225,111 @@ export function buildCaptionClips(
       },
     ];
   });
+}
+
+/** Average words per caption, to show which pace a set of captions uses. */
+export function captionPaceOf(captions: Clip[]): CaptionPace {
+  const words = captions.reduce((sum, c) => sum + tokens(c.text), 0);
+  return captions.length && words / captions.length <= 3 ? "short" : "phrases";
+}
+
+/**
+ * Re-split timed captions into another pace, keeping every word's timing and
+ * each run's look. A run is a track's back-to-back captions from one source;
+ * captions without word timing are left as they are.
+ */
+export function regroupCaptionCommands(
+  p: Project,
+  captions: Clip[],
+  pace: CaptionPace,
+) {
+  const timed = captions
+    .filter((c) => c.kind === "caption" && c.words.length)
+    .sort((a, b) => a.trackId.localeCompare(b.trackId) || a.start - b.start);
+  const runs: Clip[][] = [];
+  for (const caption of timed) {
+    const run = runs.at(-1),
+      last = run?.at(-1);
+    // Shortening splits inside each caption, so a chunk never crosses the
+    // break between two existing captions; lengthening joins neighbours.
+    if (
+      pace === "phrases" &&
+      last &&
+      last.trackId === caption.trackId &&
+      last.captionSourceId === caption.captionSourceId &&
+      caption.start - (last.start + last.duration) <= Math.round(p.fps * 0.5)
+    )
+      run!.push(caption);
+    else runs.push([caption]);
+  }
+  // Subtitle-file cues arrive as one timed phrase. Share its time out over
+  // its words by length so it can be re-split like transcribed speech.
+  const spread = (word: Word): Word[] => {
+    const parts = word.text.split(/\s+/u).filter(Boolean);
+    if (parts.length < 2) return [word];
+    const total = parts.reduce((sum, part) => sum + part.length + 1, 0);
+    let at = word.start;
+    return parts.map((text) => {
+      const start = at;
+      at += ((word.end - word.start) * (text.length + 1)) / total;
+      return { text, start, end: at };
+    });
+  };
+  const removed: string[] = [];
+  const added: Clip[] = [];
+  for (const run of runs) {
+    const first = run[0],
+      last = run.at(-1)!;
+    const start = first.start;
+    const words = run.flatMap((caption) =>
+      caption.words.flatMap(spread).map((word) => ({
+        ...word,
+        start: word.start + (caption.start - start) / p.fps,
+        end: word.end + (caption.start - start) / p.fps,
+      })),
+    );
+    const rebuilt = buildCaptionClips(p, words, {
+      trackId: first.trackId,
+      startFrame: start,
+      maxDurationFrames: last.start + last.duration - start,
+      style: first.captionStyle,
+      pace,
+      sourceId: first.captionSourceId,
+    });
+    if (!rebuilt.length) continue;
+    // Keep the run's look and placement; only the text, words and timing change.
+    const {
+      id: _id,
+      start: _start,
+      duration: _duration,
+      text: _text,
+      words: _words,
+      keyframes: _keys,
+      ...look
+    } = first;
+    removed.push(...run.map((caption) => caption.id));
+    added.push(
+      ...rebuilt.map((clip) => ({
+        ...clip,
+        ...look,
+        id: clip.id,
+        start: clip.start,
+        duration: clip.duration,
+        text: clip.text,
+        words: clip.words,
+        captionMaxLines: pace === "short" ? (1 as const) : look.captionMaxLines,
+      })),
+    );
+  }
+  return {
+    count: added.length,
+    commands: [
+      ...removed.map((id) => ({
+        type: "clip.delete" as const,
+        id,
+        ripple: false,
+      })),
+      ...added.map((clip) => ({ type: "clip.add" as const, clip })),
+    ],
+  };
 }
