@@ -2128,13 +2128,13 @@ app.whenReady().then(async () => {
     {
       // The built-in Claude waits for long tools instead of polling, and
       // its Stop ends the turn's work even while the request stays open.
-      localCall: (name, args, signal) =>
-        toolCall(name, args, {
-          signal: signal
-            ? AbortSignal.any([signal, claude.turnSignal])
-            : claude.turnSignal,
+      localCall: (name, args, signal) => {
+        const turn = claude?.turnSignal;
+        return toolCall(name, args, {
+          signal: turn && signal ? AbortSignal.any([signal, turn]) : (turn ?? signal),
           deadlineMs: ASSISTANT_DEADLINE_MS,
-        }),
+        });
+      },
       localTools: tools,
     },
   );
