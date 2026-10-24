@@ -108,7 +108,7 @@ import {
   type GraphicResult,
 } from "../shared/graphics";
 import { HiggsfieldPictures } from "./higgsfield-pictures";
-import { AgentTasks } from "./agent-tasks";
+import { AgentTasks, ASSISTANT_DEADLINE_MS } from "./agent-tasks";
 import {
   previewContent,
   previewFrames,
@@ -533,11 +533,11 @@ const sessionRouter = createSessionRouter({
   currentId: sessionContext.id,
   list: () => sessions.list(),
   connectionFor: (id) => sessions.connectionFor(id),
-  localCall: toolCall,
+  localCall: (name, args, signal) => toolCall(name, args, { signal }),
   create: (name) => sessions.create(name),
   open: (id) => sessions.open(id),
 });
-async function externalCall(name: string, args: any) {
+async function externalCall(name: string, args: any, signal?: AbortSignal) {
   if (name === "session.focus") {
     if (win && !win.isDestroyed()) {
       if (win.isMinimized()) win.restore();
@@ -546,7 +546,7 @@ async function externalCall(name: string, args: any) {
     }
     return { focused: true };
   }
-  return sessionRouter.call(name, args);
+  return sessionRouter.call(name, args, signal);
 }
 function copySessionPrompt() {
   const current = sessions.current();
@@ -561,9 +561,20 @@ let storyVoice: StoryProduction;
 let storyBatch: StoryBatchProduction;
 /** Tools whose work can outlast a client's request timeout; see AgentTasks. */
 const longTools = longRunningTools;
-async function toolCall(name: string, args: any) {
+/**
+ * signal: the caller went away, as when Stop is pressed in the assistant.
+ * deadlineMs: how long the caller waits before a long tool answers with a
+ * job ID (45 seconds unless given).
+ */
+async function toolCall(
+  name: string,
+  args: any,
+  options: { signal?: AbortSignal; deadlineMs?: number } = {},
+) {
   if (!tools.some((tool) => tool.name === name))
     throw Error("Unknown editing tool");
+  if (options.signal?.aborted)
+    throw Error("This edit was stopped, so the tool did not run.");
   lastAgentCall = { tool: name, at: new Date().toISOString() };
   // Errors carry what the agent needs to recover: readable validation
   // messages and, for stale revisions, the revision to retry with.
@@ -575,16 +586,23 @@ async function toolCall(name: string, args: any) {
       store.past,
     );
   try {
-    const earlier = new Set(jobs.jobs.keys());
-    const work = runTool(name, args ?? {});
     return longTools.has(name)
-      ? await agentTasks.run(name, work, describe, earlier)
-      : await work;
+      ? await agentTasks.run(
+          name,
+          (signal) => runTool(name, args ?? {}, signal),
+          describe,
+          options,
+        )
+      : await runTool(name, args ?? {});
   } catch (error) {
     throw Error(describe(error));
   }
 }
-async function runTool(name: string, args: any): Promise<unknown> {
+async function runTool(
+  name: string,
+  args: any,
+  signal?: AbortSignal,
+): Promise<unknown> {
   if (musicTools.some((tool) => tool.name === name)) {
     const result: any = await musicControl(name, args);
     // A sync plan holds a command per clip; keep the reply short.
@@ -605,7 +623,7 @@ async function runTool(name: string, args: any): Promise<unknown> {
   if (agentIoTools.some((tool) => tool.name === name))
     return agentIO(name, args);
   if (agentMediaTools.some((tool) => tool.name === name))
-    return agentMedia(name, args);
+    return agentMedia(name, args, signal);
   switch (name) {
     case "cutline_explainer": {
       assertRevision(args);
@@ -1522,7 +1540,7 @@ function register() {
     state: () => ({
       snapshot: store.snapshot(),
       mediaBase: base,
-      jobs: [...jobs.jobs.values()],
+      jobs: [...jobs.jobs.values()].filter((job) => job.kind !== "agent"),
       settings: {
         transcriptionReady: existsSync(bin.whisper) && existsSync(bin.model),
         mcpScript: path.join(__dirname, "mcp.cjs"),
@@ -1929,7 +1947,13 @@ app.whenReady().then(async () => {
   if (pendingProject) await openFromFinder(pendingProject);
   // Startup opens happen before the change listener below is attached.
   sessions.updateProject(store.project);
-  jobs = new Jobs((j) => send("job", j));
+  // An agent call's own job only groups the work it starts; the editor
+  // shows that work.
+  jobs = new Jobs((j) => {
+    if (j.kind !== "agent") send("job", j);
+  });
+  // A cancelled agent call never lands an edit, whatever it was waiting on.
+  store.beforeCommit = () => jobs.assertActive();
   media = new Media(path.join(data, "media-cache"), bin, jobs);
   // Older versions left raw audio dumps behind (about 115 MB per hour of media),
   // and preview copies of old imports pile up: keep the cache under its cap,
@@ -2023,7 +2047,7 @@ app.whenReady().then(async () => {
       drawings.set(key, drawn);
       return drawn;
     },
-    graphic: (input) => makeGraphic(input),
+    graphic: (input, signal) => makeGraphic(input, { signal }),
     references: {
       logo: (query) => references.logo(query),
       inLibrary: (name) => references.inLibrary(name),
@@ -2040,10 +2064,23 @@ app.whenReady().then(async () => {
     path.join(data, "connection.json"),
     externalCall,
     externalTools,
-    { localCall: toolCall, localTools: tools },
+    {
+      // The built-in Claude waits for long tools instead of polling, and
+      // its Stop ends the turn's work even while the request stays open.
+      localCall: (name, args, signal) =>
+        toolCall(name, args, {
+          signal: signal
+            ? AbortSignal.any([signal, claude.turnSignal])
+            : claude.turnSignal,
+          deadlineMs: ASSISTANT_DEADLINE_MS,
+        }),
+      localTools: tools,
+    },
   );
   base = bridge.base;
-  codex = new Codex(path.join(data, "assistant"), tools, toolCall);
+  codex = new Codex(path.join(data, "assistant"), tools, (name, args, signal) =>
+    toolCall(name, args, { signal, deadlineMs: ASSISTANT_DEADLINE_MS }),
+  );
   codex.on("event", (e) => send("assistant", { ...e, provider: "codex" }));
   loadAssistantSettings();
   claude = new ClaudeAssistant(

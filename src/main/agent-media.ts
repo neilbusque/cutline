@@ -239,7 +239,10 @@ export type AgentMediaDeps = {
     signal?: AbortSignal,
   ) => Promise<{ kind: "svg"; svg: string } | { kind: "image"; file: string }>;
   /** cutline_graphic's work: the same route as Motion > Vectors > Generate. */
-  graphic?: (input: GraphicGenerateInput) => Promise<GraphicResult>;
+  graphic?: (
+    input: GraphicGenerateInput,
+    signal?: AbortSignal,
+  ) => Promise<GraphicResult>;
   references?: {
     logo: (query: { name?: string; domain?: string }) => Promise<BrandLogo>;
     /** Whether the logo library has this exact product name. */
@@ -936,13 +939,16 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     };
   }
 
-  async function graphic(raw: unknown) {
+  async function graphic(raw: unknown, signal?: AbortSignal) {
     const args = GraphicArgsSchema.parse(raw ?? {});
     assertRevision(args);
     if (!deps.graphic) throw Error("Graphics are not available here.");
     const opening = store.openSession;
     const { projectId: _, revision: __, at, ...request } = args;
-    const made = await deps.graphic(GraphicGenerateSchema.parse(request));
+    const made = await deps.graphic(
+      GraphicGenerateSchema.parse(request),
+      signal,
+    );
     if (store.openSession !== opening)
       throw Error(
         "A different project was opened meanwhile. Inspect it and try again.",
@@ -1001,10 +1007,15 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     };
   }
 
-  return async (name: string, raw: unknown): Promise<unknown> => {
+  /** signal: the agent call was cancelled, as when Stop is pressed. */
+  return async (
+    name: string,
+    raw: unknown,
+    signal?: AbortSignal,
+  ): Promise<unknown> => {
     switch (name) {
       case "cutline_graphic":
-        return graphic(raw);
+        return graphic(raw, signal);
       case "cutline_style_reel":
         return styleReel(raw);
       case "cutline_reference":

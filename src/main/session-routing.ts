@@ -47,7 +47,11 @@ export type SessionRouterOptions = {
   currentId: string;
   list: () => MaybePromise<SessionInfo[]>;
   connectionFor: (id: string) => MaybePromise<SessionConnection | undefined>;
-  localCall: (name: string, args: Record<string, unknown>) => Promise<unknown>;
+  localCall: (
+    name: string,
+    args: Record<string, unknown>,
+    signal?: AbortSignal,
+  ) => Promise<unknown>;
   create: (name?: string) => MaybePromise<SessionInfo>;
   open: (id: string) => MaybePromise<SessionInfo>;
   timeoutMs?: number;
@@ -77,7 +81,11 @@ function argumentsFor(raw: unknown) {
 }
 
 export function createSessionRouter(options: SessionRouterOptions) {
-  async function call(name: string, raw: unknown = {}): Promise<unknown> {
+  async function call(
+    name: string,
+    raw: unknown = {},
+    signal?: AbortSignal,
+  ): Promise<unknown> {
     const { sessionId, ...args } = argumentsFor(raw);
     if (
       sessionId !== undefined &&
@@ -145,7 +153,8 @@ export function createSessionRouter(options: SessionRouterOptions) {
           ? `The configured Cutline session ${options.currentId} is unavailable. Call cutline_sessions to open it or explicitly choose another sessionId. The call was not sent to another session.`
           : `Cutline session ${sessionId} is not running or does not exist. Call cutline_sessions to list or open it. The call was not sent to another session.`,
       );
-    if (target.id === options.currentId) return options.localCall(name, args);
+    if (target.id === options.currentId)
+      return options.localCall(name, args, signal);
 
     const connection = await options.connectionFor(target.id);
     if (!connection)

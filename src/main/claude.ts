@@ -80,6 +80,10 @@ export class ClaudeAssistant extends EventEmitter {
   private interruptTimer?: NodeJS.Timeout;
   private textInTurn = false;
   private pendingBreak = false;
+  /** Cutline tool calls Claude is waiting on; it is quiet then, not stalled. */
+  private toolsRunning = new Set<string>();
+  /** Aborted by Stop, so Cutline's own work for this turn stops too. */
+  private turnStop = new AbortController();
   private stderr = "";
   private state = {
     status: "disconnected",
@@ -111,6 +115,15 @@ export class ClaudeAssistant extends EventEmitter {
       provider: "claude" as const,
       model: this.model,
     };
+  }
+
+  /**
+   * The current turn's signal for Cutline tool calls. An MCP client's cancel
+   * arrives as a separate request that a stateless server can't match to the
+   * call, so Stop aborts this instead.
+   */
+  get turnSignal() {
+    return this.turnStop.signal;
   }
 
   private emitState(value: any) {
@@ -216,7 +229,8 @@ export class ClaudeAssistant extends EventEmitter {
 
   private touch() {
     clearTimeout(this.watchdog);
-    if (this.busy)
+    // Long tools such as transcription can take minutes.
+    if (this.busy && !this.toolsRunning.size)
       this.watchdog = setTimeout(
         () =>
           this.fail(
@@ -317,6 +331,15 @@ export class ClaudeAssistant extends EventEmitter {
   }
 
   private message(m: any) {
+    if (m.type === "assistant")
+      for (const block of m.message?.content ?? [])
+        if (block.type === "tool_use" && block.id)
+          this.toolsRunning.add(String(block.id));
+    if (m.type === "user")
+      for (const block of m.message?.content ?? [])
+        if (block?.type === "tool_result")
+          this.toolsRunning.delete(String(block.tool_use_id));
+    if (m.type === "result") this.toolsRunning.clear();
     this.touch();
     if (m.type === "system" && m.subtype === "init") {
       this.resumable = true;
@@ -409,6 +432,8 @@ export class ClaudeAssistant extends EventEmitter {
     this.stopping = false;
     this.textInTurn = false;
     this.pendingBreak = false;
+    this.toolsRunning.clear();
+    this.turnStop = new AbortController();
     this.emitState({ type: "started" });
     try {
       const child =
@@ -432,6 +457,7 @@ export class ClaudeAssistant extends EventEmitter {
   }
 
   async stop() {
+    this.turnStop.abort();
     if (!this.busy || !this.child) return;
     this.stopping = true;
     this.child.stdin.write(

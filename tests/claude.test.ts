@@ -316,3 +316,57 @@ it("refuses a second message while busy and warns when Cutline tools fail to loa
     /didn't load/,
   );
 });
+
+it("waits through a long Cutline tool, then times out only on Claude's own silence", async () => {
+  vi.useFakeTimers();
+  try {
+    const c = make({ watchdogMs: 1000 });
+    const seen = events(c);
+    control.onUser = (child) => {
+      child.emitLine({ type: "system", subtype: "init", mcp_servers: [] });
+      child.emitLine({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              id: "tool-1",
+              name: "mcp__cutline__cutline_transcribe",
+            },
+          ],
+        },
+      });
+    };
+    await c.send("Transcribe my interview", "p1");
+    await vi.advanceTimersByTimeAsync(1);
+    // A long transcription runs while Claude waits on it, saying nothing.
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(control.children[0].killed).toBe(false);
+    expect(c.busy).toBe(true);
+    control.children[0].emitLine({
+      type: "user",
+      message: { content: [{ type: "tool_result", tool_use_id: "tool-1" }] },
+    });
+    await vi.advanceTimersByTimeAsync(1001);
+    expect(control.children[0].killed).toBe(true);
+    expect(seen.at(-1)).toMatchObject({ type: "error" });
+    expect(seen.at(-1).message).toContain("stopped responding");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("stop also stops the Cutline work of the turn, and the next turn starts fresh", async () => {
+  const c = make();
+  control.onUser = () => {};
+  await c.send("Remove the pauses", "p1");
+  const turn = c.turnSignal;
+  expect(turn.aborted).toBe(false);
+  await c.stop();
+  expect(turn.aborted).toBe(true);
+  await tick();
+  await tick();
+  control.onUser = replyWithTool;
+  await c.send("Try again", "p1");
+  expect(c.turnSignal.aborted).toBe(false);
+});

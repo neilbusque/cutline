@@ -1434,11 +1434,12 @@ describe("cutline_voiceover makes local narration and can place it", () => {
     const before = store.past.length;
     const pending = (await tasks.run(
       "cutline_voiceover",
-      call("cutline_voiceover", {
-        ...guard(),
-        text: "A slower script.",
-        at: { frame: 0 },
-      }) as Promise<unknown>,
+      () =>
+        call("cutline_voiceover", {
+          ...guard(),
+          text: "A slower script.",
+          at: { frame: 0 },
+        }) as Promise<unknown>,
     )) as any;
     expect(pending).toMatchObject({ state: "running" });
     expect(pending.message).toContain("cutline_jobs");

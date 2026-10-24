@@ -17,10 +17,15 @@ import { type Tool } from "@modelcontextprotocol/sdk/types.js";
 export async function startBridge(
   store: Store,
   connectionFile: string | null,
-  call: (name: string, args: any) => Promise<unknown>,
+  /** signal aborts when the caller goes away before the answer. */
+  call: (name: string, args: any, signal?: AbortSignal) => Promise<unknown>,
   toolList: any[],
   options: {
-    localCall?: (name: string, args: any) => Promise<unknown>;
+    localCall?: (
+      name: string,
+      args: any,
+      signal?: AbortSignal,
+    ) => Promise<unknown>;
     localTools?: any[];
   } = {},
 ) {
@@ -135,8 +140,15 @@ export async function startBridge(
           if (body.length > 2_000_000) throw Error("Request too large");
         }
         const { name, args } = JSON.parse(body);
+        // A caller that goes away before the answer stops its work.
+        const gone = new AbortController();
+        res.on("close", () => {
+          if (!res.writableEnded) gone.abort();
+        });
         const value =
-          name === "tools.list" ? toolList : await call(name, args ?? {});
+          name === "tools.list"
+            ? toolList
+            : await call(name, args ?? {}, gone.signal);
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ result: value }));
         return;

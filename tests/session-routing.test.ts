@@ -19,6 +19,7 @@ import { startBridge } from "../src/main/bridge";
 import { cutlineTools } from "../src/main/agent-tools";
 import { Store } from "../src/main/store";
 import { AgentTasks } from "../src/main/agent-tasks";
+import { Jobs } from "../src/main/media";
 import type { SessionConnection, SessionInfo } from "../src/main/sessions";
 import type { Job } from "../src/shared/model";
 import { version } from "../package.json";
@@ -64,7 +65,10 @@ async function fixture() {
     ]),
     calls: [] as Array<{ name: string; args: Record<string, unknown> }>,
   }));
-  const tasks = states.map((state) => new AgentTasks(state));
+  const tasks = states.map(
+    (state) =>
+      new AgentTasks(Object.assign(new Jobs(() => {}), { jobs: state.jobs })),
+  );
   const create = vi.fn(async (name?: string) => ({
     ...sessions[1],
     name: name ?? "New session",
@@ -192,7 +196,12 @@ describe("explicit session routing", () => {
       arguments: {},
     });
     expect(localResult.isError).not.toBe(true);
-    expect(localCall).toHaveBeenCalledWith("cutline_inspect", {});
+    // The request's signal comes along, so Stop reaches the tool's work.
+    expect(localCall).toHaveBeenCalledWith(
+      "cutline_inspect",
+      {},
+      expect.any(AbortSignal),
+    );
     expect(
       (await local.listTools()).tools.every(
         (tool) => !tool.inputSchema.properties?.sessionId,
@@ -204,6 +213,44 @@ describe("explicit session routing", () => {
     });
     expect(externalResult.isError).toBe(true);
     expect(localCall).toHaveBeenCalledTimes(1);
+  });
+
+  it("a built-in assistant that goes away mid-call stops the tool's work", async () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "cutline-stop-"));
+    cleanup.push(() => rmSync(directory, { recursive: true, force: true }));
+    let seen: AbortSignal | undefined;
+    const localCall = vi.fn(
+      async (_name: string, _args: unknown, signal?: AbortSignal) => {
+        seen = signal;
+        await new Promise((resolve) =>
+          signal?.addEventListener("abort", resolve),
+        );
+        return {};
+      },
+    );
+    const bridge = await startBridge(
+      new Store(path.join(directory, "recovery.cutline")),
+      null,
+      async () => ({}),
+      sessionTools(cutlineTools),
+      { localCall, localTools: cutlineTools },
+    );
+    cleanup.push(bridge.close);
+    const local = new Client({ name: "built-in-claude", version: "1.0" });
+    await local.connect(
+      new StreamableHTTPClientTransport(new URL(`${bridge.mcpUrl}/local`)),
+    );
+    cleanup.push(() => local.close());
+    const call = local.callTool({
+      name: "cutline_transcribe",
+      arguments: {},
+    });
+    await vi.waitFor(() => expect(seen).toBeDefined());
+    expect(seen!.aborted).toBe(false);
+    // The CLI is stopped or quits, closing its request.
+    await local.close();
+    await expect(call).rejects.toThrow();
+    await vi.waitFor(() => expect(seen!.aborted).toBe(true));
   });
 
   it("two independent MCP clients can interleave edits without sharing selection or project state", async () => {

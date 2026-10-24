@@ -140,6 +140,8 @@ export class Store extends EventEmitter {
   notices: string[] = [];
   /** How long to wait after the last edit before writing undo history. */
   historyDelay = 1500;
+  /** Runs before every edit; throws to refuse it, as for cancelled work. */
+  beforeCommit?: () => void;
   readonly backupDirectory: string;
   readonly historyDirectory: string;
   private revision = 0;
@@ -201,6 +203,7 @@ export class Store extends EventEmitter {
    * check costs about 40 ms of main-process time per edit.
    */
   commit(next: Project, label: string, options: { validated?: boolean } = {}) {
+    this.beforeCommit?.();
     const validated = options.validated ? next : validateProject(next);
     const entry = { label, project: this.project };
     this.checked.add(entry);

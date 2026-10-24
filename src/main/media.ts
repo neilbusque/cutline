@@ -83,6 +83,14 @@ export class Jobs {
   detached<T>(fn: () => T): T {
     return this.scope.exit(fn);
   }
+  /**
+   * Throws when the job this code runs under, or one it runs within, was
+   * cancelled, so a cancelled agent tool never commits its edit.
+   */
+  assertActive() {
+    for (let id = this.scope.getStore(); id; id = this.parents.get(id))
+      if (this.jobs.get(id)?.state === "cancelled") throw Error("Cancelled");
+  }
   exec(
     bin: string,
     args: string[],

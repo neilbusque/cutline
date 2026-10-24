@@ -34,7 +34,8 @@ export function mcpResult(value: any) {
 
 export function createMcpServer(
   list: () => Promise<Tool[]>,
-  call: (name: string, args: any) => Promise<unknown>,
+  /** signal aborts when the request closes, as when the assistant is stopped. */
+  call: (name: string, args: any, signal?: AbortSignal) => Promise<unknown>,
   instructions: string = cutlineCore,
 ) {
   const server = new Server(
@@ -44,13 +45,17 @@ export function createMcpServer(
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: await list(),
   }));
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     try {
       const tools = await list();
       if (!tools.some((tool) => tool.name === request.params.name))
         throw Error("Unknown Cutline tool");
       return mcpResult(
-        await call(request.params.name, request.params.arguments ?? {}),
+        await call(
+          request.params.name,
+          request.params.arguments ?? {},
+          extra.signal,
+        ),
       );
     } catch (error) {
       return {
