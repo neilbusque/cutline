@@ -14,13 +14,23 @@ let sentPercent = -1;
 let cancel: (() => void) | undefined;
 let mux: ChildProcess | undefined;
 let cancelled = false;
-// A crashed/closed editor must not leave an orphan render occupying the Mac.
-process.on("disconnect", () => {
+let rendering = false;
+/** Stops the render and exits within 5 seconds, closing Chrome first. */
+const stop = () => {
   cancelled = true;
   cancel?.();
   mux?.kill("SIGTERM");
   void browser?.close({ silent: true }).catch(() => {});
   setTimeout(() => process.exit(1), 5000).unref();
+};
+// A crashed/closed editor must not leave an orphan render occupying the Mac.
+process.on("disconnect", stop);
+// The editor's SIGTERM can arrive before Remotion adds its own handlers, and
+// by default it would end this worker and leave Chrome running in its own
+// process group.
+process.on("SIGTERM", () => {
+  stop();
+  if (!rendering) process.exit(0);
 });
 process.on("message", async (message: any) => {
   if (message.type === "cancel") {
@@ -29,6 +39,7 @@ process.on("message", async (message: any) => {
     mux?.kill("SIGTERM");
     return;
   }
+  rendering = true;
   const audio = message.outputLocation + ".audio.wav",
     video = message.outputLocation + ".video.mp4";
   try {
@@ -48,6 +59,7 @@ process.on("message", async (message: any) => {
       browserExecutable,
       ...browserOptions,
     });
+    if (cancelled) throw Error("Cancelled");
     const composition = await selectComposition({
       serveUrl,
       id: "Cutline",

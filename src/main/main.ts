@@ -1,4 +1,8 @@
-import { browserRelativePath } from "../../scripts/browser-config.mjs";
+import {
+  browserDirectory,
+  browserRelativePath,
+} from "../../scripts/browser-config.mjs";
+import { sweepOrphanedBrowsers } from "./browser-sweep";
 import { ReelOptionsSchema } from "../shared/reel";
 import { buildAutoReel, AutoReelOptionsSchema } from "./auto-reel";
 import { Speech } from "./tts";
@@ -109,8 +113,8 @@ import {
   previewContent,
   previewFrames,
   renderPreview,
-  renderStills,
   samplesFrames,
+  StillWorker,
   timecode,
 } from "./agent-preview";
 import { StockLibrary, stockUrl } from "./stock";
@@ -312,6 +316,12 @@ app.on("second-instance", (_event, argv, workingDirectory) => {
 const vendor = app.isPackaged
   ? path.join(process.resourcesPath, "vendor")
   : path.join(root, "vendor");
+/** Chrome left running by a worker that died is stopped shortly after. */
+const sweepBrowsersSoon = () =>
+  setTimeout(
+    () => void sweepOrphanedBrowsers(path.join(vendor, browserDirectory)),
+    2000,
+  ).unref();
 const bin = {
   ffmpeg: path.join(root, "node_modules/@ffmpeg-installer/darwin-arm64/ffmpeg"),
   ffprobe: path.join(
@@ -482,6 +492,7 @@ async function exportVideo(output?: string) {
         exportBridge?.close();
         release();
         renderChild = undefined;
+        sweepBrowsersSoon();
         jobs.processes.delete(job.id);
         jobs.cancellers.delete(job.id);
         if (job.state === "running")
@@ -781,11 +792,19 @@ async function editorPreview(args: any) {
 const previewBundle = path.join(root, "dist/composition");
 const previewBrowser = path.join(vendor, browserRelativePath);
 const stillWorker = path.join(__dirname, "still-worker.cjs");
+const stills = new StillWorker({
+  workerPath: stillWorker,
+  exited: sweepBrowsersSoon,
+});
 let previewQueue: Promise<unknown> = Promise.resolve();
 /** Renders frames like the export does, one preview at a time. */
 function renderOffscreen(project: Project, frames: number[], args: any) {
   const run = async () => {
     const frozen = structuredClone(project);
+    // Stills use the lighter preview copies where they exist, so a long
+    // 4K source is not read in full for a contact sheet.
+    for (const asset of frozen.assets)
+      if (asset.proxy && !existsSync(asset.proxy)) delete asset.proxy;
     await prepareReversed(frozen);
     const media = await startBridge(
       { project: frozen } as Store,
@@ -801,14 +820,14 @@ function renderOffscreen(project: Project, frames: number[], args: any) {
         layout: args.layout,
         ffmpeg: bin.ffmpeg,
         render: (list, scale, directory) =>
-          renderStills({
-            workerPath: stillWorker,
+          stills.render({
             serveUrl: previewBundle,
             browserExecutable: previewBrowser,
             inputProps: {
               project: frozen,
               mediaBase: media.base,
               preview: false,
+              proxies: true,
             },
             frames: list,
             scale,
@@ -1894,6 +1913,8 @@ function register() {
 }
 app.whenReady().then(async () => {
   if (!primary) return;
+  // Chrome left running by workers of an earlier run that crashed.
+  void sweepOrphanedBrowsers(path.join(vendor, browserDirectory));
   sessions.register();
   store = new Store(path.join(data, "recovery.cutline"), (file) =>
     leases.claimFile(file),
@@ -2207,6 +2228,7 @@ app.on("before-quit", () => {
       process.kill(-renderChild.pid, "SIGTERM");
     } catch {}
   }
+  stills.close();
   bridge?.close();
   for (const child of jobs?.processes.values() ?? []) child.kill();
 });

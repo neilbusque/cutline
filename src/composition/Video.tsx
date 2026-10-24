@@ -56,6 +56,8 @@ export type RenderProps = {
   project: Project;
   mediaBase: string;
   preview?: boolean;
+  /** Rendered stills play the editor's lighter preview copies where they exist. */
+  proxies?: boolean;
 };
 export function assetUrl(base: string, a: Asset, preview = false) {
   return `${base}/media/${a.id}/${preview && a.proxy ? "proxy" : "original"}`;
@@ -312,6 +314,7 @@ function Layer({
   p,
   base,
   preview,
+  proxies,
   a,
   track,
   motion,
@@ -329,6 +332,7 @@ function Layer({
   p: Project;
   base: string;
   preview: boolean;
+  proxies?: boolean;
   musicBinding?: MusicBinding;
   span?: AnimationSpan;
 }) {
@@ -352,7 +356,7 @@ function Layer({
     (track?.muted ? 0 : 1) *
     transitionGain(at, incoming, outgoing) *
     clipFadeEnvelope(c, at);
-  const media = a ? clipMedia(c, a, base, preview) : undefined;
+  const media = a ? clipMedia(c, a, base, preview || !!proxies) : undefined;
   const src = media?.src ?? "";
   const MediaVideo = preview ? Video : OffthreadVideo;
   if (c.kind === "audio")
@@ -468,6 +472,7 @@ export const Film: React.FC<RenderProps> = ({
   project: p,
   mediaBase,
   preview = false,
+  proxies = false,
 }) => {
   const groups = useMemo(() => {
     const music = musicBindings(p);
@@ -564,6 +569,7 @@ export const Film: React.FC<RenderProps> = ({
         motion={motion}
         base={mediaBase}
         preview={preview}
+        proxies={proxies}
       />
     </Sequence>
   );

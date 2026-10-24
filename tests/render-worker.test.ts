@@ -78,7 +78,8 @@ it("uses the reviewed full browser for both composition loading and video render
         offthreadVideoCacheSizeInBytes: expect.any(Number),
       }),
     );
-  const cache = mocks.renderMedia.mock.calls[0][0].offthreadVideoCacheSizeInBytes;
+  const cache =
+    mocks.renderMedia.mock.calls[0][0].offthreadVideoCacheSizeInBytes;
   expect(cache).toBeGreaterThanOrEqual(256 * 1024 ** 2);
   expect(cache).toBeLessThanOrEqual(1024 ** 3);
   expect(mocks.browser.close).toHaveBeenCalledWith({ silent: true });
@@ -146,3 +147,33 @@ it.each([24, 25, 30, 60])(
     expect(stitchArgs).toHaveLength(6);
   },
 );
+
+it("stops cleanly on the editor's SIGTERM, even while Chrome is still starting", async () => {
+  let opened!: (browser: typeof mocks.browser) => void;
+  mocks.openBrowser.mockReturnValue(
+    new Promise((resolve) => {
+      opened = resolve;
+    }),
+  );
+  const exporting = mocks.handlers.message({
+    type: "render",
+    serveUrl: "/composition",
+    inputProps: {},
+    browserExecutable: "/reviewed/Chrome",
+    outputLocation: "/output.mp4",
+    ffmpeg: "/ffmpeg",
+  });
+  // Remotion's own handlers are added only once Chrome is up.
+  mocks.handlers.SIGTERM();
+  expect(mocks.process.exit).not.toHaveBeenCalled();
+  opened(mocks.browser);
+  await exporting;
+  expect(mocks.selectComposition).not.toHaveBeenCalled();
+  expect(mocks.browser.close).toHaveBeenCalledWith({ silent: true });
+  expect(mocks.process.exit).toHaveBeenCalledWith(0);
+});
+
+it("exits right away on SIGTERM when no export has started", () => {
+  mocks.handlers.SIGTERM();
+  expect(mocks.process.exit).toHaveBeenCalledWith(0);
+});

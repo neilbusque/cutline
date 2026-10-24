@@ -2,6 +2,7 @@ import {
   chmodSync,
   existsSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -59,9 +60,9 @@ import {
   previewFrames,
   previewSize,
   renderPreview,
-  renderStills,
   SHEET_MAX_SIDE,
   sheetLayout,
+  StillWorker,
 } from "../src/main/agent-preview";
 import {
   CUTLINE_CLOSED,
@@ -1147,37 +1148,64 @@ describe("previews render frames like the export and can come as a contact sheet
     expect(one.info.layout).toBe("single");
   });
 
-  it("runs the still renderer in a worker and stops a stuck one", async () => {
+  it("keeps one preview worker between previews, replaces a stuck one and closes it when idle", async () => {
     const directory = temporary("cutline-still-worker-");
     const worker = path.join(directory, "worker.cjs");
     writeFileSync(
       worker,
-      `process.once("message", (m) => {
-        const fs = require("node:fs"), path = require("node:path");
-        if (m.frames[0] === 13) { process.send({ type: "error", message: "Composition failed" }, () => process.exit(0)); return; }
-        if (m.frames[0] === 14) { setInterval(() => {}, 1000); return; }
-        const files = m.frames.map((frame, index) => { const file = path.join(m.outputDirectory, "frame-" + index + ".jpg"); fs.writeFileSync(file, String(frame * m.scale)); return file; });
-        process.send({ type: "done", files }, () => process.exit(0));
+      `const fs = require("node:fs"), path = require("node:path");
+      process.on("disconnect", () => process.exit(0));
+      process.on("message", (m) => {
+        if (m.frames[0] === 13) return process.send({ type: "error", id: m.id, message: "Composition failed" });
+        if (m.frames[0] === 14) return;
+        const files = m.frames.map((frame, index) => { const file = path.join(m.outputDirectory, "frame-" + index + ".jpg"); fs.writeFileSync(file, frame * m.scale + " " + process.pid); return file; });
+        process.send({ type: "done", id: m.id, files });
       });`,
     );
-    const options = {
+    let exited = 0;
+    const stills = new StillWorker({
       workerPath: worker,
+      timeoutMs: 1500,
+      idleMs: 300,
+      exited: () => exited++,
+    });
+    const options = {
       serveUrl: "unused",
       browserExecutable: "unused",
       inputProps: {},
       scale: 0.5,
       directory,
     };
-    expect(await renderStills({ ...options, frames: [10, 20] })).toEqual([
+    // Each frame file names the worker that rendered it.
+    const preview = async (frames: number[]) => {
+      const files = await stills.render({ ...options, frames });
+      return { files, pid: readFileSync(files[0], "utf8").split(" ")[1] };
+    };
+    const first = await preview([10, 20]);
+    expect(first.files).toEqual([
       path.join(directory, "frame-0.jpg"),
       path.join(directory, "frame-1.jpg"),
     ]);
-    await expect(renderStills({ ...options, frames: [13] })).rejects.toThrow(
+    // The next preview reuses the same worker instead of starting one.
+    const second = await preview([30]);
+    expect(second.pid).toBe(first.pid);
+    expect(readFileSync(second.files[0], "utf8")).toBe(`15 ${first.pid}`);
+    await expect(stills.render({ ...options, frames: [13] })).rejects.toThrow(
       "Composition failed",
     );
-    await expect(
-      renderStills({ ...options, frames: [14], timeoutMs: 300 }),
-    ).rejects.toThrow(/took too long/);
+    await expect(stills.render({ ...options, frames: [14] })).rejects.toThrow(
+      /took too long/,
+    );
+    await vi.waitFor(() => expect(exited).toBe(1));
+    // A stuck worker is replaced by a new one.
+    const third = await preview([40]);
+    expect(third.pid).not.toBe(first.pid);
+    // A quiet worker closes, and the next preview starts a new one.
+    await vi.waitFor(() => expect(exited).toBe(2), { timeout: 3000 });
+    const fourth = await preview([50]);
+    expect(fourth.pid).not.toBe(third.pid);
+    stills.close();
+    await vi.waitFor(() => expect(exited).toBe(3), { timeout: 3000 });
   });
 });
 
