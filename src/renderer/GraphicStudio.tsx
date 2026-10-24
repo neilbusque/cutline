@@ -304,7 +304,9 @@ export function GraphicStudio({
             {error}
           </p>
         )}
-        {error && !generating && fallback && (
+        {/* A failed generation, not a failed Add to timeline: that one
+            keeps its result and the result's own alternatives. */}
+        {error && !generating && !result && fallback && (
           <button
             className="vs-link vs-switch"
             onClick={() => void generate(fallback)}
