@@ -353,7 +353,10 @@ try {
   const preview = await client.callTool({ name: "cutline_preview", arguments: {
     ...revision(current), frame: 20, clipId: lineClip.id, playing: false, image: true,
   } });
-  assert(!preview.isError, "Agent preview should succeed");
+  assert(
+    !preview.isError,
+    `Agent preview should succeed: ${preview.content?.map((item) => item.text ?? "").join(" ")}`,
+  );
   const previewText = preview.content.find((item) => item.type === "text");
   assert(previewText, "Preview includes editor state");
   const previewState = JSON.parse(previewText.text);
