@@ -45,6 +45,7 @@ import {
 } from "./motion-presets";
 import { compatibleTrack, trimClip } from "./timeline";
 import { linkedCaptionCommands } from "./linked-captions";
+import { resizeCanvas } from "./canvas";
 import { newTrack } from "./layers";
 import { captionTextPatch } from "./caption-edit";
 import { captionStylePatch, captionStyles } from "./caption-styles";
@@ -156,7 +157,9 @@ const projectPatch = partialShape({
   background: ProjectSchema.shape.background,
   // Only while the timeline is empty: clip timing is counted in frames.
   fps: ProjectSchema.shape.fps,
-});
+}) as z.ZodType<
+  Partial<Pick<Project, "name" | "width" | "height" | "background" | "fps">>
+>;
 const layerIndex = z.number().int().min(0).max(MAX_VECTOR_LAYERS - 1);
 const penCoordinate = z.number().finite().min(-1e7).max(1e7);
 const penHandle = z.strictObject({ x: penCoordinate, y: penCoordinate });
@@ -1142,9 +1145,25 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           });
           break;
         }
-        case "project.update":
-          run([{ type: "project.update", patch: action.patch }]);
+        case "project.update": {
+          const { width, height, ...rest } = action.patch;
+          // A new canvas size reflows every clip and layer onto it, as the
+          // aspect ratio menu does, instead of leaving them off the frame.
+          if (
+            (width ?? working.width) !== working.width ||
+            (height ?? working.height) !== working.height
+          )
+            run(
+              resizeCanvas(
+                working,
+                width ?? working.width,
+                height ?? working.height,
+              ),
+            );
+          if (Object.keys(rest).length)
+            run([{ type: "project.update", patch: rest }]);
           break;
+        }
         case "command": {
           const command = structuredClone(action.command);
           if ("id" in command) command.id = resolve(command.id);
@@ -1399,7 +1418,7 @@ export function agentEditingGuide() {
     workflow:
       "Inspect first. Send the exact current projectId and revision. cutline_edit applies all actions as one undoable step; dryRun checks the whole edit and returns the same summary without changing anything. Then commit with the same revision. After the edit, inspect only what you need and check it with cutline_preview images.",
     canvas:
-      "x, y, width and height are canvas pixels, and x/y place the top-left corner of a clip or layer, not its center. To center something W wide, set x = (project width - W) / 2. For a centered title, give the text clip the frame's width (x 0) and align center.",
+      "x, y, width and height are canvas pixels, and x/y place the top-left corner of a clip or layer, not its center. To center something W wide, set x = (project width - W) / 2. For a centered title, give the text clip the frame's width (x 0) and align center. project.update width/height rescales every clip and layer onto the new canvas.",
     timing: {
       timeline:
         "at/start/end accept {frame} or {seconds}; seconds round to the project fps. End times are exclusive. Source media sourceIn and word timestamps are seconds; word timestamps are clip-relative. project.update fps (24, 25, 30 or 60) works only while the timeline is empty, so set it before adding clips.",
