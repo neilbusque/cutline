@@ -753,3 +753,53 @@ describe("job progress lives in a store the status bar follows", () => {
     expect(line()).toContain("Job failed");
   });
 });
+
+describe("long timelines draw only nearby waveforms", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("skips waveforms far outside the view and keeps every clip", async () => {
+    vi.stubGlobal("window", {
+      innerHeight: 1000,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    const { Timeline } = await import("../src/renderer/Timeline");
+    const p = newProject();
+    const asset = AssetSchema.parse({
+      id: "voice",
+      name: "Voice",
+      kind: "audio",
+      path: "/local/voice.wav",
+      duration: 3600,
+      hasAudio: true,
+      waveform: Array.from({ length: 160 }, (_, i) => (i % 10) / 10),
+    });
+    p.assets = [asset];
+    p.clips = Array.from({ length: 400 }, (_, i) => ({
+      ...makeClip(p, "audio", "audio", i * 90, asset),
+      id: `part-${i}`,
+      sourceIn: i * 3,
+      duration: 90,
+    }));
+    const noop = () => {};
+    const html = renderToStaticMarkup(
+      React.createElement(Timeline, {
+        p,
+        playhead: createValueStore(0),
+        select: noop,
+        seek: noop,
+        edit: async () => true,
+        split: noop,
+        remove: noop,
+        base: "",
+        duplicate: noop,
+        addMedia: noop,
+        playing: false,
+      }),
+    );
+    expect(html.match(/class="timeline-clip /g)).toHaveLength(400);
+    const drawn = html.match(/class="waveform"/g)?.length ?? 0;
+    expect(drawn).toBeGreaterThan(0);
+    expect(drawn).toBeLessThan(100);
+  });
+});

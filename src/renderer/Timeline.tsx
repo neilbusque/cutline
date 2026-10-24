@@ -24,7 +24,13 @@ import {
   ChevronRight,
   Music2,
 } from "lucide-react";
-import { duration, uid, type Project, type Clip } from "../shared/model";
+import {
+  duration,
+  uid,
+  type Asset,
+  type Project,
+  type Clip,
+} from "../shared/model";
 import { newTrack } from "../shared/layers";
 import {
   compatibleTrack,
@@ -43,6 +49,19 @@ import {
   clipKeyMove,
   clipTabStop,
 } from "./timeline-focus";
+/**
+ * Waveform paths by clip. A drag changes only the dragged clip, so every
+ * other clip reuses its path instead of rebuilding it on each pointer move.
+ */
+const waveformPaths = new WeakMap<Clip, string>();
+function waveformPath(asset: Asset, clip: Clip, fps: number) {
+  let path = waveformPaths.get(clip);
+  if (path === undefined) {
+    path = audioWaveformPath(asset, clip, fps);
+    waveformPaths.set(clip, path);
+  }
+  return path;
+}
 /** The playhead line is the only part of the timeline that moves every frame. */
 function PlayheadLine({
   playhead,
@@ -201,19 +220,12 @@ export function Timeline({
     }
     return map;
   }, [p.clips, ghost]);
-  const waveforms = useMemo(
-    () =>
-      new Map(
-        p.clips
-          .filter((c) => c.kind === "audio")
-          .map((original) => {
-            const c = ghost?.id === original.id ? ghost : original;
-            const a = c.assetId ? assets.get(c.assetId) : undefined;
-            return [c.id, a ? audioWaveformPath(a, c, p.fps) : ""];
-          }),
-      ),
-    [p.clips, p.fps, ghost, assets],
-  );
+  // Waveforms are drawn only for clips within a screen of the view; a long
+  // podcast edit has hundreds of clips, and each path is 160 segments.
+  const near = {
+    from: (viewport.left - viewport.width) / zoom,
+    to: (viewport.left + 2 * viewport.width) / zoom,
+  };
   const currentClip = p.clips.find((c) => c.id === selected);
   // These follow the playhead but only redraw when the answer changes.
   const atSelected = usePlayheadValue(
@@ -284,6 +296,18 @@ export function Timeline({
       y = e.clientY;
     let latest = c,
       moved = false;
+    // Track rows are measured once, and again only after the timeline
+    // scrolls, instead of forcing a layout on every pointer move.
+    let rows: { id: string; top: number; bottom: number }[] | undefined;
+    const forgetRows = () => (rows = undefined);
+    const rowAt = (y: number) =>
+      (rows ??= Array.from(
+        document.querySelectorAll<HTMLElement>("[data-track-id]"),
+        (el) => {
+          const r = el.getBoundingClientRect();
+          return { id: el.dataset.trackId!, top: r.top, bottom: r.bottom };
+        },
+      )).find((row) => y >= row.top && y < row.bottom);
     const points = [
       0,
       playhead.get(),
@@ -310,13 +334,8 @@ export function Timeline({
         const startSnap = snapped(raw),
           endSnap = snapped(raw + c.duration) - c.duration;
         next.start = Math.max(0, startSnap !== raw ? startSnap : endSnap);
-        const track = Array.from(
-          document.querySelectorAll<HTMLElement>("[data-track-id]"),
-        ).find((el) => {
-          const r = el.getBoundingClientRect();
-          return event.clientY >= r.top && event.clientY < r.bottom;
-        });
-        const dest = p.tracks.find((t) => t.id === track?.dataset.trackId);
+        const row = rowAt(event.clientY);
+        const dest = p.tracks.find((t) => t.id === row?.id);
         if (dest && compatibleTrack(c, dest)) next.trackId = dest.id;
       } else {
         next = trimClip(
@@ -383,7 +402,9 @@ export function Timeline({
       window.removeEventListener("pointerup", end);
       window.removeEventListener("pointercancel", cancel);
       window.removeEventListener("keydown", escape);
+      scroll.current?.removeEventListener("scroll", forgetRows);
     };
+    scroll.current?.addEventListener("scroll", forgetRows);
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", end, { once: true });
     window.addEventListener("pointercancel", cancel, { once: true });
@@ -864,19 +885,22 @@ export function Timeline({
                           }}
                         />
                       )}
-                      {a?.waveform && c.kind === "audio" && (
-                        <svg
-                          className="waveform"
-                          viewBox="0 0 160 40"
-                          preserveAspectRatio="none"
-                        >
-                          <path
-                            d={waveforms.get(c.id)}
-                            stroke="currentColor"
-                            strokeWidth=".6"
-                          />
-                        </svg>
-                      )}
+                      {a?.waveform &&
+                        c.kind === "audio" &&
+                        c.start + c.duration >= near.from &&
+                        c.start <= near.to && (
+                          <svg
+                            className="waveform"
+                            viewBox="0 0 160 40"
+                            preserveAspectRatio="none"
+                          >
+                            <path
+                              d={waveformPath(a, c, p.fps)}
+                              stroke="currentColor"
+                              strokeWidth=".6"
+                            />
+                          </svg>
+                        )}
                       <span className="clip-label">
                         {c.transition ? "◈ " : ""}
                         {label}
