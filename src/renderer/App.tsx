@@ -757,14 +757,17 @@ export function App() {
           clipId: selected,
         })
       : report("Select a video or audio clip first.");
-  const pauses = () =>
-    selected
-      ? run("pauses", {
-          projectId: p.id,
-          revision: p.revision,
-          clipId: selected,
-        })
-      : report("Select a video or audio clip first.");
+  const pauses = async (): Promise<{ removed: boolean } | undefined> => {
+    if (!selected) {
+      report("Select a video or audio clip first.");
+      return;
+    }
+    return run("pauses", {
+      projectId: p.id,
+      revision: p.revision,
+      clipId: selected,
+    });
+  };
   async function importMedia(paths?: string[], kind?: "audio") {
     setImporting(true);
     try {
@@ -1789,6 +1792,12 @@ export function App() {
                 edit={edit}
                 transcribe={transcribe}
                 pauses={pauses}
+                transcribing={jobs.some(
+                  (j) => j.kind === "transcribe" && j.state === "running",
+                )}
+                findingPauses={jobs.some(
+                  (j) => j.kind === "analyze" && j.state === "running",
+                )}
                 report={report}
                 openPanel={setLeft}
               />

@@ -224,6 +224,8 @@ const timeIn = (line: string, key: string) => {
 
 export class Media extends EventEmitter {
   private transcripts = new Map<string, Word[]>();
+  /** Transcriptions running now, by file contents. */
+  private transcribing = new Map<string, Promise<Word[]>>();
   /** Preview work by asset id and source path, for this session. */
   private proxyNeeded = new Map<string, boolean>();
   private previewWork = new Set<string>();
@@ -477,7 +479,11 @@ export class Media extends EventEmitter {
     const key = this.fileKey(a.path);
     const known = key && this.transcripts.get(key);
     if (known) return structuredClone(known);
-    return this.jobs.run(
+    // A second request for the same recording, such as a double click,
+    // waits for the running whisper instead of starting another one.
+    const running = key ? this.transcribing.get(key) : undefined;
+    if (running) return structuredClone(await running);
+    const work = this.jobs.run(
       "transcribe",
       `Transcribing ${a.name} locally`,
       async (j) => {
@@ -552,6 +558,13 @@ export class Media extends EventEmitter {
         }
       },
     );
+    if (!key) return work;
+    this.transcribing.set(key, work);
+    try {
+      return structuredClone(await work);
+    } finally {
+      if (this.transcribing.get(key) === work) this.transcribing.delete(key);
+    }
   }
   async silences(a: Asset) {
     if (!a.hasAudio)

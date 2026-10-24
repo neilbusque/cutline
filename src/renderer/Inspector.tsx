@@ -100,6 +100,8 @@ export function Inspector({
   edit,
   transcribe,
   pauses,
+  transcribing = false,
+  findingPauses = false,
   report,
   openPanel,
 }: {
@@ -112,13 +114,18 @@ export function Inspector({
   seek: (frame: number) => void;
   edit: (label: string, ops: Command[]) => unknown;
   transcribe: () => void;
-  pauses: () => void;
+  /** Resolves with whether any pause was cut, or nothing when it failed. */
+  pauses: () => Promise<{ removed: boolean } | undefined>;
+  /** A transcription or a pause search is running, here or for an agent. */
+  transcribing?: boolean;
+  findingPauses?: boolean;
   report: (e: unknown) => void;
   openPanel?: (panel: "captions" | "effects") => void;
 }) {
   const [custom, setCustom] = useState(false);
   const [ratioLocked, setRatioLocked] = useState(false);
   const [code, setCode] = useState("");
+  const [pauseNote, setPauseNote] = useState("");
   // Keyframe values follow the playhead while scrubbing and a few times a
   // second during playback, so Properties is not redrawn on every frame.
   const frame = usePlayheadFrame(playhead, {
@@ -955,12 +962,34 @@ export function Inspector({
       />
       {asset?.hasAudio && (
         <div className="action-stack">
-          <button className="control" onClick={transcribe}>
-            Generate subtitles
+          <button
+            className="control"
+            disabled={transcribing}
+            onClick={transcribe}
+          >
+            {transcribing ? "Transcribing…" : "Generate subtitles"}
           </button>
-          <button className="control" onClick={pauses}>
-            Remove long pauses
+          <button
+            className="control"
+            disabled={findingPauses}
+            onClick={async () => {
+              setPauseNote("");
+              const result = await pauses();
+              if (result)
+                setPauseNote(
+                  result.removed
+                    ? "Long pauses removed."
+                    : "No long pauses found.",
+                );
+            }}
+          >
+            {findingPauses ? "Finding pauses…" : "Remove long pauses"}
           </button>
+          {pauseNote && (
+            <p className="hint" role="status">
+              {pauseNote}
+            </p>
+          )}
         </div>
       )}
     </div>

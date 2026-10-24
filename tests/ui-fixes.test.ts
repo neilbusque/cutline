@@ -1,8 +1,17 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { applyCommands, type Command } from "../src/shared/commands";
-import { makeClip, newProject, type Project } from "../src/shared/model";
+import {
+  AssetSchema,
+  makeClip,
+  newProject,
+  type Project,
+} from "../src/shared/model";
+import { Jobs, Media } from "../src/main/media";
 import { errorText } from "../src/renderer/controls";
 import { exampleReplacesTyping } from "../src/renderer/ExplainerStory";
 import {
@@ -506,5 +515,83 @@ describe("clicking a clip never nudges it", () => {
   it("starts a drag once the pointer really moves", () => {
     expect(dragStarted(3, 0)).toBe(true);
     expect(dragStarted(0, -4)).toBe(true);
+  });
+});
+
+describe("Generate subtitles twice runs whisper once", () => {
+  it("a second request for the same recording waits for the first", async () => {
+    const folder = mkdtempSync(path.join(os.tmpdir(), "cutline-ui-transcribe-"));
+    try {
+      const whisper = path.join(folder, "whisper"),
+        model = path.join(folder, "model.bin"),
+        file = path.join(folder, "talk.wav");
+      for (const made of [whisper, model, file]) writeFileSync(made, "x");
+      const jobs = new Jobs(() => {});
+      const media = new Media(
+        path.join(folder, "cache"),
+        { ffmpeg: "", ffprobe: "", whisper, model },
+        jobs,
+      );
+      let finish!: (words: { text: string; start: number; end: number }[]) => void;
+      const run = vi
+        .spyOn(jobs, "run")
+        .mockImplementation(
+          () => new Promise((resolve) => (finish = resolve)) as never,
+        );
+      const asset = AssetSchema.parse({
+        id: "talk",
+        name: "Talk",
+        kind: "audio",
+        path: file,
+        duration: 3,
+        hasAudio: true,
+      });
+      const first = media.transcribe(asset),
+        second = media.transcribe(asset);
+      finish([{ text: "Hello", start: 0, end: 1 }]);
+      expect(await first).toEqual([{ text: "Hello", start: 0, end: 1 }]);
+      expect(await second).toEqual([{ text: "Hello", start: 0, end: 1 }]);
+      expect(run).toHaveBeenCalledTimes(1);
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("Properties shows when subtitles or pauses are running", () => {
+  it("disables both buttons and says what is running", async () => {
+    const { Inspector } = await import("../src/renderer/Inspector");
+    const p = newProject();
+    const asset = AssetSchema.parse({
+      id: "talk",
+      name: "Talk",
+      kind: "video",
+      path: "/local/talk.mp4",
+      duration: 10,
+      hasAudio: true,
+    });
+    p.assets = [asset];
+    const clip = makeClip(p, "video", "video", 0, asset);
+    p.clips = [clip];
+    const noop = () => {};
+    const html = renderToStaticMarkup(
+      React.createElement(Inspector, {
+        project: p,
+        clip,
+        playhead: createValueStore(0),
+        playing: false,
+        seek: noop,
+        edit: noop,
+        transcribe: noop,
+        pauses: async () => undefined,
+        transcribing: true,
+        findingPauses: true,
+        report: noop,
+      }),
+    );
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Transcribing…<\/button>/);
+    expect(html).toMatch(
+      /<button[^>]*disabled=""[^>]*>Finding pauses…<\/button>/,
+    );
   });
 });
