@@ -173,7 +173,7 @@ export function Projects({
                   onClick={() => open(p)}
                 >
                   <span className="projects-name">{p.name}</span>
-                  {p.open && <span className="projects-current">Open</span>}
+                  {p.open && <span className="projects-current">Current</span>}
                 </button>
                 <span role="cell" className="projects-num">
                   {p.clips ? projectLength(p.durationSeconds) : "Empty"}

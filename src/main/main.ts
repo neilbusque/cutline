@@ -90,6 +90,7 @@ import { capturePage } from "./page-capture";
 import {
   generateVector,
   VectorGenerateSchema,
+  withoutBackdrop,
 } from "../shared/vector-generation";
 import { AgentTasks } from "./agent-tasks";
 import {
@@ -1840,6 +1841,25 @@ app.whenReady().then(async () => {
     speech,
     autoEdit: autoEditForAgent,
     relink: (assetId, file) => relinkMedia({ store, media }, assetId, file),
+    draw: async (description, style) => {
+      const result = await generateVector(
+        {
+          prompt: `${description}. Draw no background, tile or frame: the subject alone is placed on ${style === "locked-split" ? "near-black" : style === "cards" ? "warm off-white" : "soft pastel"} video, so pick colors that stand out on it.`,
+          style: style === "cards" ? "glyph" : "flat",
+          provider:
+            assistantSettings.provider === "codex" ? "chatgpt" : "claude",
+          aspect: "square",
+        },
+        assistantAsker(
+          assistantSettings.provider === "codex" ? "chatgpt" : "claude",
+          {
+            workDir: path.join(data, "assistant", "vectors"),
+            claudeModel: assistantSettings.claudeModel,
+          },
+        ),
+      );
+      return withoutBackdrop(result.svg);
+    },
     references: {
       logo: (query) => references.logo(query),
       screenshot: async (url, options) => {

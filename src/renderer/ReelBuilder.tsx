@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import { plural } from "../shared/plural";
 import {
   ArrowDown,
   ArrowUp,
@@ -1075,8 +1076,10 @@ export function ReelBuilder({
           </strong>
           <p>
             {(result.durationFrames / p.fps).toFixed(1)}s ·{" "}
-            {result.captionCount} captions · {result.brollCount} cutaways
-            {!!result.beatCount && ` · ${result.beatCount} animations`}
+            {plural(result.captionCount, "caption")} ·{" "}
+            {plural(result.brollCount, "cutaway")}
+            {!!result.beatCount &&
+              ` · ${plural(result.beatCount, "animation")}`}
             {!!result.proofCount && ` · ${result.proofCount} proof shots`}
           </p>
           {result.warnings.map((w, i) => (

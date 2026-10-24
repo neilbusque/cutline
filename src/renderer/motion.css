@@ -10,12 +10,13 @@
   font-variant-numeric: tabular-nums;
 }
 .mg-tabs {
-  margin-bottom: 10px;
+  margin: 4px 0 12px;
+  gap: 4px;
 }
 .mg-tabs button {
   gap: 5px;
-  padding: 0 3px;
-  font-size: 11px;
+  padding: 0 4px;
+  font-size: 11.5px;
 }
 .mg-tabs button svg {
   display: none;
@@ -23,27 +24,15 @@
 .mg-search {
   margin-bottom: 10px;
 }
-/* One line of filters; scrolls sideways instead of wrapping into a wall. */
+/* Every category stays visible: the chips wrap instead of hiding off the edge. */
 .mg-filters {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 4px;
-  margin: 0 -14px 12px;
-  padding: 0 14px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-mask-image: linear-gradient(
-    90deg,
-    transparent,
-    #000 14px,
-    #000 calc(100% - 28px),
-    transparent
-  );
-}
-.mg-filters::-webkit-scrollbar {
-  display: none;
+  margin: 0 0 12px;
 }
 .mg-filters button {
   flex: none;
+  height: 26px;
   padding: 0 10px;
 }
 .mg-grid {
@@ -251,11 +240,15 @@
   padding: 7px 9px;
   border: 1px solid var(--separator);
   border-radius: 6px;
-  background: var(--fill);
+  background-color: var(--fill);
   color: var(--text);
   font-family: inherit;
   font-size: 12px;
   line-height: 1.4;
+}
+.mg-sequence-field select {
+  padding-right: 26px;
+  background-position: right 9px center;
 }
 .mg-sequence-field textarea {
   resize: vertical;

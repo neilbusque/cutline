@@ -121,10 +121,18 @@ const StablePlayer = React.memo(
     ),
   ),
 );
-// Both sides read minutes:seconds:frames so the total compares directly.
+// Both sides read minutes:seconds, then frames in a quieter weight, so
+// "0:03:00" reads as three seconds rather than three minutes.
 const timecode = (f: number, fps: number) => {
   const s = Math.floor(f / fps);
-  return `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}:${String(Math.round(f % fps)).padStart(2, "0")}`;
+  return (
+    <>
+      {Math.floor(s / 60)}:{String(s % 60).padStart(2, "0")}
+      <small className="timecode-frames">
+        :{String(Math.round(f % fps)).padStart(2, "0")}
+      </small>
+    </>
+  );
 };
 /** The only part of the transport that redraws on every frame. */
 function Timecode({
@@ -1316,7 +1324,9 @@ export function App() {
                     onClick={addLayers}
                   >
                     <Layers size={14} />
-                    Stack selected as layers
+                    {mediaSelection.length
+                      ? `Stack ${mediaSelection.length} as layers`
+                      : "Select media to stack as layers"}
                   </button>
                   <div className="asset-list">
                     {p.assets
@@ -1777,7 +1787,7 @@ export function App() {
             Job failed · View details
           </button>
         ) : (
-          <span>Local editing · Cloud generation is optional</span>
+          <span />
         )}
       </footer>
       {error && (

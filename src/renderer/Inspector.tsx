@@ -230,7 +230,7 @@ export function Inspector({
           </label>
           {c.kind === "caption" && (
             <p className="hint">
-              Changing the word count clears word highlights.
+              Adding or removing words resets their timing.
             </p>
           )}
         </>

@@ -385,7 +385,9 @@ export function AgentConnections({
                   ) : (
                     <Plug size={14} />
                   )}
-                  Connect
+                  {claudeState === "Connected to Claude"
+                    ? "Reconnect"
+                    : "Connect"}
                 </button>
               </div>
               <div className="ac-row">
@@ -403,7 +405,9 @@ export function AgentConnections({
                   ) : (
                     <Plug size={14} />
                   )}
-                  Sign in with ChatGPT
+                  {/^(Signed in|Connected)/u.test(assistant)
+                    ? "Sign in again"
+                    : "Sign in with ChatGPT"}
                 </button>
               </div>
             </div>

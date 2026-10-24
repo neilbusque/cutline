@@ -80,7 +80,7 @@
   color: var(--ok);
 }
 .story-savebar.is-dirty > span {
-  color: var(--warning);
+  color: var(--text-2);
 }
 .story-savebar button {
   font-size: 11px;

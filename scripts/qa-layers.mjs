@@ -143,7 +143,7 @@ try {
   );
   for (const a of (await state()).assets)
     await page.getByLabel(`Select ${a.name}`, { exact: true }).check();
-  await page.getByRole("button", { name: "Stack selected as layers" }).click();
+  await page.getByRole("button", { name: /^Stack \d+ as layers$/ }).click();
   await page.waitForTimeout(150);
   let p = await state();
   assert.equal(p.clips.length, 4);

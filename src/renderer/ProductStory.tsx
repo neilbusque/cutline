@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { plural } from "../shared/plural";
 import { ArrowRight, Check, MonitorPlay, Play, Type } from "lucide-react";
 import type { Asset } from "../shared/model";
 import type { StoryPlan, StoryScene } from "../shared/story-schema";
@@ -102,8 +103,8 @@ export function ProductFilmSetup({
         <div className="story-warning product-recipe-confirm" role="status">
           <p>
             Use {recipes.find((recipe) => recipe.id === pending)?.name}? This
-            replaces the {story.scenes.length} scenes in your storyline. Your
-            timeline changes only when you rebuild.
+            replaces the {plural(story.scenes.length, "scene")} in your
+            storyline. Your timeline changes only when you rebuild.
           </p>
           <div>
             <button

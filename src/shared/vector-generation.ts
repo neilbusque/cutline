@@ -133,3 +133,29 @@ export async function generateVector(
   }
   throw Error("The generated vector could not be used.");
 }
+
+/**
+ * Removes a backdrop shape a model draws behind the subject (a rectangle
+ * covering nearly the whole art board), so the art sits on Cutline's own
+ * background. Anything smaller is part of the drawing and stays.
+ */
+export function withoutBackdrop(svg: string): string {
+  const box = /viewBox\s*=\s*["']([^"']+)["']/iu.exec(svg)?.[1];
+  const [, , w, h] = (box ?? "").split(/[\s,]+/u).map(Number);
+  if (!(w > 0) || !(h > 0)) return svg;
+  const rect = /<rect\b[^>]*>(?:\s*<\/rect>)?/iu.exec(
+    svg.slice(svg.search(/<svg[\s>]/u) + 4),
+  );
+  if (!rect) return svg;
+  const attr = (name: string) =>
+    new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, "iu").exec(rect[0])?.[1];
+  const size = (value: string | undefined, whole: number) =>
+    value === undefined
+      ? 0
+      : value.trim().endsWith("%")
+        ? (Number.parseFloat(value) / 100) * whole
+        : Number.parseFloat(value);
+  const covers =
+    size(attr("width"), w) >= w * 0.9 && size(attr("height"), h) >= h * 0.9;
+  return covers ? svg.replace(rect[0], "") : svg;
+}

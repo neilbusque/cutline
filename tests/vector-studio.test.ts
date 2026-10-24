@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  withoutBackdrop,
   extractSvg,
   generateVector,
   VectorGenerateSchema,
@@ -62,6 +63,23 @@ describe("generated vectors", () => {
         async () => "<svg><path d='bad'/></svg>",
       ),
     ).rejects.toThrow(/could not be used/);
+  });
+});
+
+describe("drawn illustrations", () => {
+  it("drop a full-size backdrop the model drew, and keep real shapes", () => {
+    const drawn =
+      '<svg viewBox="0 0 512 512"><rect width="512" height="512" fill="#f3e8ff"/><circle cx="256" cy="256" r="120" fill="#22c55e"/><rect x="200" y="300" width="100" height="40" fill="#111"/></svg>';
+    const clean = withoutBackdrop(drawn);
+    expect(clean).not.toContain('width="512"');
+    expect(clean).toContain("<circle");
+    expect(clean).toContain('width="100"');
+    const percent =
+      '<svg viewBox="0 0 400 400"><rect x="0" y="0" width="100%" height="100%" rx="40" fill="#fff"/><path d="M0 0H10V10Z"/></svg>';
+    expect(withoutBackdrop(percent)).not.toContain("100%");
+    const subject =
+      '<svg viewBox="0 0 512 512"><rect x="100" y="100" width="300" height="300"/></svg>';
+    expect(withoutBackdrop(subject)).toBe(subject);
   });
 });
 

@@ -231,7 +231,12 @@ try {
           ? "release/Cutline-darwin-arm64/Cutline.app/Contents/MacOS/Cutline"
           : "node_modules/electron/dist/Electron.app/Contents/MacOS/Electron",
       ),
-    args: [...(packaged ? [] : [root]), "--force-color-profile=srgb"],
+    // A mock keychain: a real one prompts for access and stalls the app.
+    args: [
+      ...(packaged ? [] : [root]),
+      "--force-color-profile=srgb",
+      "--use-mock-keychain",
+    ],
     env,
   });
   report.runtime = await app.evaluate(({ app }) => ({

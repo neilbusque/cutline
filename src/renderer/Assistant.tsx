@@ -413,10 +413,7 @@ export function Assistant({
           <div className="assistant-intro">
             <Sparkles size={22} />
             <h3>Create with {name}</h3>
-            <p>
-              Shape the story, direct the motion, and refine the details. Every
-              edit stays on your timeline and can be undone.
-            </p>
+            <p>Every edit lands on your timeline and can be undone.</p>
             <div className="suggestions">
               {suggestions.map((s) => (
                 <button key={s.label} onClick={() => setInput(s.prompt)}>

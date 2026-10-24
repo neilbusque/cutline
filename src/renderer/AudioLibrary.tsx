@@ -194,12 +194,12 @@ export function AudioLibrary({
             <strong>Text to speech</strong>
             <p className="audio-engine-note" role="status">
               {checkingStatus
-                ? "Checking Kokoro 82M…"
+                ? "Checking the voice engine…"
                 : statusError
                   ? "Could not check the local voice engine."
                   : status?.ready
-                    ? "Kokoro 82M is ready. Free, local, no API key."
-                    : "Kokoro 82M runs on this Mac for free. No API key."}
+                    ? "Ready. Voices run on this Mac, free."
+                    : "Voices run on this Mac, free. A one-time download sets them up."}
             </p>
             {statusError && (
               <div className="audio-status-error">

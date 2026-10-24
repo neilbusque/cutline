@@ -50,7 +50,14 @@ export type StyleLayout = "split" | "full" | "face" | "speaker";
 
 export type StyleVisual =
   | { kind: "asset"; assetId: string; logo?: boolean }
-  | { kind: "svg"; svg: string; color?: string; title: string }
+  | {
+      kind: "svg";
+      svg: string;
+      color?: string;
+      title: string;
+      /** An illustration fills more of the panel than a logo does. */
+      drawing?: boolean;
+    }
   | { kind: "text"; text: string };
 export type StyleBeat = {
   /** Timeline seconds. */
@@ -606,7 +613,13 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
     const layout = layoutFor(style, beat);
     // On the card canvas, a visual over the speaker sits on a white card
     // across the upper part of the frame, as the reference does.
-    const panel = panelFor(style, layout, W, H);
+    const fullPanel = panelFor(style, layout, W, H);
+    // On a full-screen beat the visual sits in the upper part so the
+    // captions below never cover it.
+    const panel =
+      fullPanel && layout === "full"
+        ? { ...fullPanel, height: Math.round(H * 0.6) }
+        : fullPanel;
     const floating = !panel;
     const area = panel ?? {
       x: Math.round(W * 0.06),
@@ -706,7 +719,9 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
                   ? visual.svg.replace(/<svg\b/u, `<svg fill="${color}"`)
                   : visual.svg,
               );
-              const side = Math.min(area.width, area.height) * 0.42;
+              const side =
+                Math.min(area.width, area.height) *
+                (visual.drawing ? 0.72 : 0.42);
               const aspect = parsed.width / parsed.height;
               const scene = createVectorScene(p, beat.start, parsed, {
                 name: visual.title,

@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { plural } from "../shared/plural";
 import {
   captionPaceOf,
   regroupCaptionCommands,
@@ -439,7 +440,7 @@ export function CaptionLibrary({
       <div className="cs-heading">
         <strong>Caption Studio</strong>
         <span>
-          {captions.length ? `${captions.length} phrases` : "On device"}
+          {captions.length ? plural(captions.length, "phrase") : "On device"}
         </span>
       </div>
       {captions.length ? (
@@ -785,7 +786,7 @@ export function CaptionLibrary({
                     disabled={!replacementPlan.length || committing}
                     onClick={applyReplacement}
                   >
-                    Replace in {replacementPlan.length} captions
+                    Replace in {plural(replacementPlan.length, "caption")}
                   </button>
                 </div>
               )}
@@ -793,7 +794,7 @@ export function CaptionLibrary({
           )}
           {query && (
             <div className="cs-phrase-count">
-              {visible.length} of {captions.length} phrases
+              {visible.length} of {plural(captions.length, "phrase")}
             </div>
           )}
           <div className="cs-phrases">

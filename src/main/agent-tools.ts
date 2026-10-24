@@ -37,6 +37,8 @@ export const longRunningTools = new Set([
   "cutline_relink",
   "cutline_story_voice",
   "cutline_story_produce",
+  "cutline_reference",
+  "cutline_style_reel",
 ]);
 
 const read = {

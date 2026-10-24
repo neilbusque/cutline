@@ -317,7 +317,7 @@ try {
   );
   p = await current();
   await studio
-    .getByRole("button", { name: "Replace in 1 captions", exact: true })
+    .getByRole("button", { name: "Replace in 1 caption", exact: true })
     .click();
   await waitRevision(p.revision);
   assert.equal((await current()).clips[2].text, "Watch the peaceful ocean.");

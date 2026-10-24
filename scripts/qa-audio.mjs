@@ -115,7 +115,7 @@ try {
     "true",
   );
   await panel
-    .getByText(/Kokoro 82M/)
+    .getByText(/Voices run on this Mac/)
     .first()
     .waitFor();
   await panel

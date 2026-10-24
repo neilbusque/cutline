@@ -143,7 +143,8 @@ try {
   await client.connect(transport);
   const toolList = await client.listTools();
   await writeFile(path.join(work, "tools.json"), JSON.stringify(toolList, null, 2));
-  assert(JSON.stringify(toolList).length < 50000, "Tool definitions must stay within their 50,000 character budget");
+  // Session-wrapped external list: 52,000 since cutline_reference and cutline_style_reel (0.30, 0.31).
+  assert(JSON.stringify(toolList).length < 52000, "Tool definitions must stay within their 52,000 character budget");
   const names = new Set(toolList.tools.map((tool) => tool.name));
   for (const name of ["cutline_inspect", "cutline_edit", "cutline_editing_schema", "cutline_jobs", "cutline_undo", "cutline_redo"])
     assert(names.has(name), `Missing agent tool ${name}`);

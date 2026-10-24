@@ -25,7 +25,14 @@ const outputParent = path.resolve(
 await mkdir(outputParent, { recursive: true });
 const work = await mkdtemp(path.join(outputParent, "run-"));
 const data = path.join(work, "user-data");
-const env = { ...process.env, CUTLINE_QA: "1", CUTLINE_DATA_DIR: data };
+// Claude Code defers MCP tools behind tool search, which --tools "" turns
+// off; load Cutline's tools up front, as the in-app assistant does.
+const env = {
+  ...process.env,
+  CUTLINE_QA: "1",
+  CUTLINE_DATA_DIR: data,
+  ENABLE_TOOL_SEARCH: "false",
+};
 delete env.ELECTRON_RUN_AS_NODE;
 delete env.CLAUDECODE;
 const claudeBin = process.env.CUTLINE_CLAUDE_PATH ?? "/opt/homebrew/bin/claude";

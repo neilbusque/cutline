@@ -24,7 +24,7 @@ Everything stays editable: the speaker is cut at each layout change on its own t
 | ------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `from`, `to`              | Timeline seconds. Cut on phrase boundaries from the transcript's word times.                                 |
 | `layout`                  | `split`, `full`, `face` (punch-in on the speaker) or `speaker`. Defaults to the style's usual choice.       |
-| `kind` + `show`           | `logo` + product name or website, `page` + address, `asset` + an imported asset ID, or `text` + 2 to 5 words. |
+| `kind` + `show`           | `logo` + product name or website, `page` + address, `asset` + an imported asset ID, `text` + 2 to 5 words, or `draw` + a short description of an original illustration (drawn by the signed-in Claude or ChatGPT, 15 to 30 s each). |
 | `selector`                | For a page: a CSS selector to capture one part, such as `article.markdown-body` for a GitHub README.        |
 
 Captions on the speaker take the style's look (Pill, Clean or Heavy), are re-split into one to three words, and move to the seam during splits. Between beats the speaker fills the frame. A locked split holds each page until the next one replaces it.
@@ -34,4 +34,4 @@ Planning rules that match each reference:
 - **split:** change what is on screen every 1.5 to 2.5 s. Most beats are splits with a visual; use a full beat for the key reveal every few beats, and `face` for short emphasis lines under 1.5 s ("it's free", "for you").
 - **cards:** the speaker only for the opening hook and the closing call to action. Everything between is `full`, with a new page, logo or line every 1.3 to 2.5 s.
 - **locked-split:** one page or recording per topic, changing every 5 to 8 s.
-- Every product, site or repo named gets its real logo or page on the words that name it. Text beats use the speaker's own words; never invent claims.
+- Every product, site or repo named gets its real logo or page on the words that name it. Ideas with no product get a `draw` illustration on the 2 to 5 key beats; text beats use the speaker's own words; never invent claims.

@@ -25,7 +25,11 @@ import type { StockKind, StockProvider } from "../shared/stock";
 import type { BrandLogo } from "./vector-studio";
 import { parseEditableSvg } from "../shared/vector-path";
 import { createVectorScene } from "../shared/vector-scenes";
-import { buildStyleReel, type StyleBeat } from "../shared/style-reel";
+import {
+  buildStyleReel,
+  type StyleBeat,
+  type StyleReelStyle,
+} from "../shared/style-reel";
 
 /**
  * Stock, narration, Auto edit and relink for agents: the same work as the
@@ -102,7 +106,7 @@ export const StyleReelArgsSchema = z.strictObject({
         from: z.number().min(0),
         to: z.number().min(0),
         layout: z.enum(["split", "full", "face", "speaker"]).optional(),
-        kind: z.enum(["logo", "page", "asset", "text"]).optional(),
+        kind: z.enum(["logo", "page", "asset", "text", "draw"]).optional(),
         show: z.string().trim().min(1).max(2000).optional(),
         selector: z.string().max(300).optional(),
       }),
@@ -136,7 +140,7 @@ const descriptions: Record<keyof typeof schemas, string> = {
   cutline_reference:
     "Show what the script names: kind logo (target=product or domain) or screenshot (target=url, CSS selector, phone view). at places it.",
   cutline_style_reel:
-    "Lay out a creator-style Short on the speaker video from timed beats; show = logo name, page url, assetId or text.",
+    "Lay out a creator-style Short on the speaker video from timed beats; show = logo name, page url, assetId, text, or a drawing to make.",
 };
 const hints: Record<
   keyof typeof schemas,
@@ -200,6 +204,8 @@ export type AgentMediaDeps = {
     assetId: string,
     file: string,
   ) => Promise<{ relinked: number; cleared: boolean }>;
+  /** An original illustration drawn by the signed-in assistant, as SVG. */
+  draw?: (description: string, style: StyleReelStyle) => Promise<string>;
   references?: {
     logo: (query: { name?: string; domain?: string }) => Promise<BrandLogo>;
     screenshot: (
@@ -709,7 +715,25 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     const warnings: string[] = [];
     const imported: Asset[] = [];
     const beats: StyleBeat[] = [];
-    for (const beat of args.beats) {
+    // Drawings take 15 to 30 seconds each, so three are made at a time
+    // before the beats are laid out.
+    const drawings = new Map<number, Promise<string>>();
+    const queue = args.beats
+      .map((beat, index) => ({ beat, index }))
+      .filter(({ beat }) => beat.kind === "draw" && beat.show);
+    if (queue.length && !deps.draw)
+      throw Error("Drawing needs Claude or ChatGPT signed in on this Mac.");
+    const lanes: Promise<void>[] = [0, 1, 2].map(() => Promise.resolve());
+    queue.forEach(({ beat, index }, i) => {
+      const lane = i % 3;
+      const job = lanes[lane].then(() => deps.draw!(beat.show!, args.style));
+      drawings.set(index, job);
+      lanes[lane] = job.then(
+        () => {},
+        () => {},
+      );
+    });
+    for (const [index, beat] of args.beats.entries()) {
       const base = { from: beat.from, to: beat.to, layout: beat.layout };
       const kind =
         beat.kind ??
@@ -720,7 +744,19 @@ export function createAgentMedia(deps: AgentMediaDeps) {
             : "logo");
       try {
         if (!kind || !beat.show) beats.push(base);
-        else if (kind === "text")
+        else if (kind === "draw") {
+          const svg = await drawings.get(index)!;
+          stillOpen();
+          beats.push({
+            ...base,
+            visual: {
+              kind: "svg",
+              svg,
+              title: beat.show.slice(0, 60),
+              drawing: true,
+            },
+          });
+        } else if (kind === "text")
           beats.push({ ...base, visual: { kind: "text", text: beat.show } });
         else if (kind === "asset")
           beats.push({

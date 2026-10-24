@@ -424,7 +424,7 @@ export function MusicSync({
             >
               {musicClips.map((clip) => (
                 <option key={clip.id} value={clip.id}>
-                  {clipName(clip, project.assets)} ·{" "}
+                  {clipName(clip, project.assets)} · starts at{" "}
                   {secondsLabel(clip.start, project.fps)}
                 </option>
               ))}

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { plural } from "../shared/plural";
 import {
   ArrowDown,
   ArrowRight,
@@ -930,7 +931,7 @@ export function StoryLibrary({
       {!!draft.scenes.length && (
         <div className="story-overview">
           <span>
-            {draft.scenes.length} scenes · ~{Math.ceil(duration)}s
+            {plural(draft.scenes.length, "scene")} · ~{Math.ceil(duration)}s
           </span>
           <span>{readyCount} ready</span>
           <progress
@@ -943,7 +944,7 @@ export function StoryLibrary({
       <div className={`story-savebar${needsSave ? " is-dirty" : ""}`}>
         <span>
           {needsSave ? (
-            "Unsaved storyline"
+            "Storyline has unsaved edits"
           ) : (
             <>
               <Check size={12} aria-hidden="true" /> Storyline saved
@@ -1045,7 +1046,7 @@ export function StoryLibrary({
                 <Clapperboard size={14} aria-hidden="true" /> Create your
                 explainer
               </h3>
-              <span>{draft.scenes.length} scenes</span>
+              <span>{plural(draft.scenes.length, "scene")}</span>
             </div>
             <p className="story-hint">
               Create local narration, time the captions, and put your editable
@@ -2266,7 +2267,7 @@ export function StoryLibrary({
             Your video is on the timeline
           </h3>
           <p>
-            {result.sceneCount} scenes ·{" "}
+            {plural(result.sceneCount, "scene")} ·{" "}
             {(result.durationFrames / project.fps).toFixed(1)}s ·{" "}
             {result.captionCount} caption phrases
           </p>

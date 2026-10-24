@@ -74,6 +74,24 @@ const beats = [
     show: "Marketing and sales copy",
   },
 ];
+// CUTLINE_STYLE_DRAW=1 swaps three text beats for drawn illustrations.
+if (process.env.CUTLINE_STYLE_DRAW === "1") {
+  beats[0] = {
+    ...beats[0],
+    kind: "draw",
+    show: "A friendly green monster eating buzzword stickers",
+  };
+  beats[8] = {
+    ...beats[8],
+    kind: "draw",
+    show: "A red pen striking through a sentence and rewriting it",
+  };
+  beats[11] = {
+    ...beats[11],
+    kind: "draw",
+    show: "A megaphone with a sales chart rising",
+  };
+}
 const frames = [1, 3, 4.6, 6.5, 9, 12, 16, 19, 22, 26, 33, 37].map((s) =>
   Math.round(s * 30),
 );
@@ -153,11 +171,20 @@ try {
     });
     await call("cutline_caption_srt", { ...guard(), srt });
     const started = Date.now();
-    const built = await call("cutline_style_reel", {
-      ...guard(),
-      style,
-      beats,
-    });
+    // Long work (drawings, page captures) comes back as a job to wait on.
+    let built = await call("cutline_style_reel", { ...guard(), style, beats });
+    while (built.state === "running" && built.jobId) {
+      const listed = await call("cutline_jobs", {
+        id: built.jobId,
+        waitSeconds: 30,
+      });
+      const job = listed[0] ?? (listed.jobs ?? [listed])[0];
+      assert(!["error", "cancelled"].includes(job.state), JSON.stringify(job));
+      if (job.state === "done") {
+        built = job.result;
+        revision = built.revision;
+      }
+    }
     results.push({
       style,
       seconds: Math.round((Date.now() - started) / 1000),

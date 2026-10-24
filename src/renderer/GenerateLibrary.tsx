@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { plural } from "../shared/plural";
 import {
   Check,
   CircleAlert,
@@ -828,7 +829,7 @@ export function GenerateLibrary({
                     : ""}{" "}
                   ·{" "}
                   {job.referenceNames?.length
-                    ? `${job.aspectRatio} · ${job.referenceNames.length} references`
+                    ? `${job.aspectRatio} · ${plural(job.referenceNames.length, "reference")}`
                     : job.referenceName
                       ? "Image to video"
                       : job.aspectRatio}

@@ -562,7 +562,7 @@ try {
     await firstMarker.focus();
     await firstMarker.press("Enter");
     await page.waitForTimeout(100);
-    assert((await page.locator(".timecode").innerText()).includes("00:00:11"));
+    assert((await page.locator(".timecode").innerText()).includes("0:00:11"));
     await page.getByLabel("Show beats", { exact: true }).click();
     await page.waitForTimeout(100);
     assert.equal(await page.locator(".beat-marker").count(), 0);

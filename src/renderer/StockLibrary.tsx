@@ -277,7 +277,7 @@ export function StockLibrary({
               changeFilters({ provider: event.target.value as StockProvider })
             }
           >
-            <option value="commons">Wikimedia Commons</option>
+            <option value="commons">Wikimedia</option>
             <option value="pexels">Pexels</option>
           </select>
         </label>
