@@ -21,6 +21,7 @@ import { musicBindings, musicResponse } from "../src/shared/music-reactive";
 import { manualBeatGrid } from "../src/shared/music-sync";
 import { trimClip } from "../src/shared/timeline";
 import { activeTransition } from "../src/shared/transitions";
+import { presetTiming } from "../src/shared/text-presets";
 
 const tx = (p: Project, commands: unknown[]) =>
   applyCommands(p, {
@@ -999,5 +1000,36 @@ describe("projects saved by a newer Cutline", () => {
     expect(() => store.load(file)).toThrow(/newer version of Cutline/);
     expect(readFileSync(file, "utf8")).toBe(contents);
     expect(store.filePath).toBeNull();
+  });
+});
+
+describe("timing that reads the same at any frame rate", () => {
+  it("gives a new title or caption a 0.6 second entrance at 24, 25, 30 and 60 fps", () => {
+    for (const fps of [24, 25, 30, 60] as const) {
+      const p = { ...newProject(), fps };
+      for (const kind of ["text", "caption"] as const) {
+        const clip = makeClip(p, kind, "titles", 0);
+        expect(clip.animationFrames / fps).toBeCloseTo(0.6, 1);
+        expect(presetTiming(clip, 0).window).toBe(clip.animationFrames);
+      }
+      // Media clips keep the schema default.
+      expect(makeClip(p, "image", "video", 0).animationFrames).toBe(18);
+    }
+    expect(makeClip({ ...newProject(), fps: 60 }, "text", "titles").animationFrames).toBe(36);
+  });
+
+  it("refuses agent times past the timeline's end in plain words instead of a schema error", () => {
+    const p = { ...newProject(), fps: 60 as const };
+    const add = (seconds: number) =>
+      applyAgentEdit(p, {
+        projectId: p.id,
+        revision: p.revision,
+        label: "Late title",
+        actions: [{ type: "clip.add", kind: "text", at: { seconds } }],
+      });
+    expect(() => add(5 * 60 * 60)).toThrow(
+      "Times must be under 4 hours at 60 fps.",
+    );
+    expect(add(3 * 60 * 60).project.clips[0].start).toBe(3 * 60 * 60 * 60);
   });
 });

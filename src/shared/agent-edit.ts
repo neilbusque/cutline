@@ -8,6 +8,7 @@ import {
   AssetSchema,
   ClipSchema,
   KeyframeSchema,
+  MAX_FRAME,
   MotionLayerSchema,
   MotionSchema,
   ProjectSchema,
@@ -70,11 +71,7 @@ import {
   motionRecipes,
 } from "./motion-recipes";
 
-const frame = z
-  .number()
-  .int()
-  .min(0)
-  .max(30 * 60 * 60 * 8);
+const frame = z.number().int().min(0).max(MAX_FRAME);
 export const AgentTimeSchema = z.union([
   z.strictObject({ frame }),
   z.strictObject({
@@ -473,8 +470,16 @@ export const AgentEditSchema = z.strictObject({
 export type AgentAction = z.infer<typeof AgentActionSchema>;
 export type AgentEdit = z.infer<typeof AgentEditSchema>;
 type Time = z.infer<typeof AgentTimeSchema>;
-const toFrame = (time: Time, fps: number) =>
-  "frame" in time ? time.frame : Math.round(time.seconds * fps);
+/** A {frame} or {seconds} time in frames, refused in plain words past the timeline's end. */
+export function agentFrame(time: Time, fps: number) {
+  const value = "frame" in time ? time.frame : Math.round(time.seconds * fps);
+  if (value > MAX_FRAME)
+    throw Error(
+      `Times must be under ${Number((MAX_FRAME / fps / 3600).toFixed(1))} hours at ${fps} fps.`,
+    );
+  return value;
+}
+const toFrame = agentFrame;
 
 /** A finished edit that fails its project check, before naming the action that broke it. */
 class UncheckedEditError extends Error {}

@@ -2,7 +2,11 @@ import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { AgentTimeSchema, readableSchema } from "../shared/agent-edit";
+import {
+  AgentTimeSchema,
+  agentFrame,
+  readableSchema,
+} from "../shared/agent-edit";
 import { publicAsset } from "../shared/agent-inspect";
 import {
   AutoReelOptionsSchema,
@@ -249,8 +253,7 @@ export type AgentMediaDeps = {
   };
 };
 
-const toFrame = (time: Time, fps: number) =>
-  "frame" in time ? time.frame : Math.round(time.seconds * fps);
+const toFrame = agentFrame;
 
 function checkTrack(project: Project, trackId: string, kind: Track["kind"]) {
   const track = project.tracks.find((item) => item.id === trackId);
