@@ -114,14 +114,18 @@ try {
       duration: c.duration,
     })),
   });
-  // The whole edit is undoable.
-  await invoke("undo");
+  // Every edit is undoable: Claude may draft, preview and then fix, so undo
+  // once per cutline_edit it made and the title is gone.
+  const edits = tools.filter(
+    (tool) => tool === "cutline_edit" || tool === "cutline_apply_edits",
+  ).length;
+  for (let i = 0; i < edits; i++) await invoke("undo");
   const undone = await project();
   assert(
     !undone.clips.some((c) => c.id === titled.id),
     "Undo did not remove Claude's edit",
   );
-  log("Undo removes Claude's edit");
+  log("Undo removes Claude's edits", { edits });
   // Stop works on a running turn and keeps the session usable.
   events.length = 0;
   await invoke("claude.send", {

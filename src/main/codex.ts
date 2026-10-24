@@ -319,6 +319,12 @@ export class Codex extends EventEmitter {
     await this.connect();
     return this.request("account/login/start", { type: "chatgpt" });
   }
+  /** Forget the conversation; the next message starts a new thread. */
+  newChat() {
+    if (this.busy) throw Error("Stop the current edit before starting a new chat");
+    this.thread = undefined;
+  }
+
   async send(text: string, projectId?: string) {
     if (this.busy) throw Error("Wait for the current edit or stop it first");
     if (projectId !== this.projectId) {

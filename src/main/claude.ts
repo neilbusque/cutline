@@ -387,6 +387,15 @@ export class ClaudeAssistant extends EventEmitter {
     }
   }
 
+  /** Forget the conversation; the next message starts a new one. */
+  newChat() {
+    if (this.busy) throw Error("Stop the current edit before starting a new chat");
+    this.close();
+    this.session = undefined;
+    this.resumable = false;
+    return this.status();
+  }
+
   async send(text: string, projectId?: string) {
     if (this.busy) throw Error("Wait for the current edit or stop it first");
     if (projectId !== this.projectId) {

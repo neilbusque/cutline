@@ -1697,8 +1697,12 @@ export function App() {
             </span>
           </div>
         </section>
-        {sidebar && (
-          <aside className="right-panel">
+        {/* Hidden, not removed: the assistant's conversation must survive. */}
+        {(
+          <aside
+            className="right-panel"
+            style={sidebar ? undefined : { display: "none" }}
+          >
             <nav className="right-tabs pill-tabs">
               <button
                 className={right === "properties" ? "active" : ""}
@@ -1723,7 +1727,7 @@ export function App() {
                 project={p}
                 playhead={playhead}
                 playing={playing}
-                active={right === "properties"}
+                active={sidebar && right === "properties"}
                 seek={seek}
                 clip={clip}
                 edit={edit}
@@ -1741,6 +1745,9 @@ export function App() {
                 selected={selected}
                 report={report}
                 draft={assistantDraft}
+                playhead={playhead}
+                fps={p.fps}
+                hasVideo={p.clips.some((c) => c.kind === "video")}
               />
             </div>
           </aside>

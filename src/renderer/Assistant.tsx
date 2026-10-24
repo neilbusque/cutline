@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
-import { ArrowUp, Square, Sparkles, Plug } from "lucide-react";
+import { ArrowUp, Square, Sparkles, Plug, SquarePen } from "lucide-react";
+import type { Playhead } from "./playhead";
 import {
   parseMarkdown,
   type Block,
@@ -7,40 +8,70 @@ import {
 } from "../shared/chat-markdown";
 import "./assistant.css";
 type Provider = "claude" | "codex";
-type Message = { role: "user" | "assistant"; text: string };
+type Message = {
+  role: "user" | "assistant" | "error" | "note";
+  text: string;
+  /** For an error: what to send to try again. */
+  retry?: string;
+};
 const names: Record<Provider, string> = { claude: "Claude", codex: "Codex" };
+const errorText = (error: unknown) =>
+  error instanceof Error
+    ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/u, "")
+    : String(error);
 const styleShort = (style: string, name: string) =>
   `Make my speaker video on the timeline into a ${name}-inspired Short with cutline_style_reel style ${style}. Transcribe first if there are no captions. Read the transcript with timings, plan the beats by the style's rules (real logos and pages for every product, site or repo I name, short lines only from my actual words), build it, then preview the opening, several beats and the ending and fix what looks wrong. Keep my voice.`;
-const suggestions = [
+/**
+ * The chat shows the label; the assistant gets the detailed recipe. Recipes
+ * that work on speaker footage are offered once the timeline has video.
+ */
+const suggestions: { label: string; prompt: string; needsVideo?: boolean }[] = [
   {
     label: "Jack Roberts-style Short",
     prompt: styleShort("split", "Jack Roberts"),
+    needsVideo: true,
   },
   {
     label: "sebintel-style Short",
     prompt: styleShort("cards", "sebintel"),
+    needsVideo: true,
   },
   {
     label: "Matthew Berman-style Short",
     prompt: styleShort("locked-split", "Matthew Berman"),
+    needsVideo: true,
+  },
+  {
+    label: "Make an animated title",
+    prompt:
+      "Ask me for the title text if I haven't given it. Add it at the playhead as an animated title with motion.recipe kinetic-title, readable and inside the safe area, then preview its entrance, hold and exit and fix what looks wrong.",
+  },
+  {
+    label: "Draw an illustration",
+    prompt:
+      "Ask me what to draw if I haven't said. Make it with cutline_graphic and place it at the playhead, clear of any captions, then preview it and fix what looks wrong.",
   },
   {
     label: "Illustrate the key ideas",
+    needsVideo: true,
     prompt:
       "Read the transcript with timings and pick the 2 to 4 key ideas that name no real product. For each, make an original illustration with cutline_graphic and place it on the words that say it, held 2 to 3 seconds and clear of the captions. Real products get their real logo with cutline_reference instead. Preview each moment and fix what looks wrong.",
   },
   {
     label: "Make an Ali-inspired Reel",
+    needsVideo: true,
     prompt:
       "Build an Ali Abdaal-inspired Reel from my imported footage using creator-education, clean styling, short light caption pills, educational cards and gentle punch-ins. Read the reel format guide and real transcript first. Keep my original voice, preserve my existing timeline by appending, and inspect the speaker framing, captions and rendered cards before finishing.",
   },
   {
     label: "Build a listicle Reel",
+    needsVideo: true,
     prompt:
       "Turn my imported footage into a listicle Reel with numbered animated points and Punch captions. Use the real transcript to choose and time the points. Keep every title editable, append to preserve my existing timeline, and check the rendered text for overlaps.",
   },
   {
     label: "Make this more cinematic",
+    needsVideo: true,
     prompt:
       "Use the cinematic director guide to improve this video. Keep the story and my edits, remove decorative underlines, simplify the typography, and use purposeful camera moves and readable holds. Check quality, inspect rendered previews, and fix what you find.",
   },
@@ -161,10 +192,17 @@ export function Assistant({
   report,
   selected,
   draft,
+  playhead,
+  fps = 30,
+  hasVideo = false,
 }: {
   report: (e: unknown) => void;
   selected?: string;
   draft?: { id: number; text: string };
+  playhead?: Playhead;
+  fps?: number;
+  /** The timeline has video, so speaker recipes can work. */
+  hasVideo?: boolean;
 }) {
   const [provider, setProvider] = useState<Provider>("claude");
   const [model, setModel] = useState<"opus" | "sonnet">("opus");
@@ -198,6 +236,13 @@ export function Assistant({
     p: Provider,
     value: NoInfer<T>,
   ) => set((old) => ({ ...old, [p]: value }));
+  /** What was last sent to each assistant, for Retry. */
+  const lastAsk = useRef<Record<Provider, string | undefined>>({
+    claude: undefined,
+    codex: undefined,
+  });
+  const addTo = (p: Provider, message: Message) =>
+    setChats((old) => ({ ...old, [p]: [...old[p], message] }));
   const flush = () => {
     clearTimeout(timer.current);
     timer.current = undefined;
@@ -286,14 +331,16 @@ export function Assistant({
           );
           setFor(setBusy, p, false);
           if (p === providerRef.current) setActivity("");
-          if (e.error) report(e.error);
+          if (e.status === "interrupted")
+            addTo(p, { role: "note", text: "Stopped. Edits already made are kept." });
+          else if (e.error) addTo(p, { role: "error", text: e.error, retry: lastAsk.current[p] });
         }
         if (e.type === "error") {
           flush();
           setFor(setBusy, p, false);
           setFor(setStatus, p, "Connection issue");
           if (p === providerRef.current) setActivity("");
-          report(e.message);
+          addTo(p, { role: "error", text: e.message, retry: lastAsk.current[p] });
         }
         if (e.type === "login")
           setFor(setStatus, p, e.success ? "Signed in" : "Sign-in failed");
@@ -340,22 +387,44 @@ export function Assistant({
       report(e);
     }
   };
-  const send = async (text = input) => {
+  /**
+   * Sends a request. `shown` is what the chat displays when the assistant
+   * gets a longer recipe (a suggestion). The editor's playhead and selection
+   * go along, so "here" and "this clip" mean something.
+   */
+  const send = async (text = input, shown = text) => {
     const p = provider;
     if (!text.trim() || busy[p]) return;
-    setInput("");
-    setChats((old) => ({ ...old, [p]: [...old[p], { role: "user", text }] }));
+    if (shown === input) setInput("");
+    addTo(p, { role: "user", text: shown });
+    lastAsk.current[p] = text;
     setFor(setBusy, p, true);
     setActivity("Working on your edit…");
+    const frame = playhead?.get();
+    const where =
+      frame === undefined
+        ? ""
+        : `Playhead at ${(frame / fps).toFixed(2)} s (frame ${frame}).`;
+    const context = [where, selected ? `Selected clip ID: ${selected}.` : ""]
+      .filter(Boolean)
+      .join(" ");
     try {
       await window.cutline.invoke(`${p}.send`, {
-        text: text + (selected ? `\nSelected clip ID: ${selected}` : ""),
+        text: context ? `${text}\n\n[Editor] ${context}` : text,
       });
     } catch (e) {
       setFor(setBusy, p, false);
       setActivity("");
-      setInput((current) => current || text);
-      setFor(setStatus, p, "Request failed · reconnect to retry");
+      addTo(p, { role: "error", text: errorText(e), retry: text });
+    }
+  };
+  const newChat = async () => {
+    const p = provider;
+    try {
+      await window.cutline.invoke(`${p}.newChat`);
+      setChats((old) => ({ ...old, [p]: [] }));
+      setActivity("");
+    } catch (e) {
       report(e);
     }
   };
@@ -398,6 +467,17 @@ export function Assistant({
           ))}
         </div>
         <span className="assistant-spacer" />
+        {messages.length > 0 && (
+          <button
+            className="icon-button"
+            aria-label="New chat"
+            title="New chat"
+            disabled={working}
+            onClick={() => void newChat()}
+          >
+            <SquarePen size={15} />
+          </button>
+        )}
         <button
           className="icon-button"
           aria-label={
@@ -422,12 +502,17 @@ export function Assistant({
             <h3>Create with {name}</h3>
             <p>Every edit lands on your timeline and can be undone.</p>
             <div className="suggestions">
-              {suggestions.map((s) => (
-                <button key={s.label} onClick={() => setInput(s.prompt)}>
-                  {s.label}
-                  <span>↗</span>
-                </button>
-              ))}
+              {suggestions
+                .filter((s) => hasVideo || !s.needsVideo)
+                .map((s) => (
+                  <button
+                    key={s.label}
+                    disabled={working}
+                    onClick={() => void send(s.prompt, s.label)}
+                  >
+                    {s.label}
+                  </button>
+                ))}
             </div>
             <p className="privacy-note">
               Original footage stays on your Mac. Prompts, transcripts, project
@@ -439,10 +524,23 @@ export function Assistant({
           <div className={"message " + m.role} key={i}>
             {/* The bubble shows who spoke; screen readers still hear it. */}
             <span className="sr-only">
-              {m.role === "user" ? "You:" : `${name}:`}
+              {m.role === "user" ? "You:" : m.role === "assistant" ? `${name}:` : ""}
             </span>
-            {m.role === "user" ? (
+            {m.role === "user" || m.role === "note" ? (
               <p>{m.text}</p>
+            ) : m.role === "error" ? (
+              <>
+                <p>{m.text}</p>
+                {m.retry && i === messages.length - 1 && (
+                  <button
+                    className="message-retry"
+                    disabled={working}
+                    onClick={() => void send(m.retry!, "Try again")}
+                  >
+                    Try again
+                  </button>
+                )}
+              </>
             ) : (
               <MessageText text={m.text} />
             )}

@@ -1431,6 +1431,8 @@ export function agentEditingGuide() {
     sections: `This is the short guide. For every field, bound and default of one part, call cutline_editing_schema with section set to one of ${editingSchemaSections.join(", ")}, or action:<type> for one action (for example action:clip.update).`,
     workflow:
       "Inspect first. Send the exact current projectId and revision. cutline_edit applies all actions as one undoable step; dryRun checks the whole edit and returns the same summary without changing anything. Then commit with the same revision. After the edit, inspect only what you need and check it with cutline_preview images.",
+    canvas:
+      "x, y, width and height are canvas pixels, and x/y place the top-left corner of a clip or layer, not its center. To center something W wide, set x = (project width - W) / 2. For a centered title, give the text clip the frame's width (x 0) and align center.",
     timing: {
       timeline:
         "at/start/end accept {frame} or {seconds}; seconds round to the project fps. End times are exclusive. Source media sourceIn and word timestamps are seconds; word timestamps are clip-relative. project.update fps (24, 25, 30 or 60) works only while the timeline is empty, so set it before adding clips.",

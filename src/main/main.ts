@@ -1832,6 +1832,8 @@ function register() {
         store.project.id,
       ),
     "codex.stop": () => codex.stop(),
+    "codex.newChat": () => codex.newChat(),
+    "claude.newChat": () => claude.newChat(),
     "assistant.settings": () => ({
       ...assistantSettings,
       claudeInstalled: !!findClaude(),
