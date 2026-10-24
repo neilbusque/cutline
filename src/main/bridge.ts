@@ -88,7 +88,9 @@ export async function startBridge(
               ? asset?.proxy
               : parts[3] === "reversed"
                 ? asset?.reversed
-                : asset?.path;
+                : parts[3] === "reversed-part"
+                  ? asset?.reversedPart
+                  : asset?.path;
         if (!file || !existsSync(file)) {
           res.writeHead(404);
           res.end("Media is missing. Relink the source.");

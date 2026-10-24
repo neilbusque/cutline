@@ -101,6 +101,13 @@ export const AssetSchema = z.object({
   proxy: z.string().optional(),
   /** This Mac's cached copy that plays the media backwards, for reversed clips. */
   reversed: z.string().optional(),
+  /**
+   * This Mac's backwards copy of only the part reversed clips use, from
+   * reversedSpan.from to reversedSpan.to seconds before the media's end.
+   * Versions without it ignore it and make a whole copy.
+   */
+  reversedPart: z.string().optional(),
+  reversedSpan: z.object({ from: finite.min(0), to: finite.min(0) }).optional(),
   waveform: z.array(finite).optional(),
   words: z.array(WordSchema).optional(),
   rhythm: RhythmSchema.optional(),
@@ -690,7 +697,16 @@ export function publicProject(p: Project) {
   return {
     ...p,
     assets: p.assets.map(
-      ({ path, thumbnail, proxy, reversed, rhythm, ...a }) => ({
+      ({
+        path,
+        thumbnail,
+        proxy,
+        reversed,
+        reversedPart,
+        reversedSpan,
+        rhythm,
+        ...a
+      }) => ({
         ...a,
         ...(rhythm ? { rhythm: publicRhythm(rhythm) } : {}),
       }),

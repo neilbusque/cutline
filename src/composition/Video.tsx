@@ -22,6 +22,7 @@ import {
   type MusicBinding,
 } from "../shared/music-reactive";
 import { activeTransition, clipFadeEnvelope } from "../shared/transitions";
+import { reversedPartCovers, reversedRange } from "../shared/timeline";
 import {
   blackDip,
   clipBoxStyle,
@@ -63,14 +64,32 @@ export function assetUrl(base: string, a: Asset, preview = false) {
   return `${base}/media/${a.id}/${preview && a.proxy ? "proxy" : "original"}`;
 }
 /**
- * The file a media clip plays. A reversed clip plays the reversed copy made
- * on this Mac; until it exists the editor shows a waiting card, and export
+ * The file a media clip plays, and how many seconds of the clip's sourceIn
+ * that file starts at. A reversed clip plays a backwards copy made on this
+ * Mac: one of just the part reversed clips use when it holds this clip, else
+ * a whole copy. Until one exists the editor shows a waiting card, and export
  * makes it first.
  */
-export function clipMedia(c: Clip, a: Asset, base: string, preview: boolean) {
+export function clipMedia(
+  c: Clip,
+  a: Asset,
+  base: string,
+  preview: boolean,
+  fps: number,
+) {
   if (c.reverse)
-    return { src: `${base}/media/${a.id}/reversed`, pending: !a.reversed };
-  return { src: assetUrl(base, a, preview), pending: false };
+    return reversedPartCovers(a, reversedRange(c, fps), fps)
+      ? {
+          src: `${base}/media/${a.id}/reversed-part`,
+          pending: false,
+          offset: a.reversedSpan!.from,
+        }
+      : {
+          src: `${base}/media/${a.id}/reversed`,
+          pending: !a.reversed,
+          offset: 0,
+        };
+  return { src: assetUrl(base, a, preview), pending: false, offset: 0 };
 }
 export function opacityAt(c: Clip, f: number) {
   return c.opacity * clipFadeEnvelope(c, f);
@@ -356,15 +375,19 @@ function Layer({
     (track?.muted ? 0 : 1) *
     transitionGain(at, incoming, outgoing) *
     clipFadeEnvelope(c, at);
-  const media = a ? clipMedia(c, a, base, preview || !!proxies) : undefined;
+  const media = a
+    ? clipMedia(c, a, base, preview || !!proxies, p.fps)
+    : undefined;
   const src = media?.src ?? "";
+  // Frames of sourceIn before the file starts, for a partial reversed copy.
+  const offset = (media?.offset ?? 0) * p.fps;
   const MediaVideo = preview ? Video : OffthreadVideo;
   if (c.kind === "audio")
     // A held frame is silent, and reversed sound waits for its copy.
     return a && !track.muted && !c.freeze && !media?.pending ? (
       <Audio
         src={src}
-        startFrom={c.sourceIn * p.fps}
+        startFrom={Math.max(0, c.sourceIn * p.fps - offset)}
         playbackRate={c.speed}
         volume={audioVolume}
       />
@@ -373,7 +396,7 @@ function Layer({
     c.kind === "video" && a ? (
       <MediaVideo
         src={src}
-        startFrom={Math.round(c.sourceIn * p.fps)}
+        startFrom={Math.max(0, Math.round(c.sourceIn * p.fps) - offset)}
         playbackRate={c.speed}
         volume={c.freeze ? 0 : audioVolume}
         muted={c.freeze}

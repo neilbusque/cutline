@@ -124,6 +124,7 @@ import { StockLibrary, stockUrl } from "./stock";
 import { Codex } from "./codex";
 import { ClaudeAssistant, findClaude, type ClaudeModel } from "./claude";
 import { TransactionSchema } from "../shared/commands";
+import { reversedPartHolds, reversedRequest } from "../shared/timeline";
 import { captionClips, parseSrt, toSrt } from "../shared/subtitles";
 import {
   publicProject,
@@ -381,15 +382,20 @@ function pauses(args: any) {
  * make any that are missing first, on their own copy of the project.
  */
 async function prepareReversed(project: Project, job?: Job) {
-  const wanted = new Set(
-    project.clips.filter((c) => c.reverse && c.assetId).map((c) => c.assetId),
-  );
   for (const asset of project.assets) {
-    if (!wanted.has(asset.id)) continue;
+    const request = reversedRequest(project, asset);
+    if (!request) continue;
     if (asset.reversed && existsSync(asset.reversed)) continue;
+    if (
+      asset.reversedPart &&
+      existsSync(asset.reversedPart) &&
+      reversedPartHolds(project, asset)
+    )
+      continue;
     if (job)
       jobs.update(job, { message: `Reversing ${asset.name} for export` });
-    asset.reversed = await media.reversedCopy(asset);
+    // Only the part the reversed clips play.
+    Object.assign(asset, await media.reversedPart(asset, request));
   }
   if (job) jobs.update(job, { message: "Rendering from original media" });
 }
@@ -2017,7 +2023,7 @@ app.whenReady().then(async () => {
   void media.cleanCache(
     Date.now(),
     store.project.assets.flatMap((asset) =>
-      [asset.proxy, asset.reversed, asset.thumbnail].filter(
+      [asset.proxy, asset.reversed, asset.reversedPart, asset.thumbnail].filter(
         (file): file is string => typeof file === "string",
       ),
     ),

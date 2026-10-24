@@ -22,6 +22,14 @@ import {
 import { applyCommands, TransactionSchema } from "../shared/commands";
 
 type HistoryEntry = { label: string; project: Project };
+/** Copies of an asset's media made on this Mac for playback. */
+type PreviewFiles = {
+  proxy?: string;
+  thumbnail?: string;
+  reversed?: string;
+  reversedPart?: string;
+  reversedSpan?: { from: number; to: number };
+};
 type History = { past: HistoryEntry[]; future: HistoryEntry[] };
 export type StoreSnapshot = Snapshot & { saveError: string | null };
 /** Identifies one version of a file on disk. */
@@ -152,10 +160,7 @@ export class Store extends EventEmitter {
   private historyGeneration = 0;
   private checked = new WeakSet<object>();
   private releaseFile?: () => void;
-  private previews = new Map<
-    string,
-    { path: string; proxy?: string; thumbnail?: string; reversed?: string }
-  >();
+  private previews = new Map<string, PreviewFiles & { path: string }>();
   constructor(
     readonly recovery: string,
     private claimFile?: (file: string) => () => void,
@@ -563,11 +568,7 @@ export class Store extends EventEmitter {
    * including when the asset is out of the project for now (after an Undo):
    * pass its source path for that.
    */
-  setPreview(
-    assetId: string,
-    files: { proxy?: string; thumbnail?: string; reversed?: string },
-    sourcePath?: string,
-  ) {
+  setPreview(assetId: string, files: PreviewFiles, sourcePath?: string) {
     const asset = this.project.assets.find((a) => a.id === assetId);
     const source = sourcePath ?? asset?.path;
     if (!source) return false;
@@ -578,6 +579,9 @@ export class Store extends EventEmitter {
       ...(files.proxy ? { proxy: files.proxy } : {}),
       ...(files.thumbnail ? { thumbnail: files.thumbnail } : {}),
       ...(files.reversed ? { reversed: files.reversed } : {}),
+      ...(files.reversedPart && files.reversedSpan
+        ? { reversedPart: files.reversedPart, reversedSpan: files.reversedSpan }
+        : {}),
     });
     const next = this.adopt(this.project);
     if (next !== this.project) {
@@ -602,13 +606,21 @@ export class Store extends EventEmitter {
       let proxy = current?.proxy ?? asset.proxy,
         thumbnail = current?.thumbnail ?? asset.thumbnail,
         reversed = current?.reversed ?? asset.reversed;
+      // A partial copy and the part it holds travel together.
+      let part = current?.reversedPart
+        ? { file: current.reversedPart, span: current.reversedSpan }
+        : { file: asset.reversedPart, span: asset.reversedSpan };
       if (proxy && !existsSync(proxy)) proxy = undefined;
       if (thumbnail && !existsSync(thumbnail)) thumbnail = undefined;
       if (reversed && !existsSync(reversed)) reversed = undefined;
+      if (!part.file || !part.span || !existsSync(part.file))
+        part = { file: undefined, span: undefined };
       if (
         proxy === asset.proxy &&
         thumbnail === asset.thumbnail &&
-        reversed === asset.reversed
+        reversed === asset.reversed &&
+        part.file === asset.reversedPart &&
+        part.span === asset.reversedSpan
       )
         return asset;
       changed = true;
@@ -616,6 +628,8 @@ export class Store extends EventEmitter {
         proxy: _proxy,
         thumbnail: _thumbnail,
         reversed: _reversed,
+        reversedPart: _reversedPart,
+        reversedSpan: _reversedSpan,
         ...rest
       } = asset;
       return {
@@ -623,6 +637,9 @@ export class Store extends EventEmitter {
         ...(proxy ? { proxy } : {}),
         ...(thumbnail ? { thumbnail } : {}),
         ...(reversed ? { reversed } : {}),
+        ...(part.file && part.span
+          ? { reversedPart: part.file, reversedSpan: part.span }
+          : {}),
       };
     });
     return changed ? { ...project, assets } : project;

@@ -1396,4 +1396,20 @@ describe("media cache upkeep", () => {
       "used-proxy.mp4",
     ]);
   });
+
+  it("counts partial backwards copies against the cap too", async () => {
+    const directory = folder();
+    const { media, cache } = mediaFor(directory);
+    mkdirSync(cache);
+    const copy = (name: string, hoursAgo: number) => {
+      writeFileSync(path.join(cache, name), "x".repeat(100));
+      const when = new Date(Date.now() - hoursAgo * 3600_000);
+      utimesSync(path.join(cache, name), when, when);
+    };
+    copy("a-reversed-120-300.mp4", 30);
+    copy("b-reversed-0ms-12500ms.m4a", 20);
+    copy("c-proxy.mp4", 1);
+    expect(await media.cleanCache(Date.now() - 60_000, [], 100)).toBe(2);
+    expect(cached(cache)).toEqual(["c-proxy.mp4"]);
+  });
 });

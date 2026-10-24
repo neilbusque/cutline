@@ -21,9 +21,13 @@ const sameLength = (a: number, b: number, fps: number) =>
  */
 export function relinkedAsset(old: Asset, replacement: Asset, fps: number) {
   const same = sameLength(old.duration, replacement.duration, fps);
+  // Preview and backwards copies were made from the old file.
   const {
     proxy: _proxy,
     thumbnail: _thumbnail,
+    reversed: _reversed,
+    reversedPart: _reversedPart,
+    reversedSpan: _reversedSpan,
     waveform: _waveform,
     words,
     rhythm,
