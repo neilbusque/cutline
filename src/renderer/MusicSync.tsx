@@ -4,7 +4,6 @@ import {
   ChevronLeft,
   ChevronRight,
   LoaderCircle,
-  Music2,
   Play,
   Scissors,
   Sparkles,
@@ -334,11 +333,6 @@ export function MusicSync({
       aria-label="Music sync"
       aria-busy={disabled}
     >
-      <div className="ms-intro">
-        <strong>
-          <Music2 size={16} aria-hidden="true" /> Music sync
-        </strong>
-      </div>
       {!music ? (
         <>
           <div className="ms-empty">

@@ -444,7 +444,7 @@ describe("Properties order", () => {
     expect(at("<summary>Transform</summary>")).toBeLessThan(
       at("<summary>Keyframes</summary>"),
     );
-    expect(html).toContain("Style all captions in Caption Studio");
+    expect(html).toContain("Style all captions in Caption studio");
   });
 
   it("titles the clip-level curves 'Animate whole clip' after the layer editor", async () => {

@@ -392,13 +392,22 @@ try {
   await page.waitForSelector(".titlebar", { timeout: 60000 });
   assert.equal((await invoke("generation.settings")).configured, false);
   await tab("Generate").click();
-  await panel().getByLabel("Higgsfield API key", { exact: true }).fill(fakeKey);
   await panel()
+    .getByRole("button", { name: "Open Settings", exact: true })
+    .click();
+  const settingsModal = page.locator(".settings-modal");
+  await settingsModal
+    .getByLabel("Higgsfield API key", { exact: true })
+    .fill(fakeKey);
+  await settingsModal
     .getByRole("button", { name: "Connect Higgsfield", exact: true })
     .click();
   await expect
     .poll(async () => (await invoke("generation.settings")).configured)
     .toBe(true);
+  await page
+    .getByRole("button", { name: "Close settings", exact: true })
+    .click();
   check(
     "Disposable profile connected only to a fake credential after fail-closed transport installation",
   );

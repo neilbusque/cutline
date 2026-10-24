@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { GENERATION_SETTINGS_EVENT } from "./HiggsfieldSettings";
 import { plural } from "../shared/plural";
 import {
   Check,
@@ -6,7 +7,6 @@ import {
   Download,
   ExternalLink,
   ImagePlus,
-  KeyRound,
   LoaderCircle,
   Plus,
   RefreshCw,
@@ -52,7 +52,10 @@ export function GenerateLibrary({
   aspectRatio,
   addBroll,
   report,
+  openSettings,
 }: {
+  /** The Higgsfield key lives in Settings with the other connections. */
+  openSettings: () => void;
   active: boolean;
   projectId: string;
   aspectRatio: string;
@@ -61,8 +64,6 @@ export function GenerateLibrary({
 }) {
   const api = window.cutline;
   const [settings, setSettings] = useState<GenerationSettings>();
-  const [key, setKey] = useState("");
-  const [configuring, setConfiguring] = useState(false);
   const [connectionError, setConnectionError] = useState("");
   const [loading, setLoading] = useState(true);
   const [prompt, setPrompt] = useState("");
@@ -204,33 +205,23 @@ export function GenerateLibrary({
     };
   }, [active, settings?.configured, projectId]);
 
-  async function configure(disconnect = false) {
-    if (configuring || (!disconnect && !key.trim())) return;
-    setConfiguring(true);
-    setConnectionError("");
-    try {
-      const value: GenerationSettings = await api.invoke(
-        disconnect ? "generation.disconnect" : "generation.configure",
-        disconnect ? undefined : { key: key.trim() },
-      );
-      if (mounted.current) {
-        setSettings(value);
-        setKey("");
-        setMessage(
-          disconnect
-            ? "Higgsfield key removed from this Mac."
-            : "Higgsfield API key saved on this Mac.",
-        );
-      }
-    } catch (error) {
-      if (mounted.current) setConnectionError(errorText(error));
-    } finally {
-      if (mounted.current) {
-        setKey("");
-        setConfiguring(false);
-      }
-    }
-  }
+  // Connecting or disconnecting in Settings refreshes this panel.
+  useEffect(() => {
+    const refresh = () =>
+      void api
+        .invoke("generation.settings")
+        .then((value: GenerationSettings) => {
+          if (mounted.current) {
+            setSettings(value);
+            setConnectionError("");
+          }
+        })
+        .catch((error: unknown) => {
+          if (mounted.current) setConnectionError(errorText(error));
+        });
+    window.addEventListener(GENERATION_SETTINGS_EVENT, refresh);
+    return () => window.removeEventListener(GENERATION_SETTINGS_EVENT, refresh);
+  }, []);
 
   async function chooseReference(multiple = false) {
     const targetProject = projectId;
@@ -394,63 +385,22 @@ export function GenerateLibrary({
       </p>
 
       <div className="generation-connect">
-        {settings?.configured ? (
-          <div className="generation-connected">
-            <span>
-              <Check size={13} aria-hidden="true" /> API key saved
-            </span>
-            <button
-              disabled={configuring || submitting}
-              onClick={() => void configure(true)}
-            >
-              {configuring ? "Removing…" : "Disconnect"}
-            </button>
-          </div>
-        ) : (
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void configure();
-            }}
-          >
-            <label className="generation-field">
-              <span>
-                <KeyRound size={13} aria-hidden="true" /> Higgsfield API key
-              </span>
-              <input
-                type="password"
-                aria-label="Higgsfield API key"
-                autoComplete="off"
-                spellCheck={false}
-                placeholder="Paste your complete API key"
-                value={key}
-                onChange={(event) => setKey(event.target.value)}
-                disabled={configuring}
-                aria-describedby="generation-key-hint"
-              />
-            </label>
-            <p id="generation-key-hint" className="generation-note">
-              Saved encrypted on this Mac. Requires Higgsfield API credits.
-            </p>
-            <div className="generation-connect-actions">
-              <button type="button" onClick={() => open("generation.openKeys")}>
-                Get an API key <ExternalLink size={11} aria-hidden="true" />
-              </button>
-              <button
-                type="submit"
-                className="control"
-                disabled={loading || configuring || !key.trim()}
-              >
-                {configuring ? (
-                  <LoaderCircle size={13} className="spin" aria-hidden="true" />
-                ) : (
-                  <KeyRound size={13} aria-hidden="true" />
-                )}
-                {configuring ? "Connecting…" : "Connect Higgsfield"}
-              </button>
-            </div>
-          </form>
-        )}
+        <div className="generation-connected">
+          <span>
+            {settings?.configured ? (
+              <>
+                <Check size={13} aria-hidden="true" /> Higgsfield connected
+              </>
+            ) : loading && !settings ? (
+              "Checking your connection…"
+            ) : (
+              "Connect Higgsfield in Settings to generate clips."
+            )}
+          </span>
+          <button onClick={openSettings}>
+            {settings?.configured ? "Manage" : "Open Settings"}
+          </button>
+        </div>
         {(connectionError ||
           settings?.storageError ||
           settings?.secureStorageAvailable === false) && (
@@ -700,31 +650,33 @@ export function GenerateLibrary({
             Higgsfield dashboard before generating again.
           </p>
         )}
-        <button
-          type="submit"
-          className="primary generation-submit"
-          disabled={
-            !settings?.configured ||
-            submitting ||
-            !prompt.trim() ||
-            promptTooLong ||
-            choosingReference ||
-            (model === "seedance-2" &&
-              ((mode === "start" && !reference) ||
-                (mode === "references" && !references.length)))
-          }
-          aria-describedby="generation-cost"
-        >
-          {submitting ? (
-            <LoaderCircle size={15} className="spin" aria-hidden="true" />
-          ) : (
-            <Sparkles size={15} aria-hidden="true" />
-          )}
-          {submitting ? "Submitting request…" : "Generate video"}
-        </button>
+        <div className="panel-action-bar">
+          <button
+            type="submit"
+            className="primary generation-submit"
+            disabled={
+              !settings?.configured ||
+              submitting ||
+              !prompt.trim() ||
+              promptTooLong ||
+              choosingReference ||
+              (model === "seedance-2" &&
+                ((mode === "start" && !reference) ||
+                  (mode === "references" && !references.length)))
+            }
+            aria-describedby="generation-cost"
+          >
+            {submitting ? (
+              <LoaderCircle size={15} className="spin" aria-hidden="true" />
+            ) : (
+              <Sparkles size={15} aria-hidden="true" />
+            )}
+            {submitting ? "Submitting request…" : "Generate video"}
+          </button>
+        </div>
         {!settings?.configured && (
           <p className="generation-note generation-connect-hint">
-            Connect your API key above to generate.
+            Connect Higgsfield in Settings to generate.
           </p>
         )}
       </form>

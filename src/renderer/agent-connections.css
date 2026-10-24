@@ -331,3 +331,14 @@
   border-radius: var(--radius-pill);
   background-color: transparent;
 }
+.higgsfield-settings form.ac-row input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+}
+.agent-connections .ac-error {
+  color: var(--danger);
+}
+.higgsfield-settings > h3 {
+  margin: 0;
+}

@@ -563,17 +563,18 @@ export function MotionLibrary({
                 ))}
               </div>
             </details>
-            <button
-              className="import-button primary mg-sequence-add"
-              disabled={busy}
-              onClick={() => void addSequence()}
-            >
-              <Clapperboard size={16} />
-              {busy
-                ? "Building sequence…"
-                : `Add ${sequence.seconds}s sequence`}
-              <Plus size={14} />
-            </button>
+            <div className="panel-action-bar">
+              <button
+                className="import-button primary mg-sequence-add"
+                disabled={busy}
+                onClick={() => void addSequence()}
+              >
+                <Clapperboard size={16} />
+                {busy
+                  ? "Building sequence…"
+                  : `Add ${sequence.seconds}s sequence`}
+              </button>
+            </div>
             <p className="mg-sequence-hint">
               New tracks at the playhead · one undo step · every layer stays
               editable.
@@ -668,7 +669,6 @@ export function MotionLibrary({
               >
                 <PenTool size={16} />
                 Draw vector
-                <Plus size={14} />
               </button>
               <button
                 className="import-button control"
@@ -711,7 +711,6 @@ export function MotionLibrary({
             >
               <Type size={16} />
               Add plain text
-              <Plus size={14} />
             </button>
             <div className="motion-grid">
               {titles.map((title) => (

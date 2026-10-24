@@ -191,7 +191,6 @@ export function AudioLibrary({
       ) : mode === "voice" ? (
         <>
           <div className="audio-intro">
-            <strong>Text to speech</strong>
             <p className="audio-engine-note" role="status">
               {checkingStatus
                 ? "Checking the voice engine…"
@@ -292,28 +291,30 @@ export function AudioLibrary({
               </button>
             </div>
           )}
-          <button
-            className="audio-generate primary"
-            disabled={
-              disabled ||
-              checkingStatus ||
-              !!statusError ||
-              !text.trim() ||
-              !status?.ready
-            }
-            onClick={() => void generate()}
-          >
-            {disabled ? (
-              <LoaderCircle className="spin" size={17} />
-            ) : (
-              <Mic2 size={17} />
-            )}
-            {operation === "setup" || running?.kind === "tts-setup"
-              ? "Setting up Kokoro…"
-              : operation === "generate" || !!running
-                ? "Creating your voiceover…"
-                : "Generate voiceover"}
-          </button>
+          <div className="panel-action-bar">
+            <button
+              className="audio-generate primary"
+              disabled={
+                disabled ||
+                checkingStatus ||
+                !!statusError ||
+                !text.trim() ||
+                !status?.ready
+              }
+              onClick={() => void generate()}
+            >
+              {disabled ? (
+                <LoaderCircle className="spin" size={17} />
+              ) : (
+                <Mic2 size={17} />
+              )}
+              {operation === "setup" || running?.kind === "tts-setup"
+                ? "Setting up Kokoro…"
+                : operation === "generate" || !!running
+                  ? "Creating your voiceover…"
+                  : "Generate voiceover"}
+            </button>
+          </div>
           {running && (
             <div className="audio-progress" role="status">
               <div>
@@ -374,9 +375,6 @@ export function AudioLibrary({
         </>
       ) : (
         <>
-          <div className="audio-intro">
-            <strong>My audio</strong>
-          </div>
           <button className="audio-import control" onClick={importAudio}>
             <Upload size={14} />
             Import audio

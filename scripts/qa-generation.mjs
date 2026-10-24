@@ -268,18 +268,32 @@ try {
   await generateTab().click();
   await expect(panel()).toBeVisible();
   assert.equal((await invoke("generation.settings")).configured, false);
+  await captureBoth("disconnected");
+  // The key lives in Settings; the panel points there.
+  await panel()
+    .getByRole("button", { name: "Open Settings", exact: true })
+    .click();
+  const settingsModal = () => page.locator(".settings-modal");
   await expect(
-    panel().getByLabel("Higgsfield API key", { exact: true }),
+    settingsModal().getByLabel("Higgsfield API key", { exact: true }),
   ).toHaveAttribute("type", "password");
   await expect(
-    panel().getByRole("button", { name: "Connect Higgsfield", exact: true }),
+    settingsModal().getByRole("button", {
+      name: "Connect Higgsfield",
+      exact: true,
+    }),
   ).toBeDisabled();
-  await captureBoth("disconnected");
+  await settingsModal()
+    .getByLabel("Higgsfield API key", { exact: true })
+    .scrollIntoViewIfNeeded();
+  await captureBoth("settings-video-generation");
   check(
-    "Disconnected Generate panel: key masked, empty connect disabled, responsive at both window sizes",
+    "Disconnected Generate panel points to Settings; key masked there, empty connect disabled, responsive at both window sizes",
   );
 
-  const keyField = panel().getByLabel("Higgsfield API key", { exact: true });
+  const keyField = settingsModal().getByLabel("Higgsfield API key", {
+    exact: true,
+  });
   await keyField.fill("bad key");
   // Validate at the main-process boundary too; the renderer cannot bypass it.
   await assert.rejects(
@@ -288,13 +302,17 @@ try {
   );
   assert.equal((await invoke("generation.settings")).configured, false);
   await keyField.fill(fakeKey);
-  await panel()
+  await settingsModal()
     .getByRole("button", { name: "Connect Higgsfield", exact: true })
     .focus();
   await page.keyboard.press("Enter");
   await expect
     .poll(async () => (await invoke("generation.settings")).configured)
     .toBe(true);
+  await page
+    .getByRole("button", { name: "Close settings", exact: true })
+    .click();
+  await expect(panel().getByText("Higgsfield connected")).toBeVisible();
   const credentialFile = path.join(data, "higgsfield-credentials.json");
   assert(!(await readFile(credentialFile, "utf8")).includes(fakeKey));
   assert.equal((await stat(credentialFile)).mode & 0o777, 0o600);

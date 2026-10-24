@@ -1,4 +1,5 @@
 import { snapOnStage, resizeOnStage } from "../shared/stage-layout";
+import { HiggsfieldSettings } from "./HiggsfieldSettings";
 import "./stage-controls.css";
 import { evaluatedClip } from "../shared/animation";
 import { musicBindings, reactiveClipVisual } from "../shared/music-reactive";
@@ -1252,7 +1253,6 @@ export function App() {
                   <Upload size={16} />
                 )}{" "}
                 {importing ? "Importing…" : "Import media"}
-                <kbd>＋</kbd>
               </button>
               {!p.assets.length ? (
                 <div className="empty-library">
@@ -1464,6 +1464,7 @@ export function App() {
           </div>
           <div style={{ display: left === "generate" ? "contents" : "none" }}>
             <GenerateLibrary
+              openSettings={() => setSettingsOpen(true)}
               active={left === "generate"}
               projectId={p.id}
               aspectRatio={
@@ -1851,6 +1852,7 @@ export function App() {
                 ? "Whisper base multilingual model is installed. Speech stays on this Mac."
                 : "Speech tools are missing from this bundle. Run the documented vendor setup and rebuild."}
             </p>
+            <HiggsfieldSettings report={report} />
             <AgentConnections
               settings={settings}
               report={report}

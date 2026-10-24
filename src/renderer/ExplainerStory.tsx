@@ -212,7 +212,7 @@ export function ExplainerStory({
           video.
         </p>
       )}
-      <div className="explainer-outline-actions">
+      <div className="explainer-outline-actions panel-action-bar">
         <button
           className="primary"
           disabled={!ready}

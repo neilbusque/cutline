@@ -484,7 +484,7 @@ export function Inspector({
               className="inspector-link"
               onClick={() => openPanel("captions")}
             >
-              Style all captions in Caption Studio
+              Style all captions in Caption studio
             </button>
           )}
           <div className="two-col">

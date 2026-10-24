@@ -1,3 +1,9 @@
+# Changes in 0.32.1
+
+- **Main actions stay in view.** Build Reel, Generate video, Generate voiceover, Add sequence, Create outline, Produce scenes, Build video and the scene navigation sit in a bar pinned to the bottom of their panel, so they never disappear below the fold on a smaller window.
+- **The Higgsfield key moved to Settings → Video generation**, next to your other connections. Generate shows whether Higgsfield is connected and opens Settings to connect or manage it.
+- **One heading style for every panel.** Story studio, Caption studio and Build a Reel use the same plain heading as the rest; repeated headings under the Audio tabs and the filler intro line are gone. Effects is called Effects. Buttons no longer carry a redundant plus sign.
+
 # Changes in 0.32.0
 
 ## Drawn illustrations in creator-style Shorts

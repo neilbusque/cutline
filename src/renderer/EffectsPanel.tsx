@@ -67,7 +67,7 @@ export function EffectsPanel({
   return (
     <div className="library-content effects-library">
       <div className="section-heading">
-        <span>Effects & motion</span>
+        <span>Effects</span>
       </div>
       {!valid && <p className="library-note">Select a video or photo first.</p>}
       <div className="look-grid">

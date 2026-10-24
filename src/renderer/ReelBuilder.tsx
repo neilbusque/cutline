@@ -4,7 +4,6 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
-  Clapperboard,
   Film,
   LoaderCircle,
   Music2,
@@ -331,14 +330,13 @@ export function ReelBuilder({
   }
   return (
     <div ref={panelRef} className="library-content reel-builder">
-      <div className="reel-intro">
-        <h2>Build a Reel from your footage</h2>
-        <span className="reel-format">
-          <Clapperboard size={13} />
+      <div className="section-heading">
+        <span>Build a Reel</span>
+        <small>
           {mode === "append" && p.clips.length
-            ? `${p.width} × ${p.height} · current canvas`
-            : "1080 × 1920 · 9:16"}
-        </span>
+            ? `${p.width} × ${p.height}, current canvas`
+            : "1080 × 1920, 9:16"}
+        </small>
       </div>
       <nav className="reel-stepper pill-tabs" aria-label="Reel setup steps">
         {["Footage", "Style", "Finish"].map((name, index) => (
@@ -1031,28 +1029,30 @@ export function ReelBuilder({
             </label>
           )}
         </section>
-        {step < 3 ? (
-          <button
-            className="primary reel-build-button"
-            disabled={!sources.length || busy}
-            onClick={() => setStep(step + 1)}
-          >
-            Continue to {step === 1 ? "style" : "finishing"} →
-          </button>
-        ) : (
-          <button
-            className="primary reel-build-button"
-            disabled={!sources.length || busy || invalidBeat || invalidProof}
-            onClick={create}
-          >
-            {busy ? (
-              <LoaderCircle size={16} className="spin" />
-            ) : (
-              <Sparkles size={16} />
-            )}{" "}
-            {busy ? "Building your Reel…" : "Build Reel"}
-          </button>
-        )}
+        <div className="panel-action-bar">
+          {step < 3 ? (
+            <button
+              className="primary reel-build-button"
+              disabled={!sources.length || busy}
+              onClick={() => setStep(step + 1)}
+            >
+              Continue to {step === 1 ? "style" : "finishing"} →
+            </button>
+          ) : (
+            <button
+              className="primary reel-build-button"
+              disabled={!sources.length || busy || invalidBeat || invalidProof}
+              onClick={create}
+            >
+              {busy ? (
+                <LoaderCircle size={16} className="spin" />
+              ) : (
+                <Sparkles size={16} />
+              )}{" "}
+              {busy ? "Building your Reel…" : "Build Reel"}
+            </button>
+          )}
+        </div>
       </fieldset>
       {busy && (
         <div role="status" className="reel-progress">

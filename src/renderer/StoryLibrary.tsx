@@ -4,7 +4,6 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
-  BookOpen,
   Captions,
   Check,
   Clapperboard,
@@ -905,14 +904,8 @@ export function StoryLibrary({
       className="library-content story-library"
       aria-label="Story studio"
     >
-      <div className="story-intro">
-        <div>
-          <BookOpen size={17} aria-hidden="true" />
-          <h2>Story studio</h2>
-        </div>
-        {!draft.scenes.length && (
-          <p>Shape a story. Produce each scene. Build your video.</p>
-        )}
+      <div className="section-heading">
+        <span>Story studio</span>
       </div>
       <nav className="story-stepper pill-tabs" aria-label="Story workflow">
         {["Story", "Produce", "Finish"].map((label, index) => (
@@ -1154,27 +1147,29 @@ export function StoryLibrary({
                 music in Finish.
               </p>
             )}
-            <button
-              className="primary story-build"
-              disabled={
-                busy ||
-                !!runningVoice ||
-                conflict ||
-                visualCount !== draft.scenes.length ||
-                !musicReady ||
-                (voicedCount < narrated.length && !voiceStatus?.ready)
-              }
-              onClick={() => void produceExplainer()}
-            >
-              {action === "produce" || runningProduction ? (
-                <LoaderCircle className="spin" size={15} aria-hidden="true" />
-              ) : (
-                <Clapperboard size={15} aria-hidden="true" />
-              )}
-              {action === "produce" || runningProduction
-                ? "Creating explainer…"
-                : "Create explainer"}
-            </button>
+            <div className="panel-action-bar">
+              <button
+                className="primary story-build"
+                disabled={
+                  busy ||
+                  !!runningVoice ||
+                  conflict ||
+                  visualCount !== draft.scenes.length ||
+                  !musicReady ||
+                  (voicedCount < narrated.length && !voiceStatus?.ready)
+                }
+                onClick={() => void produceExplainer()}
+              >
+                {action === "produce" || runningProduction ? (
+                  <LoaderCircle className="spin" size={15} aria-hidden="true" />
+                ) : (
+                  <Clapperboard size={15} aria-hidden="true" />
+                )}
+                {action === "produce" || runningProduction
+                  ? "Creating explainer…"
+                  : "Create explainer"}
+              </button>
+            </div>
             <p className="story-hint">
               {draft.assembly
                 ? "Saves your outline and replaces its previous story sequence. Other timeline clips stay in place."
@@ -1551,10 +1546,15 @@ export function StoryLibrary({
               </div>
             )}
             {!!draft.scenes.length && (
-              <button className="primary story-next" onClick={() => setStep(1)}>
-                Produce scenes
-                <ArrowRight size={14} aria-hidden="true" />
-              </button>
+              <div className="panel-action-bar">
+                <button
+                  className="primary story-next"
+                  onClick={() => setStep(1)}
+                >
+                  Produce scenes
+                  <ArrowRight size={14} aria-hidden="true" />
+                </button>
+              </div>
             )}
           </section>
         )}
@@ -2017,7 +2017,7 @@ export function StoryLibrary({
                   </p>
                 )}
             </div>
-            <div className="story-scene-navigation">
+            <div className="story-scene-navigation panel-action-bar">
               <button
                 disabled={selectedIndex === 0}
                 onClick={() =>
@@ -2202,22 +2202,24 @@ export function StoryLibrary({
                 Save your storyline before building.
               </p>
             )}
-            <button
-              className="primary story-build"
-              disabled={!assemblyReady}
-              onClick={() => void assemble()}
-            >
-              {action === "assemble" ? (
-                <LoaderCircle className="spin" size={15} aria-hidden="true" />
-              ) : (
-                <Clapperboard size={15} aria-hidden="true" />
-              )}
-              {action === "assemble"
-                ? "Building your video…"
-                : draft.assembly
-                  ? "Rebuild story sequence"
-                  : "Build video on timeline"}
-            </button>
+            <div className="panel-action-bar">
+              <button
+                className="primary story-build"
+                disabled={!assemblyReady}
+                onClick={() => void assemble()}
+              >
+                {action === "assemble" ? (
+                  <LoaderCircle className="spin" size={15} aria-hidden="true" />
+                ) : (
+                  <Clapperboard size={15} aria-hidden="true" />
+                )}
+                {action === "assemble"
+                  ? "Building your video…"
+                  : draft.assembly
+                    ? "Rebuild story sequence"
+                    : "Build video on timeline"}
+              </button>
+            </div>
             {draft.assembly && (
               <p className="story-hint">
                 Rebuild replaces the previous story sequence. Other timeline

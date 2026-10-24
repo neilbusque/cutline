@@ -6,7 +6,7 @@ The provider contract below was checked against official documentation on **2026
 
 ## Credentials and request boundary
 
-Create a key at [Open Higgsfield](https://open.higgsfield.ai/api-keys). Paste the complete copied credential into Cutline's password field; users do not need to split the key ID and secret. A saved key is not proof that authentication has succeeded.
+Create a key at [Open Higgsfield](https://open.higgsfield.ai/api-keys). In Cutline, open **Settings → Video generation** (or **Open Settings** in Generate) and paste the complete copied credential; you do not need to split the key ID and secret. A saved key is not proof that authentication has succeeded.
 
 Authenticated requests use `https://api.higgsfield.ai` and `Authorization: Key <complete-credential>`. Electron's main process owns provider calls and encrypted credential storage. The renderer receives credential status, never the saved key. A generation intentionally sends its prompt and, when selected, its starting image to Higgsfield.
 

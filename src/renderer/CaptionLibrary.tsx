@@ -437,11 +437,11 @@ export function CaptionLibrary({
   );
   return (
     <div className="caption-studio" ref={studio} aria-busy={committing}>
-      <div className="cs-heading">
-        <strong>Caption Studio</strong>
-        <span>
+      <div className="section-heading">
+        <span>Caption studio</span>
+        <small>
           {captions.length ? plural(captions.length, "phrase") : "On device"}
-        </span>
+        </small>
       </div>
       {captions.length ? (
         <details className="cs-generate-details">
