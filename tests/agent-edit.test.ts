@@ -120,6 +120,43 @@ describe("structured assistant editing", () => {
     expect(result.project.revision).toBe(p.revision + 1);
   });
 
+  it("reaches every layer of a large vector, not just the first 24", () => {
+    const p = newProject();
+    const rects = Array.from(
+      { length: 30 },
+      (_, i) =>
+        `<rect id="r${i}" x="${(i % 6) * 80}" y="${Math.floor(i / 6) * 80}" width="60" height="60" fill="#${(0x203040 + i * 0x050301).toString(16)}"/>`,
+    ).join("");
+    const result = edit(p, [
+      {
+        type: "motion.svg",
+        svg: `<svg viewBox="0 0 480 400">${rects}</svg>`,
+        at: { frame: 0 },
+        ref: "art",
+      },
+      {
+        type: "motion.keyframe",
+        motionId: "$art.motion",
+        layer: 29,
+        property: "opacity",
+        frame: 10,
+        value: 0.5,
+      },
+      {
+        type: "motion.layer.update",
+        motionId: "$art.motion",
+        layer: 28,
+        patch: { hidden: true },
+      },
+    ]);
+    const art = result.project.motions.find(
+      (m) => m.id === result.references["art.motion"],
+    )!;
+    expect(art.layers).toHaveLength(30);
+    expect(art.layers[29].keyframes.some((k) => k.frame === 10)).toBe(true);
+    expect(art.layers[28].hidden).toBe(true);
+  });
+
   it("creates motion scenes/shapes, styles layers and independently edits loop endpoint keys", () => {
     const p = newProject();
     const result = edit(p, [

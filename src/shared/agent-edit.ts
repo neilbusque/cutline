@@ -155,7 +155,7 @@ const projectPatch = partialShape({
   // Only while the timeline is empty: clip timing is counted in frames.
   fps: ProjectSchema.shape.fps,
 });
-const layerIndex = z.number().int().min(0).max(23);
+const layerIndex = z.number().int().min(0).max(MAX_VECTOR_LAYERS - 1);
 const penCoordinate = z.number().finite().min(-1e7).max(1e7);
 const penHandle = z.strictObject({ x: penCoordinate, y: penCoordinate });
 const penPoint = z.strictObject({
