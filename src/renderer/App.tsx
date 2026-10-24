@@ -98,8 +98,23 @@ import {
   WandSparkles,
   Clapperboard,
   Layers,
+  Smartphone,
+  Images,
+  Palette,
 } from "lucide-react";
 const api = window.cutline;
+/** The left panels. Each has its own icon, so the grid can be scanned. */
+export const libraryTabs = [
+  { id: "story", icon: Clapperboard, label: "Story" },
+  { id: "reel", icon: Smartphone, label: "Reel" },
+  { id: "media", icon: FilmIcon, label: "Media" },
+  { id: "stock", icon: Images, label: "Stock" },
+  { id: "generate", icon: WandSparkles, label: "Generate" },
+  { id: "audio", icon: Music2, label: "Audio" },
+  { id: "text", icon: Layers, label: "Motion" },
+  { id: "effects", icon: Palette, label: "Effects" },
+  { id: "captions", icon: Captions, label: "Captions" },
+];
 function ErrorView({ error }: { error: string }) {
   return (
     <div className="preview-error">
@@ -1077,17 +1092,7 @@ export function App() {
       <main className={"workspace " + (!sidebar ? "no-sidebar" : "")}>
         <aside className="library">
           <nav className="library-tabs">
-            {[
-              { id: "story", icon: Clapperboard, label: "Story" },
-              { id: "reel", icon: Sparkles, label: "Reel" },
-              { id: "media", icon: FilmIcon, label: "Media" },
-              { id: "stock", icon: Clapperboard, label: "Stock" },
-              { id: "generate", icon: WandSparkles, label: "Generate" },
-              { id: "audio", icon: Music2, label: "Audio" },
-              { id: "text", icon: Layers, label: "Motion" },
-              { id: "effects", icon: WandSparkles, label: "Effects" },
-              { id: "captions", icon: Captions, label: "Captions" },
-            ].map((t) => (
+            {libraryTabs.map((t) => (
               <button
                 key={t.id}
                 aria-pressed={left === t.id}

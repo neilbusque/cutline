@@ -623,3 +623,18 @@ describe("dragging media lights up only tracks that take it", () => {
     expect(acceptsAssetDrag(["Files"], track("video"))).toBe(false);
   });
 });
+
+describe("left tabs", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it("each panel has its own icon", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", { cutline: {} });
+    const { libraryTabs } = await import("../src/renderer/App");
+    const icons = libraryTabs.map((tab) => tab.icon);
+    expect(new Set(icons).size).toBe(libraryTabs.length);
+  });
+});
