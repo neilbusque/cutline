@@ -54,7 +54,12 @@ import {
   withDraft,
 } from "./edit-gestures";
 import { kindLabel } from "./labels";
-import { isTextField, keyStaysInFocus } from "./timeline-focus";
+import {
+  ASSET_DRAG,
+  assetKindDrag,
+  isTextField,
+  keyStaysInFocus,
+} from "./timeline-focus";
 import {
   createValueStore,
   usePlayheadFrame,
@@ -1380,10 +1385,10 @@ export function App() {
                             className="asset-preview"
                             draggable={!snap.missing.includes(a.id)}
                             onDragStart={(e) => {
-                              e.dataTransfer.setData(
-                                "application/x-cutline-asset",
-                                a.id,
-                              );
+                              e.dataTransfer.setData(ASSET_DRAG, a.id);
+                              // The kind lets tracks that refuse it say so
+                              // while dragging; data is unreadable until drop.
+                              e.dataTransfer.setData(assetKindDrag(a.kind), a.kind);
                               e.dataTransfer.effectAllowed = "copy";
                             }}
                             title="Double-click to add, or drag onto a track"

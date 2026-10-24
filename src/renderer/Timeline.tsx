@@ -36,7 +36,13 @@ import { linkedCaptionCommands } from "../shared/linked-captions";
 import { createNudge, dragStarted, trimCommands } from "./edit-gestures";
 import { clipLabel, clipNote, countLabel, kindLabel } from "./labels";
 import { usePlayheadValue, useStoreValue, type Playhead } from "./playhead";
-import { clipFocusTarget, clipKeyMove, clipTabStop } from "./timeline-focus";
+import {
+  acceptsAssetDrag,
+  ASSET_DRAG,
+  clipFocusTarget,
+  clipKeyMove,
+  clipTabStop,
+} from "./timeline-focus";
 /** The playhead line is the only part of the timeline that moves every frame. */
 function PlayheadLine({
   playhead,
@@ -743,19 +749,15 @@ export function Timeline({
                   (dropTrack === t.id ? "drop-target" : "")
                 }
                 onDragOver={(e) => {
-                  if (
-                    e.dataTransfer.types.includes("application/x-cutline-asset")
-                  ) {
+                  if (acceptsAssetDrag(e.dataTransfer.types, t)) {
                     e.preventDefault();
                     e.dataTransfer.dropEffect = "copy";
                     setDropTrack(t.id);
-                  }
+                  } else if (dropTrack === t.id) setDropTrack(undefined);
                 }}
                 onDragLeave={() => setDropTrack(undefined)}
                 onDrop={(e) => {
-                  const id = e.dataTransfer.getData(
-                    "application/x-cutline-asset",
-                  );
+                  const id = e.dataTransfer.getData(ASSET_DRAG);
                   if (!id) return;
                   e.preventDefault();
                   e.stopPropagation();

@@ -1,4 +1,23 @@
-import type { Clip } from "../shared/model";
+import type { Clip, Track } from "../shared/model";
+import { compatibleTrack } from "../shared/timeline";
+
+/** A media item dragged from the library carries its id and its kind. */
+export const ASSET_DRAG = "application/x-cutline-asset";
+export const assetKindDrag = (kind: Clip["kind"]) =>
+  `application/x-cutline-kind-${kind}`;
+
+/**
+ * Whether a library drag can land on this track. Only matching tracks light
+ * up; the others show the not-allowed cursor instead of a drop that does
+ * nothing.
+ */
+export function acceptsAssetDrag(types: readonly string[], track: Track) {
+  if (!types.includes(ASSET_DRAG)) return false;
+  const kind = types
+    .find((type) => type.startsWith("application/x-cutline-kind-"))
+    ?.slice("application/x-cutline-kind-".length);
+  return !kind || compatibleTrack({ kind: kind as Clip["kind"] }, track);
+}
 
 type TrackRef = { id: string };
 type ClipRef = Pick<Clip, "id" | "trackId" | "start" | "duration">;

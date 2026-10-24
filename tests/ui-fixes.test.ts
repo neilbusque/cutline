@@ -22,6 +22,9 @@ import {
 } from "../src/renderer/edit-gestures";
 import { createValueStore } from "../src/renderer/playhead";
 import {
+  acceptsAssetDrag,
+  ASSET_DRAG,
+  assetKindDrag,
   isTextField,
   keyStaysInFocus,
 } from "../src/renderer/timeline-focus";
@@ -593,5 +596,30 @@ describe("Properties shows when subtitles or pauses are running", () => {
     expect(html).toMatch(
       /<button[^>]*disabled=""[^>]*>Finding pauses…<\/button>/,
     );
+  });
+});
+
+describe("dragging media lights up only tracks that take it", () => {
+  const p = newProject();
+  const track = (kind: "video" | "audio" | "text") =>
+    p.tracks.find((t) => t.kind === kind)!;
+  const drag = (kind: "video" | "audio" | "image") => [
+    ASSET_DRAG,
+    assetKindDrag(kind),
+  ];
+
+  it("refuses music on a video track and video on an audio track", () => {
+    expect(acceptsAssetDrag(drag("audio"), track("video"))).toBe(false);
+    expect(acceptsAssetDrag(drag("video"), track("audio"))).toBe(false);
+    expect(acceptsAssetDrag(drag("image"), track("text"))).toBe(false);
+  });
+
+  it("accepts matching kinds", () => {
+    expect(acceptsAssetDrag(drag("audio"), track("audio"))).toBe(true);
+    expect(acceptsAssetDrag(drag("image"), track("video"))).toBe(true);
+  });
+
+  it("ignores drags that are not library media", () => {
+    expect(acceptsAssetDrag(["Files"], track("video"))).toBe(false);
   });
 });
