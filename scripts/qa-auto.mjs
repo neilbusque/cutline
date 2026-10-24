@@ -142,6 +142,11 @@ try {
       filePaths: [file],
     });
   }, source);
+  // Cutline opens on Story; Auto edit lives in Reel.
+  await page
+    .locator(".library-tabs button")
+    .filter({ hasText: /^Reel$/ })
+    .click();
   await page.getByLabel("Automatic caption style").selectOption("karaoke");
   await page.getByLabel("Automatic edit pacing").selectOption("natural");
   await page
@@ -307,10 +312,10 @@ try {
   }));
   assert(layout.scroll <= layout.width + 1);
   assert(layout.tabs.every((t) => t.right <= layout.nav + 1));
-  assert.equal(layout.tabs.length, 7);
+  assert.equal(layout.tabs.length, 9);
   await page.screenshot({ path: path.join(work, "auto-minimum-window.png") });
   record(
-    "Seven editing tabs and automatic result fit the 1100×760 minimum window",
+    "Nine editing tabs and automatic result fit the 1100×760 minimum window",
   );
   await app.evaluate(({ BrowserWindow }) =>
     BrowserWindow.getAllWindows()[0].setSize(1440, 960),

@@ -149,7 +149,8 @@ try {
     ipcMain.removeHandler("cutline");
     let rejectNext = true;
     ipcMain.handle("cutline", async (...args) => {
-      if (args[1] === "edit" && rejectNext) {
+      // The editor sends its edits as "edit.brief" (a smaller reply).
+      if ((args[1] === "edit" || args[1] === "edit.brief") && rejectNext) {
         rejectNext = false;
         throw Error("QA: project revision changed. Retry the staged edit.");
       }

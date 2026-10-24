@@ -253,6 +253,7 @@ try {
         picks: [],
         dialogs: [],
         calls: [],
+        estimates: [],
         requests: [],
         uploads: [],
         blocked: [],
@@ -280,6 +281,18 @@ try {
         );
         const method = (options.method ?? "GET").toUpperCase();
         const headers = new Headers(options.headers);
+        // Price checks are free and carry no media: Cutline asks for one when
+        // Higgsfield connects and when Settings shows the picture price.
+        if (
+          url.origin === "https://api.higgsfield.ai" &&
+          method === "POST" &&
+          url.pathname.startsWith("/estimate/")
+        ) {
+          qa.estimates.push(url.pathname);
+          return new Response(JSON.stringify({ usd: "0.04" }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
         qa.calls.push({
           url: url.href,
           method,

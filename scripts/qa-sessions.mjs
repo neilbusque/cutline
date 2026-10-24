@@ -17,6 +17,7 @@ import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import assert from "node:assert/strict";
+import { gunzipSync } from "node:zlib";
 
 // Real independent Electron processes, isolated data, and two external MCP
 // clients sharing one launcher. No model accounts or paid providers are used.
@@ -795,8 +796,13 @@ try {
   await until(async () => {
     for (const file of await readdir(historyFolder)) {
       try {
+        // Undo history is gzipped from 0.33; older files are plain JSON.
+        const bytes = await readFile(path.join(historyFolder, file));
         const history = JSON.parse(
-          await readFile(path.join(historyFolder, file), "utf8"),
+          (bytes[0] === 0x1f && bytes[1] === 0x8b
+            ? gunzipSync(bytes)
+            : bytes
+          ).toString("utf8"),
         );
         if (
           history.projectId === projectB.id &&
