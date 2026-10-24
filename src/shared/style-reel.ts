@@ -14,6 +14,7 @@ import {
 } from "./model";
 import { parseEditableSvg } from "./vector-path";
 import { createVectorScene } from "./vector-scenes";
+import { checkFrames } from "./check-frames";
 
 /**
  * Creator-style Shorts laid out from a beat plan: the speaker's framing
@@ -916,6 +917,15 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
       beats: beats.length,
       speakerPieces: reframed.length,
       graphicWindows: windows.length,
+      // Every beat that changes the picture, once its entrance has landed.
+      checkFrames: checkFrames(
+        fps,
+        reelStart,
+        reelEnd,
+        beats
+          .filter((beat) => beat.visual || layoutFor(style, beat) !== "speaker")
+          .map((beat) => ({ start: beat.start, duration: beat.end - beat.start })),
+      ),
     },
   };
 }

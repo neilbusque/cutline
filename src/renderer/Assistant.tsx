@@ -20,7 +20,7 @@ const errorText = (error: unknown) =>
     ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/u, "")
     : String(error);
 const styleShort = (style: string, name: string) =>
-  `Make my speaker video on the timeline into a ${name}-inspired Short with cutline_style_reel style ${style}. Transcribe first if there are no captions. Read the transcript with timings, plan the beats by the style's rules (real logos and pages for every product, site or repo I name, short lines only from my actual words), build it, then preview the opening, several beats and the ending and fix what looks wrong. Keep my voice.`;
+  `Make my speaker video on the timeline into a ${name}-inspired Short with cutline_style_reel style ${style}. Transcribe first if there are no captions. Read the transcript with timings, plan the beats by the style's rules (real logos and pages for every product, site or repo I name, short lines only from my actual words), build it, then preview the checkFrames it returns (the opening, each beat and the ending) and fix what looks wrong. Keep my voice.`;
 /**
  * The chat shows the label; the assistant gets the detailed recipe. Recipes
  * that work on speaker footage are offered once the timeline has video.
