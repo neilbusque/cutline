@@ -35,6 +35,7 @@ import { AudioLibrary } from "./AudioLibrary";
 import { MusicSync } from "./MusicSync";
 import { StockLibrary } from "./StockLibrary";
 import { GenerateLibrary } from "./GenerateLibrary";
+import { GraphicStudio } from "./GraphicStudio";
 import { StoryLibrary } from "./StoryLibrary";
 import { stackAssets, sequenceAssets, titleLayer } from "../shared/layers";
 import { MotionLibrary } from "./MotionLibrary";
@@ -296,6 +297,10 @@ export function App() {
     text: string;
   }>();
   const [reelMode, setReelMode] = useState("auto");
+  // Claude or ChatGPT draws first; Higgsfield video is the other mode.
+  const [generateMode, setGenerateMode] = useState<"graphic" | "video">(
+    "graphic",
+  );
   const [right, setRight] = useState("properties");
   const [sidebar, setSidebar] = useState(true);
   const [error, setError] = useState("");
@@ -1087,7 +1092,10 @@ export function App() {
               active={left === "story"}
               missing={snap.missing}
               importMedia={() => void importMedia()}
-              openGenerate={() => setLeft("generate")}
+              openGenerate={() => {
+                setGenerateMode("video");
+                setLeft("generate");
+              }}
               openCaptions={() => setLeft("captions")}
               onCreated={(frame) => {
                 seek(frame);
@@ -1439,12 +1447,15 @@ export function App() {
               </div>
             </div>
           )}
-          {/* Kept mounted: a graphic can take a minute to draw. */}
+          {/* Kept mounted: a logo search or page capture can take a while. */}
           <div style={{ display: left === "text" ? "contents" : "none" }}>
             <MotionLibrary
               visible={left === "text"}
               mediaBase={base}
-              openSettings={() => setSettingsOpen(true)}
+              openGraphic={() => {
+                setGenerateMode("graphic");
+                setLeft("generate");
+              }}
               p={p}
               playhead={playhead}
               edit={edit}
@@ -1465,21 +1476,57 @@ export function App() {
               report={report}
             />
           </div>
-          <div style={{ display: left === "generate" ? "contents" : "none" }}>
-            <GenerateLibrary
-              openSettings={() => setSettingsOpen(true)}
-              active={left === "generate"}
-              projectId={p.id}
-              aspectRatio={
-                p.width > p.height
-                  ? "16:9"
-                  : p.height > p.width
-                    ? "9:16"
-                    : "1:1"
-              }
-              addBroll={addBroll}
-              report={report}
-            />
+          {/* Both modes stay mounted: a graphic can take a minute to draw. */}
+          <div
+            className="generate-workspace"
+            style={{ display: left === "generate" ? "flex" : "none" }}
+          >
+            <nav className="generate-mode pill-tabs" aria-label="Generate">
+              <button
+                className={generateMode === "graphic" ? "active" : ""}
+                aria-pressed={generateMode === "graphic"}
+                onClick={() => setGenerateMode("graphic")}
+              >
+                Graphic
+              </button>
+              <button
+                className={generateMode === "video" ? "active" : ""}
+                aria-pressed={generateMode === "video"}
+                onClick={() => setGenerateMode("video")}
+              >
+                Video
+              </button>
+            </nav>
+            <div
+              style={{ display: generateMode === "graphic" ? "contents" : "none" }}
+            >
+              <GraphicStudio
+                p={p}
+                playhead={playhead}
+                edit={edit}
+                select={select}
+                mediaBase={base}
+                openSettings={() => setSettingsOpen(true)}
+              />
+            </div>
+            <div
+              style={{ display: generateMode === "video" ? "contents" : "none" }}
+            >
+              <GenerateLibrary
+                openSettings={() => setSettingsOpen(true)}
+                active={left === "generate" && generateMode === "video"}
+                projectId={p.id}
+                aspectRatio={
+                  p.width > p.height
+                    ? "16:9"
+                    : p.height > p.width
+                      ? "9:16"
+                      : "1:1"
+                }
+                addBroll={addBroll}
+                report={report}
+              />
+            </div>
           </div>
           <div style={{ display: left === "captions" ? "contents" : "none" }}>
             <CaptionLibrary

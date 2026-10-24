@@ -1621,7 +1621,7 @@ function register() {
     },
     "projects.trash": (args) => trashProject(String(args?.path)),
     /**
-     * Motion > Vectors > Generate: a vector, or a Higgsfield picture that is
+     * Generate > Graphic: a vector, or a Higgsfield picture that is
      * imported into the project's media right away so it is never paid twice.
      */
     "graphic.generate": async (args) => {

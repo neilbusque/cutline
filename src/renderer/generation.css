@@ -1,3 +1,15 @@
+/* Generate: Graphic (drawn on this Mac) or Video (Higgsfield). */
+.generate-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.generate-mode {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--separator);
+}
 .generation-library {
   gap: 14px;
 }

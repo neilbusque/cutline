@@ -1,6 +1,6 @@
 # Higgsfield pictures and video
 
-Cutline's Generate library creates video assets using a user-supplied Higgsfield API key. The integration supports Seedance 2.0 from text, a starting image or reference images, and Kling 3.0 Standard from text. Completed clips are downloaded locally before they are imported into Cutline. The same key makes pictures for graphics too detailed to draw as vectors (see [Pictures for detailed graphics](#pictures-for-detailed-graphics-cutline-033)).
+Cutline's **Generate → Video** creates video assets using a user-supplied Higgsfield API key. **Generate → Graphic**, the default, draws graphics with Claude or ChatGPT on this Mac and uses Higgsfield only as the fallback for subjects too detailed to draw. The integration supports Seedance 2.0 from text, a starting image or reference images, and Kling 3.0 Standard from text. Completed clips are downloaded locally before they are imported into Cutline. The same key makes pictures for graphics too detailed to draw as vectors (see [Pictures for detailed graphics](#pictures-for-detailed-graphics-cutline-033)).
 
 The provider contract below was checked against official documentation on **2026-10-12**. Documentation confirms the API shape; it does not confirm access, credits, or generation quality for a particular account. No paid generation was used to verify this document.
 

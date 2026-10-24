@@ -1,5 +1,9 @@
-import { describe, expect, it } from "vitest";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { newProject } from "../src/shared/model";
 import { errorText } from "../src/renderer/controls";
+import { createValueStore } from "../src/renderer/playhead";
 
 const remote = (message: string) =>
   Error(`Error invoking remote method 'cutline': Error: ${message}`);
@@ -39,5 +43,65 @@ describe("error text", () => {
     expect(errorText(Error("Up to 9 reference images fit in one shot."))).toBe(
       "Up to 9 reference images fit in one shot.",
     );
+  });
+});
+
+describe("graphics are generated in Generate > Graphic", () => {
+  const h = React.createElement;
+  const noop = () => {};
+  beforeEach(() => {
+    vi.resetModules();
+    vi.doMock("@remotion/player", () => ({
+      Player: () => h("i", { "data-player": "" }),
+      Thumbnail: () => h("i", { "data-thumbnail": "" }),
+    }));
+    vi.stubGlobal("window", {
+      matchMedia: () => ({
+        matches: false,
+        addEventListener: noop,
+        removeEventListener: noop,
+      }),
+      addEventListener: noop,
+      removeEventListener: noop,
+    });
+  });
+  afterEach(() => {
+    vi.doUnmock("@remotion/player");
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it("draws from a sentence in the Graphic mode", async () => {
+    const { GraphicStudio } = await import("../src/renderer/GraphicStudio");
+    const html = renderToStaticMarkup(
+      h(GraphicStudio, {
+        p: newProject(),
+        playhead: createValueStore(0),
+        edit: async () => true,
+        select: noop,
+        mediaBase: "",
+      }),
+    );
+    expect(html).toContain('aria-label="Describe the graphic"');
+    expect(html).toContain("Drawn by");
+    expect(html).toContain("Generate a graphic");
+  });
+
+  it("leaves Motion > Vectors one row that opens the generator", async () => {
+    const { MotionLibrary } = await import("../src/renderer/MotionLibrary");
+    const html = renderToStaticMarkup(
+      h(MotionLibrary, {
+        p: newProject(),
+        playhead: createValueStore(0),
+        edit: async () => true,
+        select: noop,
+        addText: noop,
+        openGraphic: noop,
+      }),
+    );
+    expect(html).toContain("Generate a graphic from a sentence");
+    expect(html).not.toContain('aria-label="Describe the graphic"');
+    expect(html).toContain("Brand logos");
+    expect(html).toContain("Page screenshot");
   });
 });

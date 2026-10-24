@@ -2,7 +2,7 @@
 
 ## Generate a graphic
 
-Open **Motion → Vectors → Generate a graphic**, describe it and choose a style:
+Open **Generate → Graphic** (Generate opens on Graphic; **Motion → Vectors** has a **Generate** button that goes there), describe it and choose a style:
 
 - **Flat:** solid fills in 3 to 5 harmonious colors.
 - **Line icon:** one stroke width with round ends; each stroke draws on separately.

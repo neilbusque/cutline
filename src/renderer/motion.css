@@ -151,6 +151,23 @@
   display: grid;
   gap: 8px;
 }
+/* Graphics are drawn in Generate; Vectors keeps one quiet way there. */
+.mg-generate-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--separator);
+  color: var(--text-2);
+  font-size: 12px;
+}
+.mg-generate-row button {
+  flex: none;
+  font-size: 12px;
+  padding: 5px 11px;
+}
 .mg-logo-heading {
   margin-top: 18px;
 }

@@ -1653,9 +1653,15 @@ export function StoryLibrary({
                     <Upload size={13} aria-hidden="true" />
                     Import footage or images
                   </button>
+                  {/* Paid generation is the fallback: it opens on its own
+                      only to show a shot that is on its way. */}
                   <details
                     className="story-shot-generator"
-                    open={!selectedVisual && !selected.design}
+                    open={
+                      !selectedVisual &&
+                      !selected.design &&
+                      !!selected.generationId
+                    }
                   >
                     <summary>Generate with Higgsfield</summary>
                     <label className="story-field">
