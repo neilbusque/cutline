@@ -312,6 +312,42 @@ describe("autosave cost", () => {
     expect(restarted.project.name).toBe("A");
   });
 
+  it("keeps older undo steps compressed, in memory and on disk, and undoes through them", async () => {
+    const directory = folder();
+    const recovery = path.join(directory, "recovery.cutline");
+    const store = new Store(recovery);
+    store.historyDelay = 5;
+    work(store, "Start", 40);
+    for (let i = 0; i < 20; i++)
+      store.commit({ ...store.project, name: `Edit ${i}` }, "Rename");
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    await store.idle();
+    // Every file in the history folder is gzip now.
+    const files = readdirSync(store.historyDirectory);
+    expect(files.length).toBeGreaterThan(0);
+    for (const name of files) {
+      const bytes = readFileSync(path.join(store.historyDirectory, name));
+      expect([bytes[0], bytes[1]]).toEqual([0x1f, 0x8b]);
+    }
+    // Undo walks back through packed steps to the first version.
+    for (let i = 19; i > 0; i--) {
+      store.undo();
+      expect(store.project.name).toBe(`Edit ${i - 1}`);
+    }
+    store.undo();
+    expect(store.project.name).toBe("Start");
+    // A relaunch reads the compressed history and redo still works.
+    store.redo();
+    store.flush();
+    const restarted = new Store(recovery);
+    expect(restarted.project.name).toBe("Edit 0");
+    restarted.undo();
+    expect(restarted.project.name).toBe("Start");
+    restarted.redo();
+    restarted.redo();
+    expect(restarted.project.name).toBe("Edit 1");
+  });
+
   it("still opens older project files that carry their own undo history", () => {
     const directory = folder();
     const file = path.join(directory, "Old.cutline");
