@@ -223,6 +223,10 @@ export function Assistant({
     codex: "Not connected",
   });
   const [activity, setActivity] = useState("");
+  // What the assistant said it is doing, and when the turn started.
+  const [step, setStep] = useState("");
+  const [started, setStarted] = useState(0);
+  const [, tickClock] = useState(0);
   const providerRef = useRef(provider);
   providerRef.current = provider;
   const bottom = useRef<HTMLDivElement>(null);
@@ -302,8 +306,14 @@ export function Assistant({
         if (e.type === "started") {
           setFor(setBusy, p, true);
           setFor(setStatus, p, "Working on your edit…");
-          if (p === providerRef.current) setActivity("Working on your edit…");
+          if (p === providerRef.current) {
+            setActivity("Working on your edit…");
+            setStep("");
+            setStarted(Date.now());
+          }
         }
+        if (e.type === "note" && p === providerRef.current)
+          setStep(String(e.text).split("\n")[0].slice(0, 160));
         if (e.type === "connecting")
           setFor(setStatus, p, `Connecting to ${label}…`);
         if (e.type === "warning") {
@@ -349,7 +359,17 @@ export function Assistant({
   );
   useEffect(() => {
     bottom.current?.scrollIntoView({ block: "end" });
-  }, [messages, activity]);
+  }, [messages, activity, step]);
+  // The elapsed time under the progress line ticks once a second.
+  useEffect(() => {
+    if (!working) return;
+    const timer = setInterval(() => tickClock((n) => n + 1), 1000);
+    return () => clearInterval(timer);
+  }, [working]);
+  const elapsed = () => {
+    const seconds = started ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0;
+    return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+  };
   const choose = async (next: Provider) => {
     if (next === provider || working) return;
     setProvider(next);
@@ -400,6 +420,8 @@ export function Assistant({
     lastAsk.current[p] = text;
     setFor(setBusy, p, true);
     setActivity("Working on your edit…");
+    setStep("");
+    setStarted(Date.now());
     const frame = playhead?.get();
     const where =
       frame === undefined
@@ -553,7 +575,13 @@ export function Assistant({
               <i />
               <i />
             </span>
-            {activity || "Working on your edit…"}
+            <span className="thinking-text">
+              {step && <strong>{step}</strong>}
+              <span>
+                {activity || "Working on your edit…"}
+                {started ? ` · ${elapsed()}` : ""}
+              </span>
+            </span>
           </div>
         )}
         <div ref={bottom} />

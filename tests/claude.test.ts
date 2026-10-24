@@ -156,7 +156,7 @@ it("runs the CLI isolated: only Cutline tools, no user settings, no built-ins", 
   expect(at("--system-prompt").length).toBeGreaterThan(10_000);
 });
 
-it("streams text with step breaks, reports tools and completes", async () => {
+it("shows words before a tool call as progress and keeps only the ending as the reply", async () => {
   const c = make();
   const seen = events(c);
   control.onUser = replyWithTool;
@@ -167,7 +167,8 @@ it("streams text with step breaks, reports tools and completes", async () => {
     .filter((e) => e.type === "delta")
     .map((e) => e.text)
     .join("");
-  expect(text).toBe("Looking.\n\nDone.");
+  expect(text).toBe("Done.");
+  expect(seen.find((e) => e.type === "note")).toMatchObject({ text: "Looking." });
   expect(seen.find((e) => e.type === "tool")).toMatchObject({
     name: "cutline_edit",
   });

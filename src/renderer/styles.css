@@ -1423,6 +1423,20 @@ details[open] > :not(summary) {
 .thinking-dots {
   display: inline-flex;
   gap: 3px;
+  flex: none;
+}
+.thinking-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.thinking-text strong {
+  color: var(--text);
+  font-weight: 500;
+}
+.thinking-text span {
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
 }
 .thinking-dots i {
   width: 5px;

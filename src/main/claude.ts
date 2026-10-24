@@ -79,7 +79,7 @@ export class ClaudeAssistant extends EventEmitter {
   private watchdog?: NodeJS.Timeout;
   private interruptTimer?: NodeJS.Timeout;
   private textInTurn = false;
-  private pendingBreak = false;
+  private buffered = "";
   private stderr = "";
   private state = {
     status: "disconnected",
@@ -316,6 +316,13 @@ export class ClaudeAssistant extends EventEmitter {
     return child;
   }
 
+  /** Part of the turn's reply, separated from an earlier part by a blank line. */
+  private reply(text: string) {
+    if (this.textInTurn) this.emitState({ type: "delta", text: "\n\n" });
+    this.textInTurn = true;
+    this.emitState({ type: "delta", text });
+  }
+
   private message(m: any) {
     this.touch();
     if (m.type === "system" && m.subtype === "init") {
@@ -333,34 +340,37 @@ export class ClaudeAssistant extends EventEmitter {
     if (m.type === "stream_event") {
       const event = m.event;
       if (m.parent_tool_use_id) return;
-      if (event?.type === "message_start") this.pendingBreak = this.textInTurn;
+      // Text is held until its message ends: words written before a tool
+      // call are progress ("Checking the title"), shown as a note; only the
+      // words that end the turn become the reply.
       if (
         event?.type === "content_block_delta" &&
         event.delta?.type === "text_delta" &&
         event.delta.text
-      ) {
-        if (this.pendingBreak) {
-          this.emitState({ type: "delta", text: "\n\n" });
-          this.pendingBreak = false;
-        }
-        this.textInTurn = true;
-        this.emitState({ type: "delta", text: event.delta.text });
-      }
+      )
+        this.buffered += event.delta.text;
       return;
     }
     if (m.type === "assistant") {
-      for (const block of m.message?.content ?? [])
-        if (
-          block.type === "tool_use" &&
-          String(block.name).startsWith(TOOL_PREFIX)
-        )
-          this.emitState({
-            type: "tool",
-            name: String(block.name).slice(TOOL_PREFIX.length),
-          });
+      if (m.parent_tool_use_id) return;
+      const tools = (m.message?.content ?? []).filter(
+        (block: any) =>
+          block.type === "tool_use" && String(block.name).startsWith(TOOL_PREFIX),
+      );
+      const text = this.buffered.trim();
+      this.buffered = "";
+      if (text && tools.length) this.emitState({ type: "note", text });
+      else if (text) this.reply(text);
+      for (const block of tools)
+        this.emitState({
+          type: "tool",
+          name: String(block.name).slice(TOOL_PREFIX.length),
+        });
       return;
     }
     if (m.type === "result") {
+      if (this.buffered.trim()) this.reply(this.buffered.trim());
+      this.buffered = "";
       clearTimeout(this.watchdog);
       clearTimeout(this.interruptTimer);
       const interrupted = this.stopping;
@@ -408,7 +418,7 @@ export class ClaudeAssistant extends EventEmitter {
     this.busy = true;
     this.stopping = false;
     this.textInTurn = false;
-    this.pendingBreak = false;
+    this.buffered = "";
     this.emitState({ type: "started" });
     try {
       const child =
