@@ -147,6 +147,43 @@ describe("SVG import from real design tools and AI output", () => {
     ).toThrow(/simplify/);
   });
 
+  it("joins same-colored shapes without punching holes where they overlap", () => {
+    // 63 small shapes in their own colors push the file past 64 layers.
+    const filler = Array.from(
+      { length: 63 },
+      (_, i) =>
+        `<rect x="${i * 3}" y="200" width="1" height="1" fill="#${(i + 16).toString(16).padStart(6, "0")}"/>`,
+    ).join("");
+    const svg = (head: string) =>
+      parseEditableSvg(
+        `<svg viewBox="0 0 200 210">${filler}<rect x="45" y="70" width="10" height="30" fill="#ff0000"/>${head}</svg>`,
+      );
+    // A lollipop: the head overlaps its stick. Both wind clockwise, so one
+    // path fills them both.
+    const lollipop = svg('<circle cx="50" cy="70" r="12" fill="#ff0000"/>');
+    expect(lollipop.layers).toHaveLength(64);
+    expect(lollipop.layers.at(-1)!.vectorPath).toBe(
+      "M45 70H55V100H45Z M38 70A12 12 0 1 1 62 70A12 12 0 1 1 38 70Z",
+    );
+    // A path drawn the other way round would cancel where they overlap, so
+    // it stays a layer of its own; here that is one layer too many.
+    const diamond = '<path d="M38 70L50 82L62 70L50 58Z" fill="#ff0000"/>';
+    expect(() => svg(diamond)).toThrow(/simplify/);
+    // Apart from the stick it joins as before.
+    expect(
+      svg(diamond.replace(/M38 70L50 82L62 70L50 58Z/u, "M138 70L150 82L162 70L150 58Z"))
+        .layers,
+    ).toHaveLength(64);
+    // See-through circles would darken where they overlap, so only ones
+    // apart from each other join.
+    const tinted = (second: number) =>
+      parseEditableSvg(
+        `<svg viewBox="0 0 200 210">${filler}<circle cx="50" cy="70" r="12" fill="#ff0000" fill-opacity="0.5"/><circle cx="${second}" cy="70" r="12" fill="#ff0000" fill-opacity="0.5"/></svg>`,
+      );
+    expect(tinted(100).layers).toHaveLength(64);
+    expect(() => tinted(55)).toThrow(/simplify/);
+  });
+
   it("renders an imported gradient in preview and export markup and survives a project round trip", () => {
     let p = newProject();
     const created = createVectorScene(p, 0, parseEditableSvg(illustrator));

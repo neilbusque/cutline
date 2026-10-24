@@ -916,6 +916,8 @@ export function parseEditableSvg(svg: string): ParsedEditableSvg {
   };
 
   const layers: VectorPathDefinition[] = [];
+  /** Layers drawn from a rect, circle or ellipse: one clockwise outline each. */
+  const clockwise = new Set<number>();
   const geometryTags = [
     "path",
     "rect",
@@ -1115,6 +1117,7 @@ export function parseEditableSvg(svg: string): ParsedEditableSvg {
           : stroke.color;
     if (stroke.kind === "gradient")
       warnings.add("Gradient outlines were drawn in a solid color.");
+    if (["rect", "circle", "ellipse"].includes(tag)) clockwise.add(layers.length);
     layers.push({
       type: "path",
       name: (
@@ -1155,7 +1158,7 @@ export function parseEditableSvg(svg: string): ParsedEditableSvg {
     fail(
       "SVG must contain at least one visible shape (paths, rectangles, circles, polygons or lines).",
     );
-  const fitted = mergeToFit(layers);
+  const fitted = mergeToFit(layers, clockwise);
   if (fitted.length < layers.length)
     warnings.add(
       `Shapes that share a color were combined so the vector fits ${MAX_VECTOR_LAYERS} layers.`,
@@ -1203,7 +1206,9 @@ function geometry(
       if (Number.isNaN(ry)) ry = rx;
     }
     if (!(rx > 0) || !(ry > 0)) return undefined;
-    return `M${cx - rx} ${cy}A${rx} ${ry} 0 1 0 ${cx + rx} ${cy}A${rx} ${ry} 0 1 0 ${cx - rx} ${cy}Z`;
+    // Clockwise, like rectangles: shapes joined into one path add up instead
+    // of cancelling where they overlap.
+    return `M${cx - rx} ${cy}A${rx} ${ry} 0 1 1 ${cx + rx} ${cy}A${rx} ${ry} 0 1 1 ${cx - rx} ${cy}Z`;
   }
   const x = n("x"),
     y = n("y"),
@@ -1227,30 +1232,159 @@ function absoluteStart(path: string) {
     .map((s, i) => `${i === 0 ? "M" : s.command}${s.values.join(" ")}`)
     .join("");
 }
+type Box = { x0: number; y0: number; x1: number; y1: number };
+
+/** The box of the ellipse an SVG arc lies on, which holds the arc itself. */
+function arcBox(
+  x0: number,
+  y0: number,
+  [rx, ry, rotation, large, sweep, x, y]: number[],
+  add: (x: number, y: number) => void,
+) {
+  rx = Math.abs(rx);
+  ry = Math.abs(ry);
+  // A flat arc is a line, whose ends are already in the box.
+  if (!rx || !ry || (x0 === x && y0 === y)) return;
+  const phi = (rotation * Math.PI) / 180,
+    cos = Math.cos(phi),
+    sin = Math.sin(phi);
+  const hx = (x0 - x) / 2,
+    hy = (y0 - y) / 2;
+  const px = cos * hx + sin * hy,
+    py = -sin * hx + cos * hy;
+  // Radii too small to reach both ends grow until they do (SVG 1.1 F.6.6).
+  const grow = Math.max(1, Math.hypot(px / rx, py / ry));
+  rx *= grow;
+  ry *= grow;
+  const root =
+    (large === sweep ? -1 : 1) *
+    Math.sqrt(
+      Math.max(
+        0,
+        (rx * rx * ry * ry - rx * rx * py * py - ry * ry * px * px) /
+          (rx * rx * py * py + ry * ry * px * px),
+      ),
+    );
+  const ux = (root * rx * py) / ry,
+    uy = (-root * ry * px) / rx;
+  const cx = cos * ux - sin * uy + (x0 + x) / 2,
+    cy = sin * ux + cos * uy + (y0 + y) / 2;
+  const ex = Math.hypot(rx * cos, ry * sin),
+    ey = Math.hypot(rx * sin, ry * cos);
+  add(cx - ex, cy - ey);
+  add(cx + ex, cy + ey);
+}
+
+/** A box around everything a path can draw: its points, curve handles and arcs. */
+function pathBox(path: string): Box {
+  const box = { x0: Infinity, y0: Infinity, x1: -Infinity, y1: -Infinity };
+  const add = (x: number, y: number) => {
+    box.x0 = Math.min(box.x0, x);
+    box.y0 = Math.min(box.y0, y);
+    box.x1 = Math.max(box.x1, x);
+    box.y1 = Math.max(box.y1, y);
+  };
+  let x = 0,
+    y = 0,
+    startX = 0,
+    startY = 0;
+  let cubic: number[] | undefined, quad: number[] | undefined;
+  for (const { command, values } of parseVectorPath(path)) {
+    const upper = command.toUpperCase(),
+      dx = command === upper ? 0 : x,
+      dy = command === upper ? 0 : y;
+    let nextCubic: number[] | undefined, nextQuad: number[] | undefined;
+    if (upper === "Z") {
+      x = startX;
+      y = startY;
+    } else if (upper === "H") x = values[0] + dx;
+    else if (upper === "V") y = values[0] + dy;
+    else if (upper === "A") {
+      const end = [values[5] + dx, values[6] + dy];
+      arcBox(x, y, [...values.slice(0, 5), ...end], add);
+      [x, y] = end;
+    } else {
+      // Handles first, then the end point; a curve stays inside its handles.
+      const points: number[][] = [];
+      for (let i = 0; i < values.length; i += 2)
+        points.push([values[i] + dx, values[i + 1] + dy]);
+      const reflected = upper === "S" ? cubic : upper === "T" ? quad : null;
+      if (reflected !== null)
+        points.unshift(
+          reflected ? [2 * x - reflected[0], 2 * y - reflected[1]] : [x, y],
+        );
+      for (const [px, py] of points) add(px, py);
+      if (upper === "C" || upper === "S") nextCubic = points.at(-2);
+      if (upper === "Q" || upper === "T") nextQuad = points.at(-2);
+      [x, y] = points.at(-1)!;
+      if (upper === "M") {
+        startX = x;
+        startY = y;
+      }
+    }
+    add(x, y);
+    cubic = nextCubic;
+    quad = nextQuad;
+  }
+  return box;
+}
+const overlap = (a: Box, b: Box) =>
+  a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+/** An opaque plain fill with no outline: overlapping copies look like one. */
+const solidFill = (l: VectorPathDefinition) =>
+  l.opacity === 1 &&
+  l.fillOpacity === 1 &&
+  /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/iu.test(l.background) &&
+  (!l.strokeWidth || l.stroke === "transparent");
+
 /**
- * Too many layers: join neighbours that draw identically into one compound path,
- * which renders the same and keeps stacking order. Even-odd fills never merge,
- * since joining them would punch holes where the shapes overlap.
+ * Too many layers: join neighbours that draw identically into one compound
+ * path, which renders the same and keeps stacking order. Shapes join only
+ * where joining cannot change the picture: when they do not overlap, or when
+ * they are opaque plain fills wound the same way (rectangles, circles and
+ * ellipses all wind clockwise). Overlapping paths of unknown direction would
+ * punch holes, so they stay apart. Even-odd fills and box-relative gradients
+ * never join, since either would draw differently as one path.
  */
-function mergeToFit(layers: VectorPathDefinition[]) {
+function mergeToFit(layers: VectorPathDefinition[], clockwise: Set<number>) {
   if (layers.length <= MAX_VECTOR_LAYERS) return layers;
   const key = (l: VectorPathDefinition) =>
     JSON.stringify({ ...l, name: undefined, vectorPath: undefined });
   const result: VectorPathDefinition[] = [];
-  for (const layer of layers) {
+  // The shapes in the last joined layer, each padded by its outline.
+  let boxes: Box[] = [],
+    wound = false;
+  for (const [index, layer] of layers.entries()) {
     const last = result.at(-1);
+    const pad = layer.strokeWidth;
+    const raw = pathBox(layer.vectorPath),
+      box = {
+        x0: raw.x0 - pad,
+        y0: raw.y0 - pad,
+        x1: raw.x1 + pad,
+        y1: raw.y1 + pad,
+      };
     if (
       last &&
       layer.vectorFillRule === "nonzero" &&
+      layer.vectorGradient?.units !== "objectBoundingBox" &&
       key(last) === key(layer) &&
       last.vectorPath.length + layer.vectorPath.length + 1 <=
-        MAX_VECTOR_PATH_LENGTH
+        MAX_VECTOR_PATH_LENGTH &&
+      (!boxes.some((other) => overlap(other, box)) ||
+        (wound && clockwise.has(index) && solidFill(layer)))
     ) {
       result[result.length - 1] = {
         ...last,
         vectorPath: `${last.vectorPath} ${absoluteStart(layer.vectorPath)}`,
       };
-    } else result.push(layer);
+      boxes.push(box);
+      wound &&= clockwise.has(index);
+    } else {
+      result.push(layer);
+      boxes = [box];
+      wound = clockwise.has(index);
+    }
   }
   return result;
 }
