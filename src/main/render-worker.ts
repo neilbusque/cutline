@@ -1,12 +1,16 @@
+import os from "node:os";
 import process from "node:process";
 import { browserOptions } from "../../scripts/browser-config.mjs";
 import {
+  openBrowser,
   renderMedia,
   selectComposition,
   makeCancelSignal,
 } from "@remotion/renderer";
 import { spawn, type ChildProcess } from "node:child_process";
 import { rmSync } from "node:fs";
+let browser: Awaited<ReturnType<typeof openBrowser>> | undefined;
+let sentPercent = -1;
 let cancel: (() => void) | undefined;
 let mux: ChildProcess | undefined;
 let cancelled = false;
@@ -15,6 +19,7 @@ process.on("disconnect", () => {
   cancelled = true;
   cancel?.();
   mux?.kill("SIGTERM");
+  void browser?.close({ silent: true }).catch(() => {});
   setTimeout(() => process.exit(1), 5000).unref();
 });
 process.on("message", async (message: any) => {
@@ -31,12 +36,26 @@ process.on("message", async (message: any) => {
       message;
     const signal = makeCancelSignal();
     cancel = signal.cancel;
+    // Remotion's video frame cache defaults to half of free memory. This Mac
+    // runs other work beside exports, so a quarter of free memory, 256 MB to
+    // 1 GB, is the budget.
+    const frameCache = Math.max(
+      256 * 1024 ** 2,
+      Math.min(1024 ** 3, Math.floor(os.freemem() / 4)),
+    );
+    // One Chrome for the whole export instead of one per step.
+    browser = await openBrowser("chrome", {
+      browserExecutable,
+      ...browserOptions,
+    });
     const composition = await selectComposition({
       serveUrl,
       id: "Cutline",
       inputProps,
       browserExecutable,
       ...browserOptions,
+      puppeteerInstance: browser,
+      offthreadVideoCacheSizeInBytes: frameCache,
       timeoutInMilliseconds: 30000,
     });
     // Keep the intermediate mix lossless. Mux AAC directly into MP4 so its
@@ -52,6 +71,9 @@ process.on("message", async (message: any) => {
       outputLocation: video,
       browserExecutable,
       ...browserOptions,
+      puppeteerInstance: browser,
+      offthreadVideoCacheSizeInBytes: frameCache,
+      offthreadVideoThreads: 2,
       concurrency: 2,
       crf: 19,
       pixelFormat: "yuv420p",
@@ -71,8 +93,13 @@ process.on("message", async (message: any) => {
               "90000",
               args[args.length - 1],
             ],
-      onProgress: (p) =>
-        process.send?.({ type: "progress", progress: p.progress * 0.97 }),
+      // Whole percents only: the editor redraws on every progress message.
+      onProgress: (p) => {
+        const percent = Math.floor(p.progress * 97);
+        if (percent === sentPercent) return;
+        sentPercent = percent;
+        process.send?.({ type: "progress", progress: percent / 100 });
+      },
     });
     if (cancelled) throw Error("Cancelled");
     await new Promise<void>((resolve, reject) => {
@@ -125,6 +152,7 @@ process.on("message", async (message: any) => {
   } catch (e) {
     process.send?.({ type: "error", message: (e as Error).message });
   } finally {
+    await browser?.close({ silent: true }).catch(() => {});
     rmSync(audio, { force: true });
     rmSync(video, { force: true });
     process.exit(0);

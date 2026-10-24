@@ -865,8 +865,8 @@ export class Media extends EventEmitter {
       `Preparing a smooth preview of ${asset.name}`,
       async (j) => {
         const temporary = `${file}.${uid()}.part`;
-        try {
-          await this.jobs.exec(
+        const encode = (hardware: boolean) =>
+          this.jobs.exec(
             this.bin.ffmpeg,
             [
               "-y",
@@ -875,6 +875,9 @@ export class Media extends EventEmitter {
               "-nostats",
               "-progress",
               "pipe:2",
+              // Without -xerror, a codec the media engine cannot decode
+              // (MPEG-4 Part 2) still exits 0 with no video at all.
+              ...(hardware ? ["-xerror", "-hwaccel", "videotoolbox"] : []),
               "-i",
               asset.path,
               "-map",
@@ -883,12 +886,11 @@ export class Media extends EventEmitter {
               "0:a:0?",
               "-vf",
               proxyScale,
-              "-c:v",
-              "libx264",
-              "-preset",
-              "ultrafast",
-              "-crf",
-              "26",
+              // The Mac's media engine uses about a quarter of the CPU the
+              // software encoder needs, which matters with other work running.
+              ...(hardware
+                ? ["-c:v", "h264_videotoolbox", "-b:v", "4M", "-allow_sw", "1"]
+                : ["-c:v", "libx264", "-preset", "ultrafast", "-crf", "26"]),
               "-c:a",
               "aac",
               "-movflags",
@@ -911,6 +913,13 @@ export class Media extends EventEmitter {
               },
             },
           );
+        try {
+          try {
+            await encode(true);
+          } catch (error) {
+            if (j.state === "cancelled") throw error;
+            await encode(false);
+          }
           await rename(temporary, file);
           return file;
         } catch (error) {

@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   process: { on: vi.fn(), send: vi.fn(), exit: vi.fn() },
   selectComposition: vi.fn(),
   renderMedia: vi.fn(),
+  openBrowser: vi.fn(),
+  browser: { close: vi.fn() },
   spawn: vi.fn(),
   rm: vi.fn(),
 }));
@@ -15,6 +17,7 @@ vi.mock("node:fs", () => ({ rmSync: mocks.rm }));
 vi.mock("@remotion/renderer", () => ({
   selectComposition: mocks.selectComposition,
   renderMedia: mocks.renderMedia,
+  openBrowser: mocks.openBrowser,
   makeCancelSignal: () => ({ cancel: vi.fn(), cancelSignal: vi.fn() }),
 }));
 beforeEach(async () => {
@@ -25,6 +28,8 @@ beforeEach(async () => {
   });
   mocks.selectComposition.mockResolvedValue({ durationInFrames: 60, fps: 30 });
   mocks.renderMedia.mockResolvedValue(undefined);
+  mocks.browser.close.mockResolvedValue(undefined);
+  mocks.openBrowser.mockResolvedValue(mocks.browser);
   mocks.spawn.mockImplementation(() => {
     const child = Object.assign(new EventEmitter(), {
       stderr: new EventEmitter(),
@@ -63,6 +68,20 @@ it("uses the reviewed full browser for both composition loading and video render
     type: "done",
     output: "/output.mp4",
   });
+  // One Chrome serves composition loading and rendering, with a bounded
+  // frame cache, and is closed when the export ends.
+  expect(mocks.openBrowser).toHaveBeenCalledTimes(1);
+  for (const step of [mocks.selectComposition, mocks.renderMedia])
+    expect(step).toHaveBeenCalledWith(
+      expect.objectContaining({
+        puppeteerInstance: mocks.browser,
+        offthreadVideoCacheSizeInBytes: expect.any(Number),
+      }),
+    );
+  const cache = mocks.renderMedia.mock.calls[0][0].offthreadVideoCacheSizeInBytes;
+  expect(cache).toBeGreaterThanOrEqual(256 * 1024 ** 2);
+  expect(cache).toBeLessThanOrEqual(1024 ** 3);
+  expect(mocks.browser.close).toHaveBeenCalledWith({ silent: true });
   expect(mocks.rm).toHaveBeenCalledWith("/output.mp4.audio.wav", {
     force: true,
   });
