@@ -2,7 +2,7 @@
 
 ## Generate a graphic
 
-Open **Motion → Vectors → Generate a graphic**, describe it and choose a style:
+Open **Generate → Graphic** (Generate opens on Graphic; **Generate a graphic from a sentence** in **Motion → Vectors** goes there too), describe it and choose a style:
 
 - **Flat:** solid fills in 3 to 5 harmonious colors.
 - **Line icon:** one stroke width with round ends; each stroke draws on separately.
@@ -28,7 +28,7 @@ Logos and pages are placed for three seconds at the playhead. Use them on the wo
 ## Build or import a mark
 
 1. Open **Motion → Vectors**.
-2. Choose **Draw vector** for an editable starter or **Import SVG** for your artwork. Import creates a centered composition at the playhead on an available text track, adding a track if needed.
+2. Choose **Draw vector** to draw a path of your own (the Path designer opens empty with **Add points** on; the starter shape shows until you apply) or **Import SVG** for your artwork. Import creates a centered composition at the playhead on an available text track, adding a track if needed.
 3. Select the path layer in **Properties → Motion layers** and expand **Path designer**. Add points on the drawing area, select a point to move it, and edit its Bézier handles or precise coordinates. Use arrow keys to nudge; Shift makes larger steps. Numeric fields offer the same edits without dragging.
 4. Choose an open or closed contour. **Apply path** saves the draft as one Undo; **Cancel changes** restores the saved path. Escape cancels a point/handle drag. Fill, outline, stroke width, size, position and animation remain editable in the layer controls.
 

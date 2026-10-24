@@ -1,7 +1,20 @@
+/* Generate: Graphic (drawn on this Mac) or Video (Higgsfield). */
+.generate-workspace {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+.generate-mode {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--separator);
+}
 .generation-library {
   gap: 14px;
 }
-.generation-heading {
+/* Beats ".section-heading", which loads later and doubled the gap below. */
+.generation-library > .generation-heading {
   margin-bottom: 0;
   gap: 6px;
 }
@@ -9,10 +22,6 @@
   padding: 3px 0 3px 5px;
   font-size: 11px;
   font-weight: 400;
-}
-.generation-intro {
-  margin-top: -8px;
-  font-size: 12px;
 }
 .generation-connect {
   padding: 10px;

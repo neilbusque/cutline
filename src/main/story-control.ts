@@ -87,7 +87,7 @@ export class StoryControl {
     this.active.add(lock);
     try {
       if (!(await this.deps.configured()))
-        throw Error("Connect your Higgsfield API key in Generate first.");
+        throw Error("Connect Higgsfield in Settings first.");
       if (this.deps.store.openSession !== session)
         throw Error("Project changed. No new request was submitted.");
       p = this.current(args.projectId, args.revision);

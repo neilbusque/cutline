@@ -9,6 +9,7 @@ import {
   X,
 } from "lucide-react";
 import type { Asset, Job, Project } from "../shared/model";
+import { errorText } from "./controls";
 import { speechVoices, type SpeechVoice, type TtsStatus } from "../shared/tts";
 import "./audio.css";
 
@@ -74,7 +75,7 @@ export function AudioLibrary({
       if (mounted.current && statusRequest.current === id) setStatus(next);
     } catch (error) {
       if (mounted.current && statusRequest.current === id)
-        setStatusError((error as Error).message);
+        setStatusError(errorText(error));
     } finally {
       if (mounted.current && statusRequest.current === id)
         setCheckingStatus(false);
@@ -126,8 +127,7 @@ export function AudioLibrary({
       setCreatedSignature(signature);
       setPreview(asset.id);
     } catch (error) {
-      if (mounted.current && request.current === id)
-        setError((error as Error).message);
+      if (mounted.current && request.current === id) setError(errorText(error));
     } finally {
       if (mounted.current && request.current === id) setOperation(undefined);
     }
@@ -145,8 +145,7 @@ export function AudioLibrary({
         setStatusError("");
       }
     } catch (error) {
-      if (mounted.current && request.current === id)
-        setError((error as Error).message);
+      if (mounted.current && request.current === id) setError(errorText(error));
     } finally {
       if (mounted.current && request.current === id) setOperation(undefined);
     }

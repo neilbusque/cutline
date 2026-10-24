@@ -1,4 +1,23 @@
-import type { Clip } from "../shared/model";
+import type { Clip, Track } from "../shared/model";
+import { compatibleTrack } from "../shared/timeline";
+
+/** A media item dragged from the library carries its id and its kind. */
+export const ASSET_DRAG = "application/x-cutline-asset";
+export const assetKindDrag = (kind: Clip["kind"]) =>
+  `application/x-cutline-kind-${kind}`;
+
+/**
+ * Whether a library drag can land on this track. Only matching tracks light
+ * up; the others show the not-allowed cursor instead of a drop that does
+ * nothing.
+ */
+export function acceptsAssetDrag(types: readonly string[], track: Track) {
+  if (!types.includes(ASSET_DRAG)) return false;
+  const kind = types
+    .find((type) => type.startsWith("application/x-cutline-kind-"))
+    ?.slice("application/x-cutline-kind-".length);
+  return !kind || compatibleTrack({ kind: kind as Clip["kind"] }, track);
+}
 
 type TrackRef = { id: string };
 type ClipRef = Pick<Clip, "id" | "trackId" | "start" | "duration">;
@@ -86,4 +105,34 @@ export function clipFocusTarget(
       ).id;
   }
   return undefined;
+}
+
+/** Where typing goes: ⌘Z there undoes the typing, not a project edit. */
+export function isTextField(
+  el: Pick<HTMLElement, "tagName" | "isContentEditable"> & {
+    type?: string;
+  },
+) {
+  if (el.isContentEditable || el.tagName === "TEXTAREA") return true;
+  return (
+    el.tagName === "INPUT" &&
+    /^(?:text|search|url|email|password|number|tel)?$/u.test(el.type ?? "")
+  );
+}
+
+/**
+ * Keys the editor leaves to the focused control. Delete and the left and right
+ * arrows act on what is focused in Properties, a library panel or a dialog (a
+ * path point, a key, a layer row), never the selected clip or the playhead.
+ * Space on a section heading opens or closes the section instead of playing.
+ */
+export function keyStaysInFocus(
+  target: Pick<Element, "tagName" | "closest">,
+  key: string,
+) {
+  if (key === " ") return target.tagName === "SUMMARY";
+  return (
+    ["Delete", "Backspace", "ArrowLeft", "ArrowRight"].includes(key) &&
+    !!target.closest(".right-panel, .library, [role=dialog]")
+  );
 }

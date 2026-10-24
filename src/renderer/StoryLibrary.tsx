@@ -50,6 +50,8 @@ import {
   explainerInputFromStory,
   refreshExplainerInput,
 } from "./ExplainerStory";
+import { errorText } from "./controls";
+import { GENERATION_SETTINGS_EVENT } from "./HiggsfieldSettings";
 import "./story.css";
 
 type Props = {
@@ -61,6 +63,8 @@ type Props = {
   importMedia: () => void;
   openGenerate: () => void;
   openCaptions: () => void;
+  /** Higgsfield is connected in Settings, like the other keys. */
+  openSettings: () => void;
   onCreated: (frame: number) => void;
   report: (error: unknown) => void;
   onAskAssistant?: (prompt: string) => void;
@@ -109,8 +113,6 @@ const templates: { id: Template; name: string; script: string }[] = [
       "Your next idea deserves more than a blank timeline.\n\nPlan the story, find the right shots, and give every scene a voice.\n\nBring it all together. Make something worth watching.",
   },
 ];
-const describeError = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
 const storyOf = (project: Project) =>
   project.story ?? StoryPlanSchema.parse({});
 const serialized = (story: StoryPlan) => JSON.stringify(story);
@@ -145,6 +147,7 @@ export function StoryLibrary({
   importMedia,
   openGenerate,
   openCaptions,
+  openSettings,
   onCreated,
   report,
   onAskAssistant,
@@ -298,6 +301,21 @@ export function StoryLibrary({
     panel.current?.scrollTo({ top: 0 });
   }, [step]);
 
+  // Connecting Higgsfield in Settings shows here at once.
+  useEffect(() => {
+    const refresh = () =>
+      void api
+        .invoke("generation.settings")
+        .then((value: { configured: boolean }) => {
+          if (!mounted.current) return;
+          setConfigured(value.configured);
+          setGenerationCheckError("");
+        })
+        .catch(() => {});
+    window.addEventListener(GENERATION_SETTINGS_EVENT, refresh);
+    return () => window.removeEventListener(GENERATION_SETTINGS_EVENT, refresh);
+  }, []);
+
   useEffect(() => {
     if (!active) return;
     let canceled = false;
@@ -310,11 +328,11 @@ export function StoryLibrary({
       if (voice.status === "fulfilled") {
         setVoiceStatus(voice.value);
         setVoiceCheckError("");
-      } else setVoiceCheckError(describeError(voice.reason));
+      } else setVoiceCheckError(errorText(voice.reason));
       if (connection.status === "fulfilled") {
         setConfigured(connection.value.configured);
         setGenerationCheckError("");
-      } else setGenerationCheckError(describeError(connection.reason));
+      } else setGenerationCheckError(errorText(connection.reason));
       if (history.status === "fulfilled") setGenerations(history.value);
     });
     return () => {
@@ -371,7 +389,7 @@ export function StoryLibrary({
             }
           } catch (failure) {
             if (!canceled && state.current.project.id === projectId)
-              setPollError(describeError(failure));
+              setPollError(errorText(failure));
           } finally {
             pollLock.current = false;
           }
@@ -449,7 +467,7 @@ export function StoryLibrary({
         "Your script is split into scenes. Refine each visual before generating.",
       );
     } catch (failure) {
-      setError(describeError(failure));
+      setError(errorText(failure));
     }
   }
   function applyProductRecipe(style: "launch" | "walkthrough" | "type-led") {
@@ -493,7 +511,7 @@ export function StoryLibrary({
         "Outline ready. Review the scenes, then create your explainer with local narration and captions.",
       );
     } catch (failure) {
-      setError(describeError(failure));
+      setError(errorText(failure));
     }
   }
   async function run(name: string, operation: () => Promise<void>) {
@@ -513,10 +531,7 @@ export function StoryLibrary({
         epoch.current === requestEpoch &&
         state.current.project.id === projectId
       ) {
-        const message = describeError(failure);
-        const cancellationMessage = message
-          .replace(/^Error invoking remote method ['"][^'"]+['"]:\s*/u, "")
-          .replace(/^Error:\s*/u, "");
+        const message = errorText(failure);
         const cancelled =
           name === "produce" &&
           (jobsRef.current.some(
@@ -526,17 +541,14 @@ export function StoryLibrary({
               !earlierJobs.has(job.id),
           ) ||
             /^(?:Story (?:production|narration) )?cancelled(?:\.|$)/iu.test(
-              cancellationMessage,
+              message,
             ));
         if (cancelled) {
           setError("");
           setNotice(
             "Explainer cancelled. Finished narration is kept for your next attempt.",
           );
-        } else {
-          setError(message);
-          report(failure);
-        }
+        } else setError(message);
       }
     } finally {
       if (mounted.current && epoch.current === requestEpoch) {
@@ -647,7 +659,7 @@ export function StoryLibrary({
       const updated = withReferences(editor.draft, [id], sceneId);
       change(() => updated);
     } catch (failure) {
-      setError(describeError(failure));
+      setError(errorText(failure));
     }
   }
   function editReferences(ids: string[], sceneId?: string) {
@@ -690,7 +702,7 @@ export function StoryLibrary({
         if (importedIds.length)
           updated = withReferences(editor.draft, importedIds, sceneId);
       } catch (failure) {
-        limitError = describeError(failure);
+        limitError = errorText(failure);
       }
       setEditor((previous) => ({
         ...previous,
@@ -934,29 +946,32 @@ export function StoryLibrary({
           />
         </div>
       )}
-      <div className={`story-savebar${needsSave ? " is-dirty" : ""}`}>
-        <span>
-          {needsSave ? (
-            "Storyline has unsaved edits"
-          ) : (
-            <>
-              <Check size={12} aria-hidden="true" /> Storyline saved
-            </>
-          )}
-        </span>
-        <button
-          className={needsSave ? "control" : ""}
-          disabled={busy || !needsSave}
-          onClick={() => void save()}
-        >
-          <Save size={13} aria-hidden="true" />
-          {action === "save"
-            ? "Saving…"
-            : conflict
-              ? "Save my version"
-              : "Save storyline"}
-        </button>
-      </div>
+      {/* A new project has nothing to save until something is typed. */}
+      {(editor.dirty || !!project.story) && (
+        <div className={`story-savebar${needsSave ? " is-dirty" : ""}`}>
+          <span>
+            {needsSave ? (
+              "Storyline has unsaved edits"
+            ) : (
+              <>
+                <Check size={12} aria-hidden="true" /> Storyline saved
+              </>
+            )}
+          </span>
+          <button
+            className={needsSave ? "control" : ""}
+            disabled={busy || !needsSave}
+            onClick={() => void save()}
+          >
+            <Save size={13} aria-hidden="true" />
+            {action === "save"
+              ? "Saving…"
+              : conflict
+                ? "Save my version"
+                : "Save storyline"}
+          </button>
+        </div>
+      )}
       {conflict && (
         <div className="story-warning" role="status">
           <p>
@@ -1041,10 +1056,6 @@ export function StoryLibrary({
               </h3>
               <span>{plural(draft.scenes.length, "scene")}</span>
             </div>
-            <p className="story-hint">
-              Create local narration, time the captions, and put your editable
-              scenes on the timeline.
-            </p>
             <div className="story-voice-settings">
               <label className="story-field">
                 Voice
@@ -1170,12 +1181,12 @@ export function StoryLibrary({
                   : "Create explainer"}
               </button>
             </div>
-            <p className="story-hint">
-              {draft.assembly
-                ? "Saves your outline and replaces its previous story sequence. Other timeline clips stay in place."
-                : "Saves your outline first. All scenes stay editable after creation."}{" "}
-              Follow progress or cancel in Jobs.
-            </p>
+            {draft.assembly && (
+              <p className="story-hint">
+                Replaces the previous story sequence. Other timeline clips stay
+                in place.
+              </p>
+            )}
           </section>
         )}
         {step === 0 && (
@@ -1257,17 +1268,13 @@ export function StoryLibrary({
               className="story-reference-section"
               open={sharedReferenceIds.length > 0}
             >
-              <summary>
+              <summary title="Keeps characters, wardrobe and visual style consistent across every generated scene">
                 <ImagePlus size={14} aria-hidden="true" />
                 Shared reference images
                 <span>
                   {sharedReferenceIds.length} / {STORY_REFERENCE_LIMIT}
                 </span>
               </summary>
-              <p className="story-hint">
-                Keep characters, wardrobe, and visual style consistent across
-                every generated scene.
-              </p>
               <ReferenceImages
                 images={sharedReferenceIds.map((id) => referenceImage(id))}
                 label="Shared story reference images"
@@ -1301,15 +1308,12 @@ export function StoryLibrary({
               <button
                 className="story-inline-action"
                 disabled={sharedReferenceCapacity >= STORY_REFERENCE_LIMIT}
+                title="PNG, JPEG or WebP. Up to 9 images per shot, including scene references. Images stay on this Mac until you generate a shot."
                 onClick={() => void importReferences()}
               >
                 <ImagePlus size={13} aria-hidden="true" /> Import shared
                 reference images
               </button>
-              <p className="story-hint">
-                PNG, JPEG, or WebP. Up to 9 images per shot, including scene
-                references. Images stay on this Mac until you generate a shot.
-              </p>
               {sharedReferenceCapacity >= STORY_REFERENCE_LIMIT && (
                 <p className="story-hint">
                   A scene has 9 references. Remove one before importing more
@@ -1332,10 +1336,6 @@ export function StoryLibrary({
                       onChange={(event) => setScript(event.target.value)}
                     />
                   </label>
-                  <p className="story-hint">
-                    Separate scenes with a blank line. You can edit every scene
-                    afterward.
-                  </p>
                   <button
                     className="primary"
                     disabled={!script.trim()}
@@ -1351,7 +1351,9 @@ export function StoryLibrary({
                       Keep current scenes
                     </button>
                   )}
-                  {!draft.scenes.length && (
+                  {/* Examples replace the script box, so they leave once
+                      something is typed there. */}
+                  {!draft.scenes.length && !script.trim() && (
                     <>
                       <span className="story-small-heading">
                         Or start with an editable example
@@ -1609,11 +1611,11 @@ export function StoryLibrary({
                     base={base}
                     aspectRatio={project.width / project.height}
                   />
-                  <p className="story-hint">
-                    {sceneNeedsMedia(selected)
-                      ? "Add a screenshot or screen recording below. Cutline adds the frame, copy, and motion locally."
-                      : "Created locally. This scene uses editable text and graphics, so no Higgsfield generation is needed."}
-                  </p>
+                  {sceneNeedsMedia(selected) && (
+                    <p className="story-hint">
+                      Add a screenshot or screen recording below.
+                    </p>
+                  )}
                   <button
                     className="story-inline-action"
                     onClick={() => setStep(0)}
@@ -1660,9 +1662,15 @@ export function StoryLibrary({
                     <Upload size={13} aria-hidden="true" />
                     Import footage or images
                   </button>
+                  {/* Paid generation is the fallback: it opens on its own
+                      only to show a shot that is on its way. */}
                   <details
                     className="story-shot-generator"
-                    open={!selectedVisual && !selected.design}
+                    open={
+                      !selectedVisual &&
+                      !selected.design &&
+                      !!selected.generationId
+                    }
                   >
                     <summary>Generate with Higgsfield</summary>
                     <label className="story-field">
@@ -1798,7 +1806,7 @@ export function StoryLibrary({
                       </p>
                     )}
                     {configured === false ? (
-                      <button className="control" onClick={openGenerate}>
+                      <button className="control" onClick={openSettings}>
                         Connect Higgsfield
                       </button>
                     ) : (
@@ -1900,7 +1908,10 @@ export function StoryLibrary({
                   }
                 />
               </label>
-              <div className="story-voice-settings">
+              <div
+                className="story-voice-settings"
+                title="Voice and pace apply to the whole story. Narration is made on this Mac."
+              >
                 <label className="story-field">
                   Voice
                   <select
@@ -1943,10 +1954,6 @@ export function StoryLibrary({
                   </select>
                 </label>
               </div>
-              <p className="story-hint">
-                Voice and pace apply to the whole story. Narration is created
-                locally on this Mac.
-              </p>
               {voiceCheckError && (
                 <p className="story-error" role="alert">
                   Could not check the voice engine: {voiceCheckError}
@@ -2193,10 +2200,6 @@ export function StoryLibrary({
                 building.
               </p>
             )}
-            <p className="story-hint">
-              Shots, graphics, voiceovers, captions, and music stay editable.
-              Short video shots loop to cover narration.
-            </p>
             {needsSave && (
               <p className="story-warning">
                 Save your storyline before building.
@@ -2206,6 +2209,7 @@ export function StoryLibrary({
               <button
                 className="primary story-build"
                 disabled={!assemblyReady}
+                title="Short video shots loop to cover their narration"
                 onClick={() => void assemble()}
               >
                 {action === "assemble" ? (
@@ -2282,9 +2286,7 @@ export function StoryLibrary({
             <Captions size={14} aria-hidden="true" />
             Review captions
           </button>
-          <p>
-            Play it back, refine the edit, then use Export video in the top bar.
-          </p>
+          <p>Play it back, refine the edit, then Export in the top bar.</p>
         </div>
       )}
     </div>

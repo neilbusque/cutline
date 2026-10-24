@@ -270,11 +270,11 @@ export function MotionInspector({
     setKeyError("");
     update({ keyframes: next });
   };
-  const removeKey = () =>
+  const removeKey = (keyFrame = at) =>
     update({
       keyframes: layer.keyframes
         .map((k) => {
-          if (k.frame !== at) return k;
+          if (k.frame !== keyFrame) return k;
           const next = { ...k };
           delete next[property];
           return next;
@@ -428,6 +428,13 @@ export function MotionInspector({
       onChange={(n) => update({ [field]: n })}
     />
   );
+  // A motion keeps at least one layer.
+  const removeLayers = (indices: number[]) => {
+    if (!indices.length || indices.length >= motion.layers.length) return;
+    const layers = motion.layers.filter((_, i) => !indices.includes(i));
+    put(layers, "Remove motion layers");
+    selectOnly(Math.min(index, layers.length - 1));
+  };
   const layerName = (l: Layer) =>
     l.name || (l.type === "text" ? l.text || "Clip text" : optionLabel(l.type));
   return (
@@ -479,6 +486,13 @@ export function MotionInspector({
                     setSelected(i);
                   } else if (selection.includes(i)) setSelected(i);
                   else selectOnly(i);
+                }}
+                onKeyDown={(event) => {
+                  if (event.key !== "Delete" && event.key !== "Backspace")
+                    return;
+                  event.preventDefault();
+                  event.stopPropagation();
+                  removeLayers(selection.includes(i) ? selection : [i]);
                 }}
               >
                 <span>{i + 1}</span>
@@ -567,13 +581,7 @@ export function MotionInspector({
           className="control"
           aria-label="Remove motion layer"
           disabled={selection.length === motion.layers.length}
-          onClick={() => {
-            const layers = motion.layers.filter(
-              (_, i) => !selection.includes(i),
-            );
-            put(layers, "Remove motion layers");
-            selectOnly(Math.min(index, layers.length - 1));
-          }}
+          onClick={() => removeLayers(selection)}
         >
           <Trash2 size={14} />
         </button>
@@ -625,6 +633,7 @@ export function MotionInspector({
           <button
             className="control"
             disabled={selection.length < 3}
+            title="Select three or more layers for equal gaps"
             onClick={() =>
               applyBatch(
                 distributeMotionLayers(
@@ -642,6 +651,7 @@ export function MotionInspector({
           <button
             className="control"
             disabled={selection.length < 3}
+            title="Select three or more layers for equal gaps"
             onClick={() =>
               applyBatch(
                 distributeMotionLayers(
@@ -657,10 +667,6 @@ export function MotionInspector({
             <Rows3 size={14} /> Space down
           </button>
         </div>
-        <p className="hint">
-          Aligns transformed layer boxes at the playhead and preserves their
-          motion paths. Select three layers for equal gaps.
-        </p>
         <details className="motion-batch-timing">
           <summary>
             Timing for {selection.length} selected{" "}
@@ -760,6 +766,7 @@ export function MotionInspector({
             </label>
             <button
               disabled={!timingScale.trim()}
+              title="50% is faster, 200% is slower. Clip duration stays the same."
               onClick={() =>
                 applyBatch(
                   scaleMotionLayerTiming(
@@ -774,11 +781,6 @@ export function MotionInspector({
               Retime
             </button>
           </div>
-          <p className="hint">
-            50% is faster; 200% is slower. Retimes keys and masked line reveals
-            from scene frame 0. Word and character spacing stays in Text reveal.
-            Clip duration stays the same.
-          </p>
         </details>
         {batchError && (
           <p role="alert" className="motion-batch-feedback error">
@@ -1154,7 +1156,9 @@ export function MotionInspector({
         )}
       </details>
       <details>
-        <summary>Transform & effects</summary>
+        <summary title="Animated values override these. Move X and Y keys are offsets.">
+          Transform & effects
+        </summary>
         <div className="two-col">
           <button onClick={() => update({ x: (clip.width - layer.width) / 2 })}>
             Center horizontally
@@ -1181,9 +1185,6 @@ export function MotionInspector({
           {layer.type !== "text" &&
             number("Stroke reveal", "trim", layer.trim, 0, 1, 0.05)}
         </div>
-        <p className="hint">
-          Animated values override these. Move X and Y keys are offsets.
-        </p>
       </details>
       <details open className="motion-curves">
         <summary>Animate layer</summary>
@@ -1253,7 +1254,7 @@ export function MotionInspector({
             <Diamond size={12} />
             {key ? "Update layer keyframe" : "Add layer keyframe"}
           </button>
-          <button disabled={!key || !inside} onClick={removeKey}>
+          <button disabled={!key || !inside} onClick={() => removeKey()}>
             Remove layer keyframe
           </button>
         </div>
@@ -1529,6 +1530,13 @@ export function MotionInspector({
                 setMoveFrame(String(Math.max(0, Math.min(moveMax, relative))));
                 setKeyError("");
                 seek(motionKeySeekFrame(layer, clip, k.frame, frame));
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Delete" && event.key !== "Backspace") return;
+                event.preventDefault();
+                event.stopPropagation();
+                removeKey(k.frame);
+                if (keyTarget === k.frame) setKeyTarget(undefined);
               }}
             >
               ◆ {k.frame} · {Math.round(k[property]! * 100) / 100} ·{" "}

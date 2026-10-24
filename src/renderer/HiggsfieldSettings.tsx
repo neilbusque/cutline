@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ExternalLink, KeyRound, LoaderCircle } from "lucide-react";
+import { errorText } from "./controls";
+import { StockSettings } from "./StockSettings";
 import "./agent-connections.css";
 
 type GenerationSettings = {
@@ -7,16 +9,13 @@ type GenerationSettings = {
   secureStorageAvailable: boolean | null;
   storageError?: string;
 };
-const errorText = (error: unknown) =>
-  error instanceof Error
-    ? error.message.replace(/^Error invoking remote method '[^']+': /, "")
-    : String(error);
 /** The Generate panel listens for this to refresh its connection state. */
 export const GENERATION_SETTINGS_EVENT = "cutline:generation-settings";
 
 /**
- * Pictures and video in Settings: the Higgsfield key, saved encrypted on this
- * Mac, and whether detailed graphics may become Higgsfield pictures.
+ * Pictures and video in Settings: the Higgsfield and Pexels keys, saved
+ * encrypted on this Mac, and whether detailed graphics may become Higgsfield
+ * pictures.
  */
 export function HiggsfieldSettings({
   report,
@@ -78,6 +77,8 @@ export function HiggsfieldSettings({
         disconnect ? undefined : { key: key.trim() },
       );
       setSettings(value);
+      // Cleared only once it is saved, so a failed save keeps the pasted key.
+      setKey("");
       setNotice(
         disconnect
           ? "Higgsfield key removed from this Mac."
@@ -87,7 +88,6 @@ export function HiggsfieldSettings({
     } catch (failure) {
       setError(errorText(failure));
     } finally {
-      setKey("");
       setBusy(false);
     }
   };
@@ -188,8 +188,10 @@ export function HiggsfieldSettings({
           {notice}
         </p>
       )}
+      <StockSettings report={report} />
       <p className="ac-note">
-        Saved encrypted on this Mac. Generating uses your Higgsfield credits.
+        Keys are saved encrypted on this Mac. Generating uses your Higgsfield
+        credits.
       </p>
     </div>
   );

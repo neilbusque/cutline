@@ -251,7 +251,13 @@ try {
 
   const screens = [
     ["story", async () => libraryTab("Story").click()],
-    ["generate", async () => libraryTab("Generate").click()],
+    ...["Graphic", "Video"].map((mode) => [
+      `generate-${mode.toLowerCase()}`,
+      async () => {
+        await libraryTab("Generate").click();
+        await clickText(".generate-mode", mode);
+      },
+    ]),
     [
       "reel-auto",
       async () => {

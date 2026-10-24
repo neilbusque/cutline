@@ -240,7 +240,7 @@ export type AgentMediaDeps = {
     style: StyleReelStyle,
     signal?: AbortSignal,
   ) => Promise<{ kind: "svg"; svg: string } | { kind: "image"; file: string }>;
-  /** cutline_graphic's work: the same route as Motion > Vectors > Generate. */
+  /** cutline_graphic's work: the same route as Generate > Graphic. */
   graphic?: (input: GraphicGenerateInput) => Promise<GraphicResult>;
   references?: {
     logo: (query: { name?: string; domain?: string }) => Promise<BrandLogo>;

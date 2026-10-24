@@ -5,9 +5,10 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import path from "node:path";
 import assert from "node:assert/strict";
 
-// Live check of the Vectors panel: generate with Claude and ChatGPT, add real
-// brand logos and a page screenshot, then render frames the way export does.
-// Uses the signed-in assistants and the network; disposable app data.
+// Live check of Generate > Graphic and the Vectors panel: generate with Claude
+// and ChatGPT, add real brand logos and a page screenshot, then render frames
+// the way export does. Uses the signed-in assistants and the network;
+// disposable app data.
 const root = process.cwd();
 const packaged = process.env.CUTLINE_PACKAGED !== "0";
 const out = path.resolve(
@@ -111,17 +112,25 @@ try {
       { width, height },
     );
   await resize(1440, 900);
-  await page
-    .locator(".library-tabs")
-    .getByRole("button", { name: "Motion", exact: true })
-    .click();
-  await page
-    .locator(".mg-tabs [role=tab]")
-    .filter({ hasText: "Vectors" })
-    .click();
-  await page.waitForSelector(".vs-studio");
+  const openVectors = async () => {
+    await page
+      .locator(".library-tabs")
+      .getByRole("button", { name: "Motion", exact: true })
+      .click();
+    await page
+      .locator(".mg-tabs [role=tab]")
+      .filter({ hasText: "Vectors" })
+      .click();
+    await page.waitForSelector(".vs-studio");
+  };
+  await openVectors();
   await page.screenshot({ path: path.join(out, "1440-vectors.png") });
   log("Vectors panel opens");
+  // Vectors keeps one row that opens the generator in Generate > Graphic.
+  await page.locator(".mg-generate-row button").click();
+  await page.waitForSelector(".graphic-studio", { state: "visible" });
+  await page.screenshot({ path: path.join(out, "1440-graphic.png") });
+  log("Generate > Graphic opens from Vectors");
 
   const seekTo = async (seconds) =>
     call("cutline_preview", { seconds, playing: false });
@@ -152,7 +161,7 @@ try {
         .getByRole("button", { name: run.provider })
         .click();
       const started = Date.now();
-      await page.locator(".vs-section .import-button.primary").click();
+      await page.locator(".graphic-studio .import-button.primary").click();
       await page.waitForSelector(".vs-result", { timeout: 300000 });
       await page.waitForTimeout(600);
       await page.screenshot({
@@ -205,6 +214,7 @@ try {
     );
   }
 
+  await openVectors();
   const addLogo = async (name, color, at) => {
     await seekTo(at);
     await page
@@ -277,11 +287,18 @@ try {
   await resize(1100, 800);
   await page.waitForTimeout(400);
   await page.screenshot({ path: path.join(out, "1100-vectors.png") });
-  const overflow = await page.evaluate(() => {
-    const panel = document.querySelector(".vs-studio");
-    return panel ? panel.scrollWidth - panel.clientWidth : 0;
-  });
-  assert(overflow <= 1, `Vector studio overflows by ${overflow}px`);
+  const overflow = (selector) =>
+    page.evaluate((selector) => {
+      const panel = document.querySelector(selector);
+      return panel ? panel.scrollWidth - panel.clientWidth : 0;
+    }, selector);
+  const vectorsOverflow = await overflow(".vs-studio");
+  assert(vectorsOverflow <= 1, `Vectors overflows by ${vectorsOverflow}px`);
+  await page.locator(".mg-generate-row button").click();
+  await page.waitForSelector(".graphic-studio", { state: "visible" });
+  await page.screenshot({ path: path.join(out, "1100-graphic.png") });
+  const graphicOverflow = await overflow(".graphic-studio");
+  assert(graphicOverflow <= 1, `Generate > Graphic overflows by ${graphicOverflow}px`);
   log("Narrow window fits");
 
   // Frames as export renders them.

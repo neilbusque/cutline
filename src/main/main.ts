@@ -1621,7 +1621,7 @@ function register() {
     },
     "projects.trash": (args) => trashProject(String(args?.path)),
     /**
-     * Motion > Vectors > Generate: a vector, or a Higgsfield picture that is
+     * Generate > Graphic: a vector, or a Higgsfield picture that is
      * imported into the project's media right away so it is never paid twice.
      */
     "graphic.generate": async (args) => {
@@ -2165,6 +2165,19 @@ app.whenReady().then(async () => {
       {
         label: "Edit",
         submenu: [
+          // The page decides: a text field undoes its typing, anything else
+          // undoes the last project edit. The page never handles ⌘Z itself.
+          {
+            label: "Undo",
+            accelerator: "CmdOrCtrl+Z",
+            click: () => send("ui", { edit: "undo" }),
+          },
+          {
+            label: "Redo",
+            accelerator: "Shift+CmdOrCtrl+Z",
+            click: () => send("ui", { edit: "redo" }),
+          },
+          { type: "separator" },
           { role: "cut" },
           { role: "copy" },
           { role: "paste" },

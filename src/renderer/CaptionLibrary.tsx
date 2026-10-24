@@ -736,7 +736,7 @@ export function CaptionLibrary({
             <details className="cs-replace">
               <summary>Find & replace</summary>
               <label className="cs-field">
-                Replace matching words with
+                Replace whole-word matches with
                 <input
                   aria-label="Replace caption words with"
                   value={replace}
@@ -744,9 +744,6 @@ export function CaptionLibrary({
                   placeholder="Replacement text"
                 />
               </label>
-              <p className="cs-hint">
-                Finds the search words in every caption, as whole words.
-              </p>
               <button
                 className="control"
                 disabled={!query}

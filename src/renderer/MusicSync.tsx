@@ -19,6 +19,7 @@ import { beatFrames } from "../shared/music-sync";
 import { isMotionAccentLayer } from "../shared/motion";
 import { countLabel } from "./labels";
 import { usePlayheadValue, type Playhead } from "./playhead";
+import { errorText } from "./controls";
 import "./music-sync.css";
 
 type Reactive = NonNullable<Clip["musicReactive"]>;
@@ -269,14 +270,10 @@ export function MusicSync({
       setNotice(success(result));
     } catch (reason) {
       if (mounted.current && request.current === token) {
-        const message =
-          reason instanceof Error ? reason.message : String(reason);
+        const message = errorText(reason);
         if (/cancelled|canceled/i.test(message))
           setNotice("Music operation cancelled. Your project was kept.");
-        else {
-          setError(message);
-          report(message);
-        }
+        else setError(message);
       }
     } finally {
       if (mounted.current && request.current === token) setBusy("");
@@ -827,12 +824,7 @@ export function MusicSync({
               onClick={() =>
                 window.cutline
                   .invoke("job.cancel", { id: running.id })
-                  .catch((reason) => {
-                    const message =
-                      reason instanceof Error ? reason.message : String(reason);
-                    setError(message);
-                    report(message);
-                  })
+                  .catch((reason) => setError(errorText(reason)))
               }
             >
               Cancel

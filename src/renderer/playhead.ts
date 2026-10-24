@@ -37,6 +37,18 @@ export function useStoreValue<T>(store: ValueStore<T>) {
 }
 
 /**
+ * Re-renders only when the selected value changes, such as whether any job
+ * of a kind is running. The selector must return a primitive.
+ */
+export function useStoreSelect<T, R>(
+  store: ValueStore<T>,
+  select: (value: T) => R,
+) {
+  const read = () => select(store.get());
+  return useSyncExternalStore(store.subscribe, read, read);
+}
+
+/**
  * Re-renders only when the selected value changes, for example when the
  * playhead crosses into the next caption. The selector must return a
  * primitive.

@@ -11,6 +11,7 @@ import {
   Clapperboard,
   Play,
   Pause,
+  Sparkles,
 } from "lucide-react";
 import { Film } from "../composition/Video";
 import { newProject, type Clip, type Project } from "../shared/model";
@@ -29,6 +30,8 @@ import { MotionTile } from "./MotionTile";
 import { parseEditableSvg } from "../shared/vector-path";
 import { createVectorScene } from "../shared/vector-scenes";
 import { VectorStudio } from "./VectorStudio";
+import { startVectorDrawing } from "./VectorEditor";
+import { errorText } from "./controls";
 import type { Playhead } from "./playhead";
 import {
   createMotionSequence,
@@ -152,7 +155,7 @@ export function MotionLibrary({
   select,
   addText,
   mediaBase = "",
-  openSettings,
+  openGraphic,
   visible = true,
 }: {
   p: Project;
@@ -162,7 +165,8 @@ export function MotionLibrary({
   select: (id: string) => void;
   addText: (preset: Clip["preset"]) => void;
   mediaBase?: string;
-  openSettings?: () => void;
+  /** Opens Generate > Graphic, where graphics are drawn from a sentence. */
+  openGraphic?: () => void;
   /** False while another library tab is showing; previews pause. */
   visible?: boolean;
 }) {
@@ -252,7 +256,7 @@ export function MotionLibrary({
         setSequencePlaying(false);
       }
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
+      setError(errorText(failure));
     } finally {
       setBusy(false);
     }
@@ -276,11 +280,13 @@ export function MotionLibrary({
         const created = createVectorScene(p, playhead.get(), parsed, {
           name: "Custom vector",
         });
-        if (await edit("Draw custom vector", created.commands))
+        if (await edit("Draw custom vector", created.commands)) {
+          startVectorDrawing(`${created.motion.id}:0`, created.motion.layers[0]);
           select(created.clip.id);
+        }
       }
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
+      setError(errorText(failure));
     } finally {
       setBusy(false);
     }
@@ -301,7 +307,7 @@ export function MotionLibrary({
       if (await edit(`Add ${created.motion.name}`, created.commands))
         select(created.clip.id);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
+      setError(errorText(failure));
     } finally {
       setBusy(false);
     }
@@ -383,10 +389,6 @@ export function MotionLibrary({
       >
         {tab === "sequence" && (
           <div className="mg-sequence">
-            <p className="mg-sequence-intro">
-              A strong opening, a developing idea, and a resolved ending.
-              Connected by one traveling mark.
-            </p>
             {sequencePreview && (
               <div
                 className="mg-sequence-preview"
@@ -525,6 +527,7 @@ export function MotionLibrary({
               </span>
               <select
                 aria-label="Sequence screen demo"
+                title="An imported screenshot or recording for the middle act. Recordings play once, muted."
                 value={sequence.assetId ?? ""}
                 onChange={(event) =>
                   updateSequence({ assetId: event.target.value || undefined })
@@ -542,10 +545,6 @@ export function MotionLibrary({
                   ))}
               </select>
             </label>
-            <p className="mg-sequence-hint">
-              Choose an imported screenshot or recording for the middle act.
-              Recordings play once, with their sound muted.
-            </p>
             <details className="mg-sequence-palette">
               <summary>Brand colors</summary>
               <div>
@@ -583,10 +582,6 @@ export function MotionLibrary({
                   : `Add ${sequence.seconds}s sequence`}
               </button>
             </div>
-            <p className="mg-sequence-hint">
-              New tracks at the playhead · one undo step · every layer stays
-              editable.
-            </p>
             {sequenceAdded && (
               <p className="mg-sequence-result" role="status">
                 {sequenceAdded}
@@ -657,17 +652,25 @@ export function MotionLibrary({
             {!shapes.length && <p className="mg-empty">No shapes match.</p>}
           </>
         )}
-        {/* Vectors stays mounted across sub-tabs so a drawing in progress
-            and its result are still there when you come back. */}
+        {/* Vectors stays mounted across sub-tabs so a logo search or page
+            capture in progress is still there when you come back. */}
         <div style={{ display: tab === "vectors" ? "contents" : "none" }}>
+            {openGraphic && (
+              <div className="mg-generate-row">
+                <button
+                  className="import-button control"
+                  onClick={openGraphic}
+                >
+                  <Sparkles size={15} />
+                  Generate a graphic from a sentence
+                </button>
+              </div>
+            )}
             <VectorStudio
               p={p}
               playhead={playhead}
-              edit={edit}
               select={select}
               onError={setError}
-              mediaBase={mediaBase}
-              openSettings={openSettings}
             />
             <div className="section-heading">
               <span>Draw or import</span>

@@ -185,7 +185,7 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_stock_search",
     description:
-      "Search photos/B-roll. Commons: no key; Pexels: connect in Stock. Returns previews/creator/license. Query goes to provider.",
+      "Search photos/B-roll. Commons: no key; Pexels: connect in Settings. Returns previews/creator/license. Query goes to provider.",
     inputSchema: {
       type: "object",
       properties: {

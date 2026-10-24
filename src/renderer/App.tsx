@@ -36,6 +36,7 @@ import { AudioLibrary } from "./AudioLibrary";
 import { MusicSync } from "./MusicSync";
 import { StockLibrary } from "./StockLibrary";
 import { GenerateLibrary } from "./GenerateLibrary";
+import { GraphicStudio } from "./GraphicStudio";
 import { StoryLibrary } from "./StoryLibrary";
 import { stackAssets, sequenceAssets, titleLayer } from "../shared/layers";
 import { MotionLibrary } from "./MotionLibrary";
@@ -43,10 +44,11 @@ import { CaptionLibrary } from "./CaptionLibrary";
 import { Assistant } from "./Assistant";
 import { AgentConnections } from "./AgentConnections";
 import { Sessions } from "./Sessions";
-import { IconButton, keepFocusInside } from "./controls";
+import { errorText, IconButton, keepFocusInside } from "./controls";
 import { Projects } from "./Projects";
 import {
   createEditQueue,
+  duplicateCommands,
   hasUnsavedWork,
   previewTransform,
   transformCommands,
@@ -54,8 +56,15 @@ import {
 } from "./edit-gestures";
 import { kindLabel } from "./labels";
 import {
+  ASSET_DRAG,
+  assetKindDrag,
+  isTextField,
+  keyStaysInFocus,
+} from "./timeline-focus";
+import {
   createValueStore,
   usePlayheadFrame,
+  useStoreSelect,
   useStoreValue,
   type Playhead,
   type ValueStore,
@@ -91,8 +100,23 @@ import {
   WandSparkles,
   Clapperboard,
   Layers,
+  Smartphone,
+  Images,
+  Palette,
 } from "lucide-react";
 const api = window.cutline;
+/** The left panels. Each has its own icon, so the grid can be scanned. */
+export const libraryTabs = [
+  { id: "story", icon: Clapperboard, label: "Story" },
+  { id: "reel", icon: Smartphone, label: "Reel" },
+  { id: "media", icon: FilmIcon, label: "Media" },
+  { id: "stock", icon: Images, label: "Stock" },
+  { id: "generate", icon: WandSparkles, label: "Generate" },
+  { id: "audio", icon: Music2, label: "Audio" },
+  { id: "text", icon: Layers, label: "Motion" },
+  { id: "effects", icon: Palette, label: "Effects" },
+  { id: "captions", icon: Captions, label: "Captions" },
+];
 function ErrorView({ error }: { error: string }) {
   return (
     <div className="preview-error">
@@ -160,6 +184,63 @@ function Timecode({
       {timecode(frame, fps)}
       <span> / {timecode(total, fps)}</span>
     </span>
+  );
+}
+type Jobs = ValueStore<Job[]>;
+const running = (jobs: Job[], kind: string) =>
+  jobs.some((j) => j.kind === kind && j.state === "running");
+/**
+ * Hands the job list to one panel. Job progress redraws the panels that show
+ * it, not the whole editor.
+ */
+function WithJobs({
+  jobs,
+  children,
+}: {
+  jobs: Jobs;
+  children: (list: Job[]) => React.ReactNode;
+}) {
+  return <>{children(useStoreValue(jobs))}</>;
+}
+/** The status bar's job line: the running job, or how the last one ended. */
+export function JobStatus({
+  jobs: store,
+  run,
+  report,
+}: {
+  jobs: Jobs;
+  run: (name: string, args?: unknown) => Promise<unknown>;
+  report: (e: unknown) => void;
+}) {
+  const jobs = useStoreValue(store);
+  // Jobs the person started come before background preview copies, so the
+  // status bar's message and Cancel point at what they are waiting for.
+  const active = jobs
+    .filter((j) => j.state === "running")
+    .sort(
+      (a, b) => Number(a.kind === "preview") - Number(b.kind === "preview"),
+    );
+  const latest = jobs.filter((j) => j.kind !== "preview").at(-1) ?? jobs.at(-1);
+  return active.length ? (
+    <div className="status-job">
+      <LoaderCircle size={12} className="spin" />
+      <span>{active[0].message}</span>
+      <progress value={active[0].progress} max={1} />
+      <button onClick={() => run("job.cancel", { id: active[0].id })}>
+        Cancel
+      </button>
+    </div>
+  ) : latest?.state === "done" && latest.output ? (
+    <button onClick={() => run("reveal", { id: latest.id })}>
+      <Check size={12} />
+      Export complete · Show in Finder
+    </button>
+  ) : latest?.state === "error" ? (
+    <button className="status-error" onClick={() => report(latest.message)}>
+      Job failed · View details
+    </button>
+  ) : (
+    <span />
   );
 }
 type LayerDraft = ValueStore<Clip | undefined>;
@@ -281,7 +362,16 @@ export function App() {
   const [snap, setSnap] = useState<Snapshot>();
   const [base, setBase] = useState("");
   const [settings, setSettings] = useState<any>();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  // Jobs live outside React state: only the status bar and the panels that
+  // show a job follow its progress.
+  const [jobs] = useState<Jobs>(() => createValueStore<Job[]>([]));
+  const exporting = useStoreSelect(jobs, (list) => running(list, "export"));
+  const transcribing = useStoreSelect(jobs, (list) =>
+    running(list, "transcribe"),
+  );
+  const findingPauses = useStoreSelect(jobs, (list) =>
+    running(list, "analyze"),
+  );
   const [selected, setSelected] = useState<string>();
   const [musicClipId, setMusicClipId] = useState<string>();
   const [showBeats, setShowBeats] = useState(true);
@@ -305,6 +395,10 @@ export function App() {
     text: string;
   }>();
   const [reelMode, setReelMode] = useState("auto");
+  // Claude or ChatGPT draws first; Higgsfield video is the other mode.
+  const [generateMode, setGenerateMode] = useState<"graphic" | "video">(
+    "graphic",
+  );
   const [right, setRight] = useState("properties");
   const [sidebar, setSidebar] = useState(true);
   const [error, setError] = useState("");
@@ -322,6 +416,11 @@ export function App() {
     | undefined
   >(undefined);
   const [snapGuides, setSnapGuides] = useState<{ x?: number; y?: number }>({});
+  // A drag redraws the editor only when a guide appears, moves or goes away.
+  const showGuides = (x?: number, y?: number) =>
+    setSnapGuides((shown) =>
+      shown.x === x && shown.y === y ? shown : { x, y },
+    );
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [projectsOpen, setProjectsOpen] = useState(false);
   const settingsModal = useRef<HTMLElement>(null);
@@ -366,7 +465,7 @@ export function App() {
   }, [p?.id]);
   const clip = p?.clips.find((c) => c.id === selected);
   const report = useCallback((e: unknown) => {
-    setError(e instanceof Error ? e.message : String(e));
+    setError(errorText(e));
   }, []);
   const run = useCallback(
     async (name: string, args?: unknown) => {
@@ -390,22 +489,33 @@ export function App() {
         setSnap(s.snapshot);
         setBase(s.mediaBase);
         setSettings(s.settings);
-        setJobs(s.jobs);
+        jobs.set(s.jobs);
       })
       .catch(report);
     const off = api.on("state", (next: Snapshot) => {
       if (started) setSnap(next);
     });
     const offJob = api.on("job", (j: Job) =>
-      setJobs((list) => [...list.filter((x) => x.id !== j.id), j]),
+      jobs.set([...jobs.get().filter((x) => x.id !== j.id), j]),
     );
-    // File › Projects… (⌘O) opens the projects sheet.
-    const offUi = api.on("ui", (event: { show?: string }) => {
-      if (event?.show === "projects") {
-        setSettingsOpen(false);
-        setProjectsOpen(true);
-      }
-    });
+    // File › Projects… (⌘O) opens the projects sheet. Edit › Undo and Redo
+    // (⌘Z, ⇧⌘Z) undo typing in a text field, otherwise the last project edit.
+    const offUi = api.on(
+      "ui",
+      (event: { show?: string; edit?: "undo" | "redo" }) => {
+        if (event?.show === "projects") {
+          setSettingsOpen(false);
+          setProjectsOpen(true);
+        }
+        if (event?.edit !== "undo" && event?.edit !== "redo") return;
+        const focused = document.activeElement as HTMLElement | null;
+        if (focused && isTextField(focused)) document.execCommand(event.edit);
+        // An open dialog (Settings, Projects or Sessions) leaves the
+        // project alone.
+        else if (!document.querySelector('[aria-modal="true"]'))
+          void run(event.edit);
+      },
+    );
     return () => {
       off();
       offJob();
@@ -517,13 +627,9 @@ export function App() {
     }
   };
   const duplicate = () => {
-    if (!clip) return;
-    const copy = {
-      ...structuredClone(clip),
-      id: uid(),
-      start: clip.start + clip.duration,
-    };
-    edit("Duplicate clip", [{ type: "clip.add", clip: copy }]);
+    if (!clip || !p) return;
+    const copy = duplicateCommands(p, clip);
+    edit("Duplicate clip", copy.commands);
     setSelected(copy.id);
   };
   useEffect(() => {
@@ -557,6 +663,7 @@ export function App() {
       const target = e.target as HTMLElement;
       if (target.matches("input,textarea,select") || target.isContentEditable)
         return;
+      const focused = keyStaysInFocus(target, e.key);
       if (e.key === "Escape") {
         setSelected(undefined);
         setSettingsOpen(false);
@@ -567,7 +674,7 @@ export function App() {
         duplicate();
         return;
       }
-      if (e.code === "Space") {
+      if (e.code === "Space" && !focused) {
         // A clicked button keeps focus; Space should still play, not click it
         // again. Keyboard-focused buttons keep their normal Space behaviour.
         const button = target.closest("button");
@@ -577,10 +684,6 @@ export function App() {
           player.current?.toggle();
         }
       }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") {
-        e.preventDefault();
-        void run(e.shiftKey ? "redo" : "undo");
-      }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "b") {
         e.preventDefault();
         split();
@@ -589,6 +692,7 @@ export function App() {
         e.preventDefault();
         void run(e.shiftKey ? "save.as" : "save");
       }
+      if (focused) return;
       if (e.key === "Backspace" || e.key === "Delete") {
         e.preventDefault();
         remove(e.shiftKey);
@@ -754,14 +858,17 @@ export function App() {
           clipId: selected,
         })
       : report("Select a video or audio clip first.");
-  const pauses = () =>
-    selected
-      ? run("pauses", {
-          projectId: p.id,
-          revision: p.revision,
-          clipId: selected,
-        })
-      : report("Select a video or audio clip first.");
+  const pauses = async (): Promise<{ removed: boolean } | undefined> => {
+    if (!selected) {
+      report("Select a video or audio clip first.");
+      return;
+    }
+    return run("pauses", {
+      projectId: p.id,
+      revision: p.revision,
+      clipId: selected,
+    });
+  };
   async function importMedia(paths?: string[], kind?: "audio") {
     setImporting(true);
     try {
@@ -772,14 +879,6 @@ export function App() {
       setImporting(false);
     }
   }
-  // Jobs the person started come before background preview copies, so the
-  // status bar's message and Cancel point at what they are waiting for.
-  const active = jobs
-    .filter((j) => j.state === "running")
-    .sort(
-      (a, b) => Number(a.kind === "preview") - Number(b.kind === "preview"),
-    );
-  const latest = jobs.filter((j) => j.kind !== "preview").at(-1) ?? jobs.at(-1);
   // A project that was never saved lives only in the recovery file, which a
   // new or opened project replaces.
   const unsaved = hasUnsavedWork(snap);
@@ -837,7 +936,7 @@ export function App() {
         dy = Math.round((ev.clientY - initial.y) * scale);
       if (resize) {
         change = resizeOnStage(shown, dx, dy, ev.shiftKey);
-        setSnapGuides({});
+        showGuides();
       } else {
         const axis = ev.shiftKey
           ? Math.abs(dx) >= Math.abs(dy)
@@ -852,10 +951,10 @@ export function App() {
         if (stageSnap && !ev.altKey) {
           const snapped = snapOnStage(moved, p, others, 6 * scale, axis);
           change = { x: snapped.x, y: snapped.y };
-          setSnapGuides({ x: snapped.guideX, y: snapped.guideY });
+          showGuides(snapped.guideX, snapped.guideY);
         } else {
           change = { x: moved.x, y: moved.y };
-          setSnapGuides({});
+          showGuides();
         }
       }
       if (!request) request = requestAnimationFrame(show);
@@ -866,7 +965,7 @@ export function App() {
       window.removeEventListener("pointercancel", cancel);
       window.removeEventListener("keydown", escape, true);
       window.removeEventListener("blur", cancel);
-      setSnapGuides({});
+      showGuides();
       cancelAnimationFrame(request);
       request = 0;
     };
@@ -1053,10 +1152,7 @@ export function App() {
           <button
             className="primary export"
             onClick={() => run("export")}
-            disabled={
-              !p.clips.length ||
-              jobs.some((j) => j.kind === "export" && j.state === "running")
-            }
+            disabled={!p.clips.length || exporting}
           >
             <Download size={14} />
             Export
@@ -1066,17 +1162,7 @@ export function App() {
       <main className={"workspace " + (!sidebar ? "no-sidebar" : "")}>
         <aside className="library">
           <nav className="library-tabs">
-            {[
-              { id: "story", icon: Clapperboard, label: "Story" },
-              { id: "reel", icon: Sparkles, label: "Reel" },
-              { id: "media", icon: FilmIcon, label: "Media" },
-              { id: "stock", icon: Clapperboard, label: "Stock" },
-              { id: "generate", icon: WandSparkles, label: "Generate" },
-              { id: "audio", icon: Music2, label: "Audio" },
-              { id: "text", icon: Layers, label: "Motion" },
-              { id: "effects", icon: WandSparkles, label: "Effects" },
-              { id: "captions", icon: Captions, label: "Captions" },
-            ].map((t) => (
+            {libraryTabs.map((t) => (
               <button
                 key={t.id}
                 aria-pressed={left === t.id}
@@ -1089,26 +1175,35 @@ export function App() {
             ))}
           </nav>
           <div style={{ display: left === "story" ? "contents" : "none" }}>
-            <StoryLibrary
-              project={p}
-              base={base}
-              jobs={jobs}
-              active={left === "story"}
-              missing={snap.missing}
-              importMedia={() => void importMedia()}
-              openGenerate={() => setLeft("generate")}
-              openCaptions={() => setLeft("captions")}
-              onCreated={(frame) => {
-                seek(frame);
-                setPlaying(false);
-              }}
-              onAskAssistant={(text) => {
-                setSidebar(true);
-                setRight("assistant");
-                setAssistantDraft({ id: Date.now(), text });
-              }}
-              report={report}
-            />
+            <WithJobs jobs={jobs}>
+              {(list) => (
+                <StoryLibrary
+                  project={p}
+                  base={base}
+                  jobs={list}
+                  active={left === "story"}
+                  missing={snap.missing}
+                  importMedia={() => void importMedia()}
+                  openGenerate={() => {
+                    setGenerateMode("video");
+                    setLeft("generate");
+                  }}
+                  openCaptions={() => setLeft("captions")}
+                  openSettings={() => setSettingsOpen(true)}
+                  onCreated={(frame) => {
+                    // Playing follows the player's pause event, as everywhere.
+                    player.current?.pause();
+                    seek(frame);
+                  }}
+                  onAskAssistant={(text) => {
+                    setSidebar(true);
+                    setRight("assistant");
+                    setAssistantDraft({ id: Date.now(), text });
+                  }}
+                  report={report}
+                />
+              )}
+            </WithJobs>
           </div>
           <div
             className="reel-workspace"
@@ -1131,48 +1226,52 @@ export function App() {
               </button>
             </nav>
             <div style={{ display: reelMode === "auto" ? "contents" : "none" }}>
-              <AutoReel
-                key={p.id}
-                project={p}
-                jobs={jobs}
-                missing={snap.missing}
-                report={report}
-                onCreated={(f) => {
-                  setSelected(undefined);
-                  player.current?.pause();
-                  seek(f);
-                }}
-                reviewCaptions={() => {
-                  const first = p.clips
-                    .filter((c) => c.kind === "caption")
-                    .sort((a, b) => a.start - b.start)[0];
-                  if (first) {
-                    select(first.id);
-                    seek(first.start);
-                  }
-                  setLeft("captions");
-                }}
-                reviewEffects={() => {
-                  const first = p.clips.find(
-                    (c) =>
-                      c.kind === "video" &&
-                      !p.assets.find((a) => a.id === c.assetId)?.origin,
-                  );
-                  if (first) {
-                    select(first.id);
-                    seek(first.start);
-                  }
-                  setLeft("effects");
-                }}
-                preview={(f) => {
-                  seek(f);
-                  player.current?.play();
-                }}
-                seek={(f) => {
-                  player.current?.pause();
-                  seek(f);
-                }}
-              />
+              <WithJobs jobs={jobs}>
+                {(list) => (
+                  <AutoReel
+                    key={p.id}
+                    project={p}
+                    jobs={list}
+                    missing={snap.missing}
+                    report={report}
+                    onCreated={(f) => {
+                      setSelected(undefined);
+                      player.current?.pause();
+                      seek(f);
+                    }}
+                    reviewCaptions={() => {
+                      const first = p.clips
+                        .filter((c) => c.kind === "caption")
+                        .sort((a, b) => a.start - b.start)[0];
+                      if (first) {
+                        select(first.id);
+                        seek(first.start);
+                      }
+                      setLeft("captions");
+                    }}
+                    reviewEffects={() => {
+                      const first = p.clips.find(
+                        (c) =>
+                          c.kind === "video" &&
+                          !p.assets.find((a) => a.id === c.assetId)?.origin,
+                      );
+                      if (first) {
+                        select(first.id);
+                        seek(first.start);
+                      }
+                      setLeft("effects");
+                    }}
+                    preview={(f) => {
+                      seek(f);
+                      player.current?.play();
+                    }}
+                    seek={(f) => {
+                      player.current?.pause();
+                      seek(f);
+                    }}
+                  />
+                )}
+              </WithJobs>
             </div>
             <div
               style={{ display: reelMode === "manual" ? "contents" : "none" }}
@@ -1195,55 +1294,59 @@ export function App() {
             </div>
           </div>
           <div style={{ display: left === "audio" ? "contents" : "none" }}>
-            <AudioLibrary
-              key={p.id}
-              project={p}
-              base={base}
-              jobs={jobs}
-              active={left === "audio"}
-              musicSync={
-                <MusicSync
+            <WithJobs jobs={jobs}>
+              {(list) => (
+                <AudioLibrary
+                  key={p.id}
                   project={p}
-                  jobs={jobs}
-                  selectedClipId={selected}
-                  playhead={playhead}
+                  base={base}
+                  jobs={list}
                   active={left === "audio"}
-                  musicClipId={effectiveMusicClipId}
-                  onMusicClipId={setMusicClipId}
-                  showBeats={showBeats}
-                  onShowBeats={setShowBeats}
-                  onSeek={seek}
-                  onPlayFrom={(f) => {
-                    seek(f);
-                    player.current?.play();
+                  musicSync={
+                    <MusicSync
+                      project={p}
+                      jobs={list}
+                      selectedClipId={selected}
+                      playhead={playhead}
+                      active={left === "audio"}
+                      musicClipId={effectiveMusicClipId}
+                      onMusicClipId={setMusicClipId}
+                      showBeats={showBeats}
+                      onShowBeats={setShowBeats}
+                      onSeek={seek}
+                      onPlayFrom={(f) => {
+                        seek(f);
+                        player.current?.play();
+                      }}
+                      report={report}
+                    />
+                  }
+                  addAudio={(a) => {
+                    const frame = playhead.get();
+                    const empty = p.tracks.find(
+                      (t) =>
+                        t.kind === "audio" &&
+                        !t.muted &&
+                        !t.hidden &&
+                        !p.clips.some((c) => c.trackId === t.id),
+                    );
+                    if (empty) {
+                      addAsset(a, empty.id, frame);
+                      return;
+                    }
+                    const commands = stackAssets(p, [a], frame);
+                    edit("Add audio layer", commands);
+                    const added = commands.find((c) => c.type === "clip.add");
+                    if (added?.type === "clip.add") {
+                      setSelected(added.clip.id);
+                      pendingSeek.current = { id: added.clip.id, frame };
+                    }
                   }}
+                  importAudio={() => void importMedia(undefined, "audio")}
                   report={report}
                 />
-              }
-              addAudio={(a) => {
-                const frame = playhead.get();
-                const empty = p.tracks.find(
-                  (t) =>
-                    t.kind === "audio" &&
-                    !t.muted &&
-                    !t.hidden &&
-                    !p.clips.some((c) => c.trackId === t.id),
-                );
-                if (empty) {
-                  addAsset(a, empty.id, frame);
-                  return;
-                }
-                const commands = stackAssets(p, [a], frame);
-                edit("Add audio layer", commands);
-                const added = commands.find((c) => c.type === "clip.add");
-                if (added?.type === "clip.add") {
-                  setSelected(added.clip.id);
-                  pendingSeek.current = { id: added.clip.id, frame };
-                }
-              }}
-              importAudio={() => void importMedia(undefined, "audio")}
-              report={report}
-            />
+              )}
+            </WithJobs>
           </div>
           {left === "media" && (
             <div className="library-content">
@@ -1370,10 +1473,10 @@ export function App() {
                             className="asset-preview"
                             draggable={!snap.missing.includes(a.id)}
                             onDragStart={(e) => {
-                              e.dataTransfer.setData(
-                                "application/x-cutline-asset",
-                                a.id,
-                              );
+                              e.dataTransfer.setData(ASSET_DRAG, a.id);
+                              // The kind lets tracks that refuse it say so
+                              // while dragging; data is unreadable until drop.
+                              e.dataTransfer.setData(assetKindDrag(a.kind), a.kind);
                               e.dataTransfer.effectAllowed = "copy";
                             }}
                             title="Double-click to add, or drag onto a track"
@@ -1448,12 +1551,15 @@ export function App() {
               </div>
             </div>
           )}
-          {/* Kept mounted: a graphic can take a minute to draw. */}
+          {/* Kept mounted: a logo search or page capture can take a while. */}
           <div style={{ display: left === "text" ? "contents" : "none" }}>
             <MotionLibrary
               visible={left === "text"}
               mediaBase={base}
-              openSettings={() => setSettingsOpen(true)}
+              openGraphic={() => {
+                setGenerateMode("graphic");
+                setLeft("generate");
+              }}
               p={p}
               playhead={playhead}
               edit={edit}
@@ -1472,23 +1578,60 @@ export function App() {
               active={left === "stock"}
               addBroll={addBroll}
               report={report}
+              openSettings={() => setSettingsOpen(true)}
             />
           </div>
-          <div style={{ display: left === "generate" ? "contents" : "none" }}>
-            <GenerateLibrary
-              openSettings={() => setSettingsOpen(true)}
-              active={left === "generate"}
-              projectId={p.id}
-              aspectRatio={
-                p.width > p.height
-                  ? "16:9"
-                  : p.height > p.width
-                    ? "9:16"
-                    : "1:1"
-              }
-              addBroll={addBroll}
-              report={report}
-            />
+          {/* Both modes stay mounted: a graphic can take a minute to draw. */}
+          <div
+            className="generate-workspace"
+            style={{ display: left === "generate" ? "flex" : "none" }}
+          >
+            <nav className="generate-mode pill-tabs" aria-label="Generate">
+              <button
+                className={generateMode === "graphic" ? "active" : ""}
+                aria-pressed={generateMode === "graphic"}
+                onClick={() => setGenerateMode("graphic")}
+              >
+                Graphic
+              </button>
+              <button
+                className={generateMode === "video" ? "active" : ""}
+                aria-pressed={generateMode === "video"}
+                onClick={() => setGenerateMode("video")}
+              >
+                Video
+              </button>
+            </nav>
+            <div
+              style={{ display: generateMode === "graphic" ? "contents" : "none" }}
+            >
+              <GraphicStudio
+                p={p}
+                playhead={playhead}
+                edit={edit}
+                select={select}
+                mediaBase={base}
+                openSettings={() => setSettingsOpen(true)}
+              />
+            </div>
+            <div
+              style={{ display: generateMode === "video" ? "contents" : "none" }}
+            >
+              <GenerateLibrary
+                openSettings={() => setSettingsOpen(true)}
+                active={left === "generate" && generateMode === "video"}
+                projectId={p.id}
+                aspectRatio={
+                  p.width > p.height
+                    ? "16:9"
+                    : p.height > p.width
+                      ? "9:16"
+                      : "1:1"
+                }
+                addBroll={addBroll}
+                report={report}
+              />
+            </div>
           </div>
           <div style={{ display: left === "captions" ? "contents" : "none" }}>
             <CaptionLibrary
@@ -1502,9 +1645,7 @@ export function App() {
               edit={edit}
               transcribe={transcribe}
               run={run}
-              busy={jobs.some(
-                (j) => j.kind === "transcribe" && j.state === "running",
-              )}
+              busy={transcribing}
             />
           </div>
         </aside>
@@ -1742,6 +1883,8 @@ export function App() {
                 edit={edit}
                 transcribe={transcribe}
                 pauses={pauses}
+                transcribing={transcribing}
+                findingPauses={findingPauses}
                 report={report}
                 openPanel={setLeft}
               />
@@ -1785,30 +1928,7 @@ export function App() {
           <span className="local-dot" />{" "}
           {snap.filePath ? "Project saved" : "Recovery saved locally"}
         </span>
-        {active.length ? (
-          <div className="status-job">
-            <LoaderCircle size={12} className="spin" />
-            <span>{active[0].message}</span>
-            <progress value={active[0].progress} max={1} />
-            <button onClick={() => run("job.cancel", { id: active[0].id })}>
-              Cancel
-            </button>
-          </div>
-        ) : latest?.state === "done" && latest.output ? (
-          <button onClick={() => run("reveal", { id: latest.id })}>
-            <Check size={12} />
-            Export complete · Show in Finder
-          </button>
-        ) : latest?.state === "error" ? (
-          <button
-            className="status-error"
-            onClick={() => report(latest.message)}
-          >
-            Job failed · View details
-          </button>
-        ) : (
-          <span />
-        )}
+        <JobStatus jobs={jobs} run={run} report={report} />
       </footer>
       {error && (
         <div className="error-toast" role="alert">
@@ -1869,7 +1989,7 @@ export function App() {
             <p>
               {settings?.transcriptionReady
                 ? "Whisper base multilingual model is installed. Speech stays on this Mac."
-                : "Speech tools are missing from this bundle. Run the documented vendor setup and rebuild."}
+                : "Speech tools are missing from this install. Reinstall Cutline to transcribe."}
             </p>
             <HiggsfieldSettings report={report} />
             <AgentConnections
