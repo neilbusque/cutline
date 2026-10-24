@@ -4,7 +4,11 @@ import { buildAutoReel, AutoReelOptionsSchema } from "./auto-reel";
 import { Speech } from "./tts";
 import { StockCredentials } from "./stock-credentials";
 import { GenerationCredentials } from "./generation-credentials";
-import { GenerationLibrary } from "./generation";
+import {
+  GenerationLibrary,
+  higgsfieldCall,
+  ProviderError,
+} from "./generation";
 import { StoryControl } from "./story-control";
 import { StoryProduction } from "./story-production";
 import { StoryBatchProduction } from "./story-batch";
@@ -1351,7 +1355,25 @@ function register() {
       });
     },
     "generation.settings": () => generationCredentials.status(),
-    "generation.configure": (args) => generationCredentials.setKey(args.key),
+    "generation.configure": async (args) => {
+      // A free price check catches a rejected key now, not on a paid request.
+      // Offline or any other answer keeps the key; only a 401 refuses it.
+      const key = typeof args?.key === "string" ? args.key.trim() : "";
+      try {
+        await higgsfieldCall(
+          (...request) => fetch(...request),
+          "estimate/recraft/v4.1/text-to-image",
+          key,
+          { prompt: "Key check", resolution: "1k", aspect_ratio: "1:1" },
+        );
+      } catch (error) {
+        if (error instanceof ProviderError && error.status === 401)
+          throw Error(
+            "Higgsfield rejected this key. Copy the complete key from open.higgsfield.ai and paste it again.",
+          );
+      }
+      return generationCredentials.setKey(key);
+    },
     "generation.disconnect": () => generationCredentials.clearKey(),
     "generation.openKeys": () =>
       shell.openExternal("https://open.higgsfield.ai/api-keys"),

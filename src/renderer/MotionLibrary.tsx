@@ -153,6 +153,7 @@ export function MotionLibrary({
   addText,
   mediaBase = "",
   openSettings,
+  visible = true,
 }: {
   p: Project;
   /** New items start at the playhead; read when they are added. */
@@ -162,6 +163,8 @@ export function MotionLibrary({
   addText: (preset: Clip["preset"]) => void;
   mediaBase?: string;
   openSettings?: () => void;
+  /** False while another library tab is showing; previews pause. */
+  visible?: boolean;
 }) {
   const [tab, setTab] = useState<
     "sequence" | "scenes" | "shapes" | "vectors" | "text"
@@ -175,6 +178,9 @@ export function MotionLibrary({
     ...defaultMotionSequence,
   });
   const [sequencePlaying, setSequencePlaying] = useState(false);
+  useEffect(() => {
+    if (!visible) setSequencePlaying(false);
+  }, [visible]);
   const [sequenceAdded, setSequenceAdded] = useState("");
   const reduced = useReducedMotion();
   const matches = (value: string) =>
@@ -651,8 +657,9 @@ export function MotionLibrary({
             {!shapes.length && <p className="mg-empty">No shapes match.</p>}
           </>
         )}
-        {tab === "vectors" && (
-          <>
+        {/* Vectors stays mounted across sub-tabs so a drawing in progress
+            and its result are still there when you come back. */}
+        <div style={{ display: tab === "vectors" ? "contents" : "none" }}>
             <VectorStudio
               p={p}
               playhead={playhead}
@@ -705,8 +712,7 @@ export function MotionLibrary({
               ))}
             </div>
             {!logos.length && <p className="mg-empty">No logo scenes match.</p>}
-          </>
-        )}
+        </div>
         {tab === "text" && (
           <>
             <button

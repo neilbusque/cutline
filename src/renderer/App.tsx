@@ -1439,8 +1439,10 @@ export function App() {
               </div>
             </div>
           )}
-          {left === "text" && (
+          {/* Kept mounted: a graphic can take a minute to draw. */}
+          <div style={{ display: left === "text" ? "contents" : "none" }}>
             <MotionLibrary
+              visible={left === "text"}
               mediaBase={base}
               openSettings={() => setSettingsOpen(true)}
               p={p}
@@ -1449,7 +1451,7 @@ export function App() {
               select={select}
               addText={addText}
             />
-          )}
+          </div>
           {left === "effects" && (
             <EffectsPanel p={p} clip={clip} edit={edit} base={base} />
           )}

@@ -167,6 +167,7 @@ export function VectorStudio({
           aspect,
           provider,
           route,
+          onto: `video with a ${p.background} background`,
         }),
       );
     } catch (failure) {
@@ -392,11 +393,28 @@ export function VectorStudio({
                 Open Settings
               </button>
             )}
-            {result.kind === "picture" && (
-              <button className="vs-link vs-switch" onClick={() => void generate("vector")}>
-                Draw it as a vector instead
-              </button>
-            )}
+            {result.kind === "picture" &&
+              (result.drawing ? (
+                <button
+                  className="vs-link vs-switch"
+                  onClick={() =>
+                    setResult({
+                      kind: "vector",
+                      ...result.drawing!,
+                      attempts: 0,
+                    })
+                  }
+                >
+                  Use the drawing instead
+                </button>
+              ) : (
+                <button
+                  className="vs-link vs-switch"
+                  onClick={() => void generate("vector")}
+                >
+                  Draw it as a vector instead
+                </button>
+              ))}
           </div>
         )}
       </section>

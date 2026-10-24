@@ -773,6 +773,17 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
           }),
         );
       const keys = entrance(style, fps);
+      // A drawing builds in part by part, back to front, all of it landed
+      // within half a second; logos, lines and the card arrive at once.
+      const parts =
+        visual.kind === "svg" && visual.drawing
+          ? layers.filter((layer) => layer.name !== "Card").length
+          : 0;
+      const step =
+        parts > 1 ? Math.min(Math.round(fps * 0.07), Math.floor((fps * 0.5) / (parts - 1))) : 0;
+      let part = 0;
+      const delay = (layer: (typeof layers)[number]) =>
+        step && layer.name !== "Card" ? step * part++ : 0;
       const motion = MotionSchema.parse({
         id: uid(),
         name:
@@ -782,17 +793,18 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
               : `${visual.title} logo`
             : "Beat line",
         source: `style-reel:${style}:${visual.kind}`,
-        layers: layers.map((layer) =>
-          MotionLayerSchema.parse({
+        layers: layers.map((layer) => {
+          const offset = delay(layer);
+          return MotionLayerSchema.parse({
             ...layer,
             keyframes: keys.map((key) => ({
-              frame: key.frame,
+              frame: key.frame + offset,
               scale: key.scale,
               opacity: key.opacity,
               easing: key.easing,
             })),
-          }),
-        ),
+          });
+        }),
       });
       add(
         {

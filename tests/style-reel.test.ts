@@ -162,6 +162,40 @@ describe("creator-style Shorts", () => {
     ).toBe(true);
   });
 
+  it("builds a drawing in part by part and places a cut-out picture unframed", () => {
+    const drawing =
+      '<svg viewBox="0 0 100 100"><circle id="head" cx="50" cy="40" r="20" fill="#3aa8c0"/><rect id="body" x="35" y="60" width="30" height="30" fill="#2e8ba0"/><circle id="eye" cx="45" cy="38" r="4" fill="#111111"/></svg>';
+    const p = speakerProject();
+    p.assets.push({
+      id: "cutout",
+      name: "Monster",
+      kind: "image",
+      path: "/tmp/monster.png",
+      duration: 0,
+      width: 800,
+      height: 900,
+      hasAudio: false,
+    });
+    const { project } = buildStyleReel(p, {
+      style: "split",
+      beats: [
+        { from: 0, to: 2, visual: { kind: "svg", svg: drawing, title: "Robot", drawing: true } },
+        { from: 2, to: 4, visual: { kind: "asset", assetId: "cutout", drawing: true } },
+      ],
+    });
+    const robot = project.motions.find((m) => m.name === "Robot")!;
+    const starts = robot.layers
+      .filter((layer) => layer.name !== "Card")
+      .map((layer) => layer.keyframes[0].frame);
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+    expect(starts.at(-1)!).toBeGreaterThan(starts[0]);
+    expect(starts.at(-1)! - starts[0]).toBeLessThanOrEqual(project.fps * 0.5);
+    const picture = project.clips.find((clip) => clip.assetId === "cutout")!;
+    expect(picture.mask).toBe("none");
+    expect(picture.shadowBlur ?? 0).toBe(0);
+    expect(picture.width / picture.height).toBeCloseTo(800 / 900, 1);
+  });
+
   it("running again replaces its own layers and keeps everything else", () => {
     const once = buildStyleReel(speakerProject(), {
       style: "split",
