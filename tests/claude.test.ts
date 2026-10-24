@@ -87,11 +87,21 @@ function replyWithTool(c: any) {
       delta: { type: "text_delta", text: "Looking." },
     },
   });
+  // Claude Code reports each content block as its own assistant message, and
+  // the message's stop reason says whether a tool call follows.
+  c.emitLine({
+    type: "assistant",
+    message: { content: [{ type: "text", text: "Looking." }] },
+  });
   c.emitLine({
     type: "assistant",
     message: {
       content: [{ type: "tool_use", name: "mcp__cutline__cutline_edit" }],
     },
+  });
+  c.emitLine({
+    type: "stream_event",
+    event: { type: "message_delta", delta: { stop_reason: "tool_use" } },
   });
   c.emitLine({ type: "stream_event", event: { type: "message_start" } });
   c.emitLine({
@@ -100,6 +110,10 @@ function replyWithTool(c: any) {
       type: "content_block_delta",
       delta: { type: "text_delta", text: "Done." },
     },
+  });
+  c.emitLine({
+    type: "stream_event",
+    event: { type: "message_delta", delta: { stop_reason: "end_turn" } },
   });
   c.emitLine({
     type: "result",
@@ -317,3 +331,25 @@ it("refuses a second message while busy and warns when Cutline tools fail to loa
     /didn't load/,
   );
 });
+
+it("uses the newest Claude Code installed, which knows the newest models", async () => {
+  const { findClaude } = await import("../src/main/claude");
+  const { mkdirSync, symlinkSync, writeFileSync } = await import("node:fs");
+  const home = mkdtempSync(path.join(tmpdir(), "cutline-claude-home-"));
+  dirs.push(home);
+  // A native install keeps versions side by side and links the current one.
+  const version = path.join(home, ".local/share/claude/versions/9.9.9");
+  mkdirSync(version, { recursive: true });
+  writeFileSync(path.join(version, "claude"), "");
+  mkdirSync(path.join(home, ".local/bin"), { recursive: true });
+  symlinkSync(path.join(version, "claude"), path.join(home, ".local/bin/claude"));
+  // An older copy inside an editor extension loses to it.
+  const old = path.join(home, ".vscode/extensions/anthropic.claude-code-1.0.0-darwin-arm64/resources/native-binary");
+  mkdirSync(old, { recursive: true });
+  writeFileSync(path.join(old, "claude"), "");
+  expect(findClaude({ HOME: home })).toBe(path.join(home, ".local/bin/claude"));
+  expect(findClaude({ HOME: home, CUTLINE_CLAUDE_PATH: path.join(old, "claude") })).toBe(
+    path.join(old, "claude"),
+  );
+});
+

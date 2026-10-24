@@ -4,7 +4,13 @@ import {
   type ChildProcessWithoutNullStreams,
 } from "node:child_process";
 import { createInterface } from "node:readline";
-import { existsSync, mkdirSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+} from "node:fs";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
@@ -14,18 +20,60 @@ import { assistantInstructions } from "../shared/assistant-instructions";
 export type ClaudeModel = "opus" | "sonnet";
 const TOOL_PREFIX = "mcp__cutline__";
 
-/** Apps opened from Finder get a minimal PATH, so look where installers put the CLI. */
+/** "2.1.304" from an install's real path or its package.json, without running it. */
+function installedVersion(file: string): number[] {
+  try {
+    const real = realpathSync(file);
+    const named = /(\d+)\.(\d+)\.(\d+)/u.exec(real);
+    if (named) return named.slice(1).map(Number);
+    for (let dir = path.dirname(real); dir !== path.dirname(dir); dir = path.dirname(dir)) {
+      const manifest = path.join(dir, "package.json");
+      if (!existsSync(manifest)) continue;
+      const { name, version } = JSON.parse(readFileSync(manifest, "utf8"));
+      if (name === "@anthropic-ai/claude-code" && typeof version === "string")
+        return version.split(".").map((part: string) => Number.parseInt(part, 10) || 0);
+      break;
+    }
+  } catch {
+    /* Unknown: sorts last. */
+  }
+  return [0, 0, 0];
+}
+const newer = (a: number[], b: number[]) => {
+  for (let i = 0; i < 3; i++) if ((a[i] ?? 0) !== (b[i] ?? 0)) return (a[i] ?? 0) - (b[i] ?? 0);
+  return 0;
+};
+
+/**
+ * The newest Claude Code on this Mac: an older copy (an npm install left
+ * behind) cannot use the newest models. Apps opened from Finder get a minimal
+ * PATH, so look where installers and the VS Code extension put it.
+ */
 export function findClaude(env: NodeJS.ProcessEnv = process.env) {
-  const home = os.homedir();
+  if (env.CUTLINE_CLAUDE_PATH && existsSync(env.CUTLINE_CLAUDE_PATH))
+    return env.CUTLINE_CLAUDE_PATH;
+  const home = env.HOME || os.homedir();
+  const editors = path.join(home, ".vscode/extensions");
+  let extensions: string[] = [];
+  try {
+    extensions = readdirSync(editors)
+      .filter((name) => name.startsWith("anthropic.claude-code-"))
+      .map((name) => path.join(editors, name, "resources/native-binary/claude"));
+  } catch {
+    /* No VS Code. */
+  }
   return [
-    env.CUTLINE_CLAUDE_PATH,
     "/opt/homebrew/bin/claude",
     "/usr/local/bin/claude",
     path.join(home, ".local/bin/claude"),
     path.join(home, ".claude/local/claude"),
     path.join(home, ".npm-global/bin/claude"),
     path.join(home, ".bun/bin/claude"),
-  ].find((file): file is string => !!file && existsSync(file));
+    ...extensions,
+  ]
+    .filter((file) => existsSync(file))
+    .map((file, order) => ({ file, order, version: installedVersion(file) }))
+    .sort((a, b) => newer(b.version, a.version) || a.order - b.order)[0]?.file;
 }
 
 function childEnv() {
@@ -349,23 +397,27 @@ export class ClaudeAssistant extends EventEmitter {
         event.delta.text
       )
         this.buffered += event.delta.text;
+      // Each model message ends saying why: to call a tool, or done.
+      if (event?.type === "message_delta" && event.delta?.stop_reason) {
+        const text = this.buffered.trim();
+        this.buffered = "";
+        if (text && event.delta.stop_reason === "tool_use")
+          this.emitState({ type: "note", text });
+        else if (text) this.reply(text);
+      }
       return;
     }
     if (m.type === "assistant") {
       if (m.parent_tool_use_id) return;
-      const tools = (m.message?.content ?? []).filter(
-        (block: any) =>
-          block.type === "tool_use" && String(block.name).startsWith(TOOL_PREFIX),
-      );
-      const text = this.buffered.trim();
-      this.buffered = "";
-      if (text && tools.length) this.emitState({ type: "note", text });
-      else if (text) this.reply(text);
-      for (const block of tools)
-        this.emitState({
-          type: "tool",
-          name: String(block.name).slice(TOOL_PREFIX.length),
-        });
+      for (const block of m.message?.content ?? [])
+        if (
+          block.type === "tool_use" &&
+          String(block.name).startsWith(TOOL_PREFIX)
+        )
+          this.emitState({
+            type: "tool",
+            name: String(block.name).slice(TOOL_PREFIX.length),
+          });
       return;
     }
     if (m.type === "result") {

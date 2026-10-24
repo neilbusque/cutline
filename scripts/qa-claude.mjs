@@ -85,6 +85,7 @@ try {
     .join("");
   log("Claude finished", {
     seconds: Math.round((Date.now() - started) / 1000),
+    notes: events.filter((e) => e.type === "note").map((e) => e.text),
     status: done.status ?? done.type,
     error: done.error ?? done.message,
     tools,
