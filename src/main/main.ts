@@ -100,6 +100,7 @@ import {
   renderSvg,
 } from "./vector-studio";
 import { capturePage } from "./page-capture";
+import { keepEditorAlive } from "./editor-window";
 import { withoutBackdrop } from "../shared/vector-generation";
 import {
   generateGraphic,
@@ -2150,6 +2151,23 @@ app.whenReady().then(async () => {
       sandbox: true,
     },
   });
+  // A crashed or hung editor page comes back; the project lives here.
+  const editorWindow = keepEditorAlive(win, {
+    pending: previewRequests,
+    askReload: async () =>
+      !process.env.CUTLINE_QA &&
+      (
+        await messageBox({
+          type: "warning",
+          message: "The editor isn't responding",
+          detail:
+            "Your project is safe. Reload the editor, or wait for it to catch up.",
+          buttons: ["Reload editor", "Wait"],
+          defaultId: 1,
+          cancelId: 1,
+        })
+      ).response === 0,
+  });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (e, url) => {
     if (!url.startsWith(process.env.CUTLINE_DEV_URL ?? "file:"))
@@ -2247,6 +2265,11 @@ app.whenReady().then(async () => {
       {
         label: "View",
         submenu: [
+          {
+            label: "Reload editor",
+            accelerator: "CmdOrCtrl+R",
+            click: () => editorWindow.reload(),
+          },
           { role: "togglefullscreen" },
           ...(process.env.CUTLINE_DEV_URL
             ? [{ role: "toggleDevTools" as const }]
