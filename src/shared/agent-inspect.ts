@@ -361,7 +361,11 @@ export function changeSummary(before: Project, after: Project) {
 export function performAgentEdit(
   store: {
     project: Project;
-    commit: (next: Project, label: string) => unknown;
+    commit: (
+      next: Project,
+      label: string,
+      options?: { validated?: boolean },
+    ) => unknown;
   },
   args: Record<string, unknown>,
 ) {
@@ -369,7 +373,8 @@ export function performAgentEdit(
   // Anything invalid is rejected before the project changes.
   const view = z.enum(["summary", "full"]).optional().parse(detail);
   const prepared = applyAgentEdit(store.project, edit);
-  if (!prepared.dryRun) store.commit(prepared.project, prepared.label);
+  if (!prepared.dryRun)
+    store.commit(prepared.project, prepared.label, { validated: true });
   return editResult(prepared, store.project, view);
 }
 

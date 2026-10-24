@@ -120,6 +120,28 @@ describe("structured assistant editing", () => {
     expect(result.project.revision).toBe(p.revision + 1);
   });
 
+  it("applies many actions on one private copy and still names the action that broke the project", () => {
+    const p = fixture(),
+      before = JSON.stringify(p);
+    const actions = Array.from({ length: 20 }, (_, i) => ({
+      type: "clip.update",
+      clipId: "source",
+      patch: { opacity: 0.5 + i / 50 },
+    }));
+    const result = edit(p, actions);
+    expect(result.project.clips.find((c) => c.id === "source")?.opacity).toBeCloseTo(0.88);
+    expect(JSON.stringify(p)).toBe(before);
+    // Trimming past the end of the source only fails the finished project's
+    // check; the error still points at the action.
+    expect(() =>
+      edit(p, [
+        { type: "clip.update", clipId: "source", patch: { opacity: 0.9 } },
+        { type: "clip.update", clipId: "source", patch: { sourceIn: 19.5 } },
+      ]),
+    ).toThrow(/^Action 2 \(clip\.update\): .*Trim exceeds source media/u);
+    expect(JSON.stringify(p)).toBe(before);
+  });
+
   it("reaches every layer of a large vector, not just the first 24", () => {
     const p = newProject();
     const rects = Array.from(

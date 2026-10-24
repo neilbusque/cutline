@@ -158,8 +158,13 @@ export class Store extends EventEmitter {
     this.scheduleHistory();
     this.emit("change", this.snapshot());
   }
-  commit(next: Project, label: string) {
-    const validated = validateProject(next);
+  /**
+   * Records an edit. Pass validated when the project just came out of
+   * applyCommands or applyAgentEdit, which check it already: a second full
+   * check costs about 40 ms of main-process time per edit.
+   */
+  commit(next: Project, label: string, options: { validated?: boolean } = {}) {
+    const validated = options.validated ? next : validateProject(next);
     const entry = { label, project: this.project };
     this.checked.add(entry);
     this.past.push(entry);
@@ -171,7 +176,9 @@ export class Store extends EventEmitter {
   }
   transact(raw: unknown) {
     const tx = TransactionSchema.parse(raw);
-    return this.commit(applyCommands(this.project, tx), tx.label);
+    return this.commit(applyCommands(this.project, tx), tx.label, {
+      validated: true,
+    });
   }
   undo() {
     return this.step(this.past, this.future);

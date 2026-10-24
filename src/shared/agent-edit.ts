@@ -471,8 +471,27 @@ type Time = z.infer<typeof AgentTimeSchema>;
 const toFrame = (time: Time, fps: number) =>
   "frame" in time ? time.frame : Math.round(time.seconds * fps);
 
-/** Prepare the entire edit without mutating the live project. Commit its result once for atomic undo. */
+/** A finished edit that fails its project check, before naming the action that broke it. */
+class UncheckedEditError extends Error {}
+
+/**
+ * Prepare the entire edit without mutating the live project. Commit its result
+ * once for atomic undo. Actions apply to one private copy and the result is
+ * checked once (a check per action cost about 40 ms each); only when that
+ * check fails are the actions applied again, checked one at a time, so the
+ * error names the action that caused it.
+ */
 export function applyAgentEdit(project: Project, raw: unknown) {
+  try {
+    return prepareAgentEdit(project, raw, false);
+  } catch (error) {
+    if (error instanceof UncheckedEditError)
+      return prepareAgentEdit(project, raw, true);
+    throw error;
+  }
+}
+
+function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
   const input = AgentEditSchema.parse(raw);
   if (input.projectId !== project.id)
     throw Error(
@@ -555,12 +574,16 @@ export function applyAgentEdit(project: Project, raw: unknown) {
   };
   const run = (commands: Command[]) => {
     if (commands.length)
-      working = applyCommands(working, {
-        projectId: working.id,
-        revision: working.revision,
-        label: input.label,
-        commands,
-      });
+      working = applyCommands(
+        working,
+        {
+          projectId: working.id,
+          revision: working.revision,
+          label: input.label,
+          commands,
+        },
+        checkEach ? undefined : { clone: false, validate: false },
+      );
   };
   for (const [index, action] of input.actions.entries()) {
     try {
@@ -1175,10 +1198,15 @@ export function applyAgentEdit(project: Project, raw: unknown) {
   }
   // A dry run proposes a project at the live revision: committing the same
   // actions uses that revision, never one that does not exist yet.
-  working = validateProject({
-    ...working,
-    revision: input.dryRun ? project.revision : project.revision + 1,
-  });
+  try {
+    working = validateProject({
+      ...working,
+      revision: input.dryRun ? project.revision : project.revision + 1,
+    });
+  } catch (error) {
+    if (!checkEach) throw new UncheckedEditError((error as Error).message);
+    throw error;
+  }
   const changes = <T extends { id: string }>(before: T[], after: T[]) => {
     const old = new Map(before.map((item) => [item.id, JSON.stringify(item)]));
     return [

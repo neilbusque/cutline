@@ -222,20 +222,28 @@ function deleteClip(
 }
 
 /** Raw edits must keep every clip it touches on a track of its kind. */
-function checkTrackKinds(before: Project, p: Project) {
+/** Where every clip sat before an edit, kept apart from the project the edit changes. */
+type TrackPlaces = {
+  clips: Map<string, Pick<Clip, "trackId" | "kind">>;
+  tracks: Map<string, Track["kind"]>;
+};
+const trackPlaces = (p: Project): TrackPlaces => ({
+  clips: new Map(p.clips.map((c) => [c.id, { trackId: c.trackId, kind: c.kind }])),
+  tracks: new Map(p.tracks.map((t) => [t.id, t.kind])),
+});
+
+function checkTrackKinds(before: TrackPlaces, p: Project) {
   const tracks = new Map(p.tracks.map((t) => [t.id, t]));
-  let oldClips: Map<string, Clip> | undefined;
   for (const c of p.clips) {
     const t = tracks.get(c.trackId);
     if (!t || compatibleTrack(c, t)) continue;
-    oldClips ??= new Map(before.clips.map((x) => [x.id, x]));
-    const old = oldClips.get(c.id);
+    const old = before.clips.get(c.id);
     // A mismatch saved by an older build stays editable until it is moved.
     if (
       old &&
       old.trackId === c.trackId &&
       old.kind === c.kind &&
-      before.tracks.find((x) => x.id === t.id)?.kind === t.kind
+      before.tracks.get(t.id) === t.kind
     )
       continue;
     throw Error(
@@ -263,11 +271,22 @@ function collectMotions(p: Project, added: Set<string>) {
   p.motions = p.motions.filter((m) => !drop.has(m.id));
 }
 
-export function applyCommands(project: Project, raw: unknown): Project {
+/**
+ * Applies one transaction. By default the project passed in is left untouched
+ * and the result is validated. A caller already holding a private copy (an
+ * agent edit applying many actions) can skip the copy and the validation and
+ * validate once at the end: each costs tens of milliseconds on a real project.
+ */
+export function applyCommands(
+  project: Project,
+  raw: unknown,
+  options: { clone?: boolean; validate?: boolean } = {},
+): Project {
   const tx = TransactionSchema.parse(raw);
   if (tx.projectId !== project.id || tx.revision !== project.revision)
     throw Error("Project changed. Refresh the project and retry this edit.");
-  const p = structuredClone(project);
+  const before = trackPlaces(project);
+  const p = options.clone === false ? project : structuredClone(project);
   // Captions already removed with their source clip earlier in this edit.
   const cascaded = new Set<string>();
   const putMotions = new Set<string>();
@@ -408,10 +427,10 @@ export function applyCommands(project: Project, raw: unknown): Project {
         break;
     }
   }
-  checkTrackKinds(project, p);
+  checkTrackKinds(before, p);
   collectMotions(p, putMotions);
   p.revision++;
-  return validateProject(p);
+  return options.validate === false ? p : validateProject(p);
 }
 
 const motionFields = new Set(Object.keys(MotionSchema.shape));
