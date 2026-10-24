@@ -1003,7 +1003,7 @@ async function askToSave(name: string): Promise<UnsavedChoice> {
   const { response } = await messageBox({
     type: "warning",
     message: `Save “${name}” first?`,
-    detail: `${store.saveError ? "Cutline couldn't save it to its file." : "It hasn't been saved to a file yet."} If you don't save it, a dated copy is kept in File > Open backup.`,
+    detail: `${store.filePath ? "Cutline couldn't save it to its file." : "It hasn't been saved to a file yet."} If you don't save it, a dated copy is kept in File > Open backup.`,
     buttons: ["Save…", "Don't save", "Cancel"],
     defaultId: 0,
     cancelId: 2,
@@ -2183,11 +2183,12 @@ app.whenReady().then(async () => {
   if (process.env.CUTLINE_DEV_URL)
     await win.loadURL(process.env.CUTLINE_DEV_URL);
   else await win.loadFile(path.join(root, "dist/ui/index.html"));
-  // Startup problems, such as an unreadable autosave that was set aside.
+  // Startup problems, such as an unreadable autosave that was set aside or a
+  // project file that changed while this session was closed.
   if (store.notices.length && !process.env.CUTLINE_QA)
     void messageBox({
       type: "warning",
-      message: "Cutline couldn't open your last autosave",
+      message: "About your last autosave",
       detail: store.notices.join("\n\n"),
     });
   // Edits from last time that never reached the project file.

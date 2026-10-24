@@ -308,6 +308,13 @@ export function createAgentIO(options: {
           throw Error(
             "That file already exists. Choose a new project filename.",
           );
+        // The open project's own file is left alone once it was moved,
+        // deleted or changed elsewhere; only the person decides to replace it.
+        const problem = file === store.filePath ? store.fileProblem() : null;
+        if (problem)
+          throw Error(
+            `Couldn't save to ${file} because ${problem}. Pass a new path to save it somewhere else.`,
+          );
         store.save(file);
         options.library?.remember(file);
         return {
