@@ -42,6 +42,7 @@ import {
   writeFileSync,
   copyFileSync,
   renameSync,
+  rmSync,
   unlinkSync,
   statSync,
 } from "node:fs";
@@ -101,6 +102,7 @@ import {
 } from "./vector-studio";
 import { capturePage } from "./page-capture";
 import { keepEditorAlive } from "./editor-window";
+import { workAtRisk } from "./quit-guard";
 import { withoutBackdrop } from "../shared/vector-generation";
 import {
   generateGraphic,
@@ -248,6 +250,8 @@ const previewRequests = new Map<
 let renderChild: ReturnType<typeof fork> | undefined;
 /** True while an export makes reversed copies, before its render starts. */
 let exportPreparing = false;
+/** Files a running export writes beside its output, removed if Cutline quits. */
+const exportPartials = new Set<string>();
 const root = path.join(__dirname, "../..");
 // Running from source keeps its own recovery file and agent connection per
 // checkout, so it never autosaves over, or takes the agents of, the
@@ -421,12 +425,22 @@ async function exportVideo(output?: string) {
   const releaseOutput = leases.claimFile(output);
   const job = jobs.create("export", "Waiting for an export slot");
   const temporary = output + "." + job.id + ".partial.mp4";
+  const partials = [
+    temporary,
+    temporary + ".audio.wav",
+    temporary + ".video.mp4",
+  ];
+  for (const file of partials) exportPartials.add(file);
+  const forgetPartials = () => {
+    for (const file of partials) exportPartials.delete(file);
+  };
   const chromium = path.join(vendor, browserRelativePath);
   if (!existsSync(chromium)) {
     jobs.update(job, {
       state: "error",
       message: "Export browser is missing. Rebuild the app bundle.",
     });
+    forgetPartials();
     releaseOutput();
     throw Error(job.message);
   }
@@ -516,12 +530,8 @@ async function exportVideo(output?: string) {
             state: "error",
             message: stderr || "Export stopped unexpectedly",
           });
-        for (const file of [
-          temporary,
-          temporary + ".audio.wav",
-          temporary + ".video.mp4",
-        ])
-          if (existsSync(file)) unlinkSync(file);
+        for (const file of partials) if (existsSync(file)) unlinkSync(file);
+        forgetPartials();
       });
       child.send({
         serveUrl: path.join(root, "dist/composition"),
@@ -538,10 +548,39 @@ async function exportVideo(output?: string) {
         exportPreparing = false;
         exportBridge?.close();
         release();
+        forgetPartials();
       }
     }
   })();
   return job;
+}
+/** Set once the person chose to quit, or nothing would be lost. */
+let quitting = false;
+let askingToQuit = false;
+/** Asks before quitting throws away an export or other running work. */
+async function confirmQuit() {
+  if (askingToQuit) return;
+  const risk = jobs
+    ? workAtRisk(jobs.jobs.values(), !!renderChild || exportPreparing)
+    : undefined;
+  if (risk && !process.env.CUTLINE_QA) {
+    askingToQuit = true;
+    try {
+      const { response } = await messageBox({
+        type: "warning",
+        message: risk.question,
+        detail: "Quitting stops it.",
+        buttons: [risk.keep, "Stop and quit"],
+        defaultId: 0,
+        cancelId: 0,
+      });
+      if (response !== 1) return;
+    } finally {
+      askingToQuit = false;
+    }
+  }
+  quitting = true;
+  app.quit();
 }
 const tools = cutlineTools;
 const externalTools = sessionTools(cutlineTools);
@@ -2013,7 +2052,6 @@ app.whenReady().then(async () => {
     () => generationCredentials.getKey(),
   );
   generation.start();
-  app.on("before-quit", () => generation.stop());
   pictures = new HiggsfieldPictures(
     path.join(data, "generated-media", "pictures"),
     () => generationCredentials.getKey(),
@@ -2168,6 +2206,12 @@ app.whenReady().then(async () => {
         })
       ).response === 0,
   });
+  // Closing the window quits Cutline; an export or other work asks first.
+  win.on("close", (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    void confirmQuit();
+  });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (e, url) => {
     if (!url.startsWith(process.env.CUTLINE_DEV_URL ?? "file:"))
@@ -2305,7 +2349,13 @@ app.on("activate", () => {
   }
 });
 app.on("window-all-closed", () => app.quit());
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
+  if (!quitting) {
+    event.preventDefault();
+    void confirmQuit();
+    return;
+  }
+  generation?.stop();
   // Undo history is written in the background; finish it before quitting.
   store?.close();
   sessions.close();
@@ -2319,4 +2369,6 @@ app.on("before-quit", () => {
   stills.close();
   bridge?.close();
   for (const child of jobs?.processes.values() ?? []) child.kill();
+  // A stopped export leaves no half-written files beside its output.
+  for (const file of exportPartials) rmSync(file, { force: true });
 });
