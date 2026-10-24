@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   makeClip,
   newProject,
+  validateProject,
   type Asset,
   type Project,
 } from "../src/shared/model";
 import { buildCaptionClips } from "../src/shared/caption-grouping";
+import { applyCommands } from "../src/shared/commands";
+import { activeTransition } from "../src/shared/transitions";
 import { buildStyleReel, STYLE_TRACKS } from "../src/shared/style-reel";
 
 const svg = '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>';
@@ -257,5 +260,113 @@ describe("creator-style Shorts", () => {
     expect(
       cards.clips.find((c) => c.assetId === "speaker" && c.start === 0)!.y,
     ).toBe(0);
+  });
+});
+
+describe("creator-style Shorts cut the speaker the way a split does", () => {
+  function captioned() {
+    const p = speakerProject();
+    const speaker = p.clips.find((c) => c.assetId === "speaker")!;
+    Object.assign(speaker, {
+      fadeIn: 12,
+      fadeOut: 12,
+      keyframes: [
+        { property: "opacity" as const, frame: 0, value: 1, easing: "linear" as const },
+        { property: "opacity" as const, frame: 359, value: 0.8, easing: "linear" as const },
+      ],
+    });
+    // Generated captions, owned by the speaker clip.
+    const words = p.clips
+      .filter((c) => c.kind === "caption")
+      .flatMap((c) =>
+        c.words.map((w) => ({
+          ...w,
+          start: w.start + c.start / p.fps,
+          end: w.end + c.start / p.fps,
+        })),
+      );
+    p.clips = [
+      speaker,
+      ...buildCaptionClips(p, words, { sourceId: speaker.id }),
+    ];
+    return p;
+  }
+  const pieces = (project: Project) =>
+    project.clips
+      .filter((c) => c.assetId === "speaker")
+      .sort((a, b) => a.start - b.start);
+
+  it("fades only the outer ends and gives each caption to the piece it plays over", () => {
+    const { project } = buildStyleReel(captioned(), {
+      style: "split",
+      beats: plan,
+    });
+    const cut = pieces(project);
+    expect(cut.length).toBe(6);
+    expect(cut.map((c) => [c.fadeIn, c.fadeOut])).toEqual([
+      [12, 0],
+      [0, 0],
+      [0, 0],
+      [0, 0],
+      [0, 0],
+      [0, 12],
+    ]);
+    // Keys keep their phase across the cuts, as after a split.
+    expect(cut.map((c) => c.animationOffset)).toEqual(
+      cut.map((c) => c.start),
+    );
+    const captions = project.clips.filter((c) => c.kind === "caption");
+    expect(new Set(captions.map((c) => c.captionSourceId)).size).toBeGreaterThan(1);
+    for (const caption of captions) {
+      const owner = cut.find((c) => c.id === caption.captionSourceId)!;
+      expect(owner).toBeDefined();
+      expect(caption.start).toBeGreaterThanOrEqual(owner.start);
+      expect(caption.start + caption.duration).toBeLessThanOrEqual(
+        owner.start + owner.duration,
+      );
+    }
+    // Deleting the hook piece takes only its own captions with it.
+    const next = applyCommands(project, {
+      projectId: project.id,
+      revision: project.revision,
+      label: "Delete hook",
+      commands: [{ type: "clip.delete", id: cut[0].id, ripple: false }],
+    });
+    const left = next.clips.filter((c) => c.kind === "caption").length;
+    expect(left).toBeGreaterThan(0);
+    expect(left).toBeLessThan(captions.length);
+  });
+
+  it("moves through reversed footage instead of repeating it, and keeps a crossfade out of the speaker", () => {
+    const p = speakerProject();
+    p.clips = p.clips.filter((c) => c.kind !== "caption");
+    const speaker = p.clips.find((c) => c.assetId === "speaker")!;
+    speaker.reverse = true;
+    speaker.duration = 300;
+    p.clips.push({
+      ...makeClip(p, "video", speaker.trackId, 290, p.assets[0]),
+      id: "next",
+      duration: 70,
+      transition: { kind: "crossfade", frames: 10, fromId: speaker.id },
+    });
+    const { project, warnings } = buildStyleReel(validateProject(p), {
+      style: "split",
+      beats: [
+        { from: 0, to: 2 },
+        { from: 2, to: 4, layout: "face" },
+        // Starts inside the 10-frame crossfade at 290 to 300.
+        { from: 9.7, to: 11, layout: "face" },
+      ],
+    });
+    // The first speaker clip's pieces; "next" starts at 290.
+    const cut = pieces(project).filter((c) => c.start < 290);
+    // Reversed footage moves on at each cut, as a split does.
+    expect(cut.map((c) => c.sourceIn)).toEqual([0, 2, 4]);
+    const next = project.clips.find((c) => c.id === "next")!;
+    expect(next.transition?.fromId).toBe(cut.at(-1)!.id);
+    expect(activeTransition(project, next)?.previous.id).toBe(cut.at(-1)!.id);
+    expect(
+      warnings.filter((w) => w.includes("inside a crossfade")),
+    ).toEqual(["The speaker is not cut at 9.7s, which is inside a crossfade."]);
   });
 });
