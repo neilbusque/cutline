@@ -1386,6 +1386,20 @@ details[open] > :not(summary) {
 .message.error > p {
   color: var(--danger);
 }
+.message-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 16px;
+  font-size: 11px;
+  color: var(--text-4);
+}
+.message-divider::before,
+.message-divider::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--separator);
+}
 .message-retry {
   margin-top: 6px;
   padding: 4px 10px;

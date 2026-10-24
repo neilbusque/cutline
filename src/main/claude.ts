@@ -122,7 +122,6 @@ export class ClaudeAssistant extends EventEmitter {
   private child?: ChildProcessWithoutNullStreams;
   private session?: string;
   private resumable = false;
-  private projectId?: string;
   private stopping = false;
   private watchdog?: NodeJS.Timeout;
   private interruptTimer?: NodeJS.Timeout;
@@ -490,15 +489,13 @@ export class ClaudeAssistant extends EventEmitter {
     return this.status();
   }
 
-  async send(text: string, projectId?: string) {
+  /**
+   * Sends a message. One conversation continues across projects, so "do the
+   * same for this one" works; the panel marks the switch and says which
+   * project is open.
+   */
+  async send(text: string) {
     if (this.busy) throw Error("Wait for the current edit or stop it first");
-    if (projectId !== this.projectId) {
-      // A different project gets a fresh conversation.
-      this.close();
-      this.session = undefined;
-      this.resumable = false;
-      this.projectId = projectId;
-    }
     this.busy = true;
     this.stopping = false;
     this.textInTurn = false;

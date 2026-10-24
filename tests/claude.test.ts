@@ -146,7 +146,7 @@ it("connect reports sign-in state without starting a session", async () => {
 it("runs the CLI isolated: only Cutline tools, no user settings, no built-ins", async () => {
   const c = make();
   control.onUser = replyWithTool;
-  await c.send("Make a title", "p1");
+  await c.send("Make a title");
   const args: string[] = control.children[0].args;
   const at = (flag: string) => args[args.indexOf(flag) + 1];
   expect(at("--setting-sources")).toBe("");
@@ -174,7 +174,7 @@ it("shows words before a tool call as progress and keeps only the ending as the 
   const c = make();
   const seen = events(c);
   control.onUser = replyWithTool;
-  await c.send("Make a title", "p1");
+  await c.send("Make a title");
   await tick();
   await tick();
   const text = seen
@@ -193,30 +193,26 @@ it("shows words before a tool call as progress and keeps only the ending as the 
   expect(user.message.content[0].text).toBe("Make a title");
 });
 
-it("keeps one process per conversation and starts fresh for another project", async () => {
+it("keeps one process and one conversation across projects", async () => {
   const c = make();
   control.onUser = replyWithTool;
-  await c.send("one", "p1");
+  await c.send("one");
   await tick();
-  await c.send("two", "p1");
+  await c.send("two");
+  await tick();
+  // Another project open: "do the same for this one" still has the context.
+  await c.send("now the same for this one");
   await tick();
   expect(control.children).toHaveLength(1);
-  await c.send("three", "p2");
-  await tick();
-  expect(control.children).toHaveLength(2);
-  expect(control.children[0].killed).toBe(true);
-  const first = control.children[0].args;
-  const second = control.children[1].args;
-  expect(second[second.indexOf("--session-id") + 1]).not.toBe(
-    first[first.indexOf("--session-id") + 1],
-  );
+  const users = control.children[0].sent.filter((m: any) => m.type === "user");
+  expect(users).toHaveLength(3);
 });
 
 it("stop interrupts the turn and reports it as interrupted", async () => {
   const c = make();
   const seen = events(c);
   control.onUser = () => {}; // never answers on its own
-  await c.send("long job", "p1");
+  await c.send("long job");
   expect(c.busy).toBe(true);
   await c.stop();
   await tick();
@@ -238,7 +234,7 @@ it("stop falls back to ending the process and resumes the chat next time", async
     const seen = events(c);
     control.onUser = (child) =>
       child.emitLine({ type: "system", subtype: "init", mcp_servers: [] });
-    await c.send("long job", "p1");
+    await c.send("long job");
     await vi.advanceTimersByTimeAsync(1);
     // Ignore the interrupt: swallow the control request.
     control.children[0].stdin.write = () => true;
@@ -250,7 +246,7 @@ it("stop falls back to ending the process and resumes the chat next time", async
     });
     expect(control.children[0].killed).toBe(true);
     control.onUser = replyWithTool;
-    await c.send("again", "p1");
+    await c.send("again");
     const args = control.children[1].args;
     expect(args).toContain("--resume");
   } finally {
@@ -265,7 +261,7 @@ it("a crash mid-turn ends the turn with a readable error", async () => {
     child.stderr.write("Error: something broke\n");
     setImmediate(() => child.emit("exit", 1, null));
   };
-  await c.send("go", "p1");
+  await c.send("go");
   await tick();
   await tick();
   await tick();
@@ -284,7 +280,7 @@ it("auth failures in a result ask the user to sign in", async () => {
       is_error: true,
       result: "Invalid API key · Please run /login",
     });
-  await c.send("go", "p1");
+  await c.send("go");
   await tick();
   await tick();
   expect(c.status().message).toBe("Sign in to Claude");
@@ -295,17 +291,17 @@ it("auth failures in a result ask the user to sign in", async () => {
 it("missing CLI explains how to install Claude Code", async () => {
   const c = make({ bin: () => undefined });
   await expect(c.connect()).rejects.toThrow(/Claude Code isn't installed/);
-  await expect(c.send("go", "p1")).rejects.toThrow(/isn't installed/);
+  await expect(c.send("go")).rejects.toThrow(/isn't installed/);
   expect(c.busy).toBe(false);
 });
 
 it("switching model restarts on the new model and resumes the chat", async () => {
   const c = make();
   control.onUser = replyWithTool;
-  await c.send("one", "p1");
+  await c.send("one");
   await tick();
   c.setModel("sonnet");
-  await c.send("two", "p1");
+  await c.send("two");
   await tick();
   const args = control.children[1].args;
   expect(args[args.indexOf("--model") + 1]).toBe("sonnet");
@@ -322,8 +318,8 @@ it("refuses a second message while busy and warns when Cutline tools fail to loa
       subtype: "init",
       mcp_servers: [{ name: "cutline", status: "failed" }],
     });
-  await c.send("go", "p1");
-  await expect(c.send("again", "p1")).rejects.toThrow(
+  await c.send("go");
+  await expect(c.send("again")).rejects.toThrow(
     /Wait for the current edit/,
   );
   await tick();
@@ -373,7 +369,7 @@ it("waits through a long Cutline tool, then times out only on Claude's own silen
         },
       });
     };
-    await c.send("Transcribe my interview", "p1");
+    await c.send("Transcribe my interview");
     await vi.advanceTimersByTimeAsync(1);
     // A long transcription runs while Claude waits on it, saying nothing.
     await vi.advanceTimersByTimeAsync(10_000);
@@ -395,7 +391,7 @@ it("waits through a long Cutline tool, then times out only on Claude's own silen
 it("stop also stops the Cutline work of the turn, and the next turn starts fresh", async () => {
   const c = make();
   control.onUser = () => {};
-  await c.send("Remove the pauses", "p1");
+  await c.send("Remove the pauses");
   const turn = c.turnSignal;
   expect(turn.aborted).toBe(false);
   await c.stop();
@@ -403,7 +399,7 @@ it("stop also stops the Cutline work of the turn, and the next turn starts fresh
   await tick();
   await tick();
   control.onUser = replyWithTool;
-  await c.send("Try again", "p1");
+  await c.send("Try again");
   expect(c.turnSignal.aborted).toBe(false);
 });
 
@@ -431,7 +427,7 @@ it("watches for silence again once Claude streams after its tools, even without 
         event: { type: "message_start" },
       });
     };
-    await c.send("Trim the intro", "p1");
+    await c.send("Trim the intro");
     await vi.advanceTimersByTimeAsync(1001);
     expect(seen.at(-1)).toMatchObject({ type: "error" });
   } finally {
@@ -460,7 +456,7 @@ it("keeps waiting through a tool after the message that called it ends", async (
       });
       child.emitLine({ type: "stream_event", event: { type: "message_stop" } });
     };
-    await c.send("Transcribe my interview", "p1");
+    await c.send("Transcribe my interview");
     await vi.advanceTimersByTimeAsync(10_000);
     expect(control.children[0].killed).toBe(false);
     expect(c.busy).toBe(true);

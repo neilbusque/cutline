@@ -4,6 +4,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { EventEmitter } from "node:events";
 import { assistantInstructions } from "../shared/assistant-instructions";
+import { mcpResult } from "./mcp-server";
 export class Codex extends EventEmitter {
   private child?: ChildProcessWithoutNullStreams;
   private next = 1;
@@ -15,8 +16,13 @@ export class Codex extends EventEmitter {
       timer: NodeJS.Timeout;
     }
   >();
+  /**
+   * The conversation. It is saved by Codex, so it survives a timeout, a crash
+   * or Reconnect: a new app-server resumes it before the next message.
+   */
   private thread?: string;
-  private projectId?: string;
+  /** Threads the running app-server has open. */
+  private loaded = new Set<string>();
   private turn?: string;
   private connecting?: Promise<any>;
   private stopping = false;
@@ -26,6 +32,14 @@ export class Codex extends EventEmitter {
   private toolsRunning = new Set<string>();
   /** Aborted by Stop, so Cutline's own work for this turn stops too. */
   private turnStop?: AbortController;
+  /** Message text by item, until Codex says the message is complete. */
+  private drafts = new Map<string, string>();
+  /**
+   * Finished words whose role isn't known yet: progress if a tool call
+   * follows, part of the answer if the turn ends.
+   */
+  private pendingText = "";
+  private textInTurn = false;
   private state = {
     status: "disconnected",
     busy: false,
@@ -198,11 +212,14 @@ export class Codex extends EventEmitter {
     }
     this.pending.clear();
     this.child = undefined;
-    this.thread = undefined;
+    // The conversation is kept; the next app-server resumes it.
+    this.loaded.clear();
     this.turn = undefined;
     this.busy = false;
     this.toolResults.clear();
     this.toolsRunning.clear();
+    this.drafts.clear();
+    this.pendingText = "";
     if (notify) this.emitState({ type: "error", message: error.message });
   }
   private async message(m: any, child: ChildProcessWithoutNullStreams) {
@@ -238,6 +255,9 @@ export class Codex extends EventEmitter {
           );
           this.toolResults.set(key, work);
         }
+        // Words written before a tool call were progress, not the answer.
+        this.settleText("note");
+        this.emitState({ type: "tool", name: m.params.tool });
         this.toolsRunning.add(key);
         clearTimeout(this.watchdog);
         let result: any;
@@ -250,26 +270,24 @@ export class Codex extends EventEmitter {
           }
         }
         if (this.child !== child) return;
+        // The same size guard and advice as Cutline's MCP server.
+        const reply = mcpResult(result);
         this.child?.stdin.write(
           JSON.stringify({
             id: m.id,
             result: {
-              contentItems:
-                result?.content && result?.structuredContent
-                  ? result.content.map((item: any) =>
-                      item.type === "image"
-                        ? {
-                            type: "inputImage",
-                            imageUrl: `data:${item.mimeType};base64,${item.data}`,
-                          }
-                        : { type: "inputText", text: item.text ?? "" },
-                    )
-                  : [{ type: "inputText", text: JSON.stringify(result) }],
+              contentItems: reply.content.map((item: any) =>
+                item.type === "image"
+                  ? {
+                      type: "inputImage",
+                      imageUrl: `data:${item.mimeType};base64,${item.data}`,
+                    }
+                  : { type: "inputText", text: item.text ?? "" },
+              ),
               success: true,
             },
           }) + "\n",
         );
-        this.emitState({ type: "tool", name: m.params.tool });
       } catch (e) {
         if (this.child !== child) return;
         this.child?.stdin.write(
@@ -297,10 +315,31 @@ export class Codex extends EventEmitter {
       return;
     }
     if (m.method === "item/agentMessage/delta")
-      this.emitState({ type: "delta", text: m.params.delta });
+      this.drafts.set(
+        String(m.params.itemId),
+        (this.drafts.get(String(m.params.itemId)) ?? "") + m.params.delta,
+      );
+    // Codex marks each message: commentary is progress ("Checking the
+    // timeline"), shown as a note; the final answer is the reply. Unmarked
+    // text waits until a tool call or the end of the turn decides.
+    if (m.method === "item/completed" && m.params?.item?.type === "agentMessage") {
+      const id = String(m.params.item.id);
+      const text = String(m.params.item.text || this.drafts.get(id) || "").trim();
+      this.drafts.delete(id);
+      if (text && m.params.item.phase === "commentary")
+        this.emitState({ type: "note", text });
+      else if (text && m.params.item.phase === "final_answer") this.reply(text);
+      else if (text)
+        this.pendingText = this.pendingText ? `${this.pendingText}\n\n${text}` : text;
+    }
     if (m.method === "turn/started") this.turn = m.params.turn.id;
     if (m.method === "turn/completed") {
       if (this.turn && m.params.turn.id !== this.turn) return;
+      for (const text of this.drafts.values())
+        if (text.trim())
+          this.pendingText = [this.pendingText, text.trim()].filter(Boolean).join("\n\n");
+      this.drafts.clear();
+      this.settleText("reply");
       clearTimeout(this.watchdog);
       this.busy = false;
       this.turn = undefined;
@@ -320,7 +359,22 @@ export class Codex extends EventEmitter {
       this.emitState({
         type: "warning",
         message: m.params.error?.message ?? "Codex request failed",
+        retry: m.params.willRetry !== false,
       });
+  }
+  /** Part of the turn's reply, separated from an earlier part by a blank line. */
+  private reply(text: string) {
+    if (this.textInTurn) this.emitState({ type: "delta", text: "\n\n" });
+    this.textInTurn = true;
+    this.emitState({ type: "delta", text });
+  }
+  /** Sends the words waiting for a role as progress or as the reply. */
+  private settleText(as: "note" | "reply") {
+    const text = this.pendingText;
+    this.pendingText = "";
+    if (!text) return;
+    if (as === "note") this.emitState({ type: "note", text });
+    else this.reply(text);
   }
   async login() {
     await this.connect();
@@ -332,23 +386,49 @@ export class Codex extends EventEmitter {
     this.thread = undefined;
   }
 
-  async send(text: string, projectId?: string) {
+  /**
+   * Sends a message. One conversation continues across projects, so "do the
+   * same for this one" works; the panel marks the switch and says which
+   * project is open.
+   */
+  async send(text: string) {
     if (this.busy) throw Error("Wait for the current edit or stop it first");
-    if (projectId !== this.projectId) {
-      this.thread = undefined;
-      this.projectId = projectId;
-    }
     this.busy = true;
     this.emitState({ type: "started" });
     this.stopping = false;
     this.turnStop = new AbortController();
     this.toolResults.clear();
+    this.drafts.clear();
+    this.pendingText = "";
+    this.textInTurn = false;
     try {
       const account = await this.connect();
       if (!account.account)
         throw Error("Sign in to Codex before sending an edit.");
       if (this.stopping) throw Error("Edit stopped before it started.");
       this.touch();
+      if (this.thread && !this.loaded.has(this.thread)) {
+        // The conversation from before a reconnect: memory and tools come back.
+        try {
+          await this.request("thread/resume", {
+            threadId: this.thread,
+            cwd: this.cwd,
+            sandbox: "read-only",
+            approvalPolicy: "never",
+            baseInstructions: assistantInstructions,
+            excludeTurns: true,
+          });
+          this.loaded.add(this.thread);
+        } catch (error) {
+          if (!this.child) throw error;
+          this.thread = undefined;
+          this.emitState({
+            type: "notice",
+            text: "Codex couldn't pick up the earlier conversation, so this message starts a new one.",
+          });
+        }
+      }
+      if (this.stopping) throw Error("Edit stopped before it started.");
       if (!this.thread) {
         const result = await this.request("thread/start", {
           cwd: this.cwd,
@@ -356,7 +436,9 @@ export class Codex extends EventEmitter {
           environments: [],
           selectedCapabilityRoots: [],
           approvalPolicy: "never",
-          ephemeral: true,
+          // Saved, so a reconnect can resume it.
+          ephemeral: false,
+          serviceName: "Cutline",
           baseInstructions: assistantInstructions,
           dynamicTools: this.tools.map((t) => ({
             type: "function",
@@ -366,6 +448,7 @@ export class Codex extends EventEmitter {
           })),
         });
         this.thread = result.thread.id;
+        this.loaded.add(result.thread.id);
       }
       if (this.stopping) throw Error("Edit stopped before it started.");
       const result = await this.request("turn/start", {

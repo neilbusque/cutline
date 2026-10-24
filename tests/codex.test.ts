@@ -155,20 +155,23 @@ it("request timeout rejects outstanding requests and kills broken connection", a
   expect(control.children[0].killed).toBe(true);
   expect(c.busy).toBe(false);
 });
-it("project switches start a new conversation and reject tools after stop", async () => {
+it("keeps one conversation across projects and rejects tools after stop", async () => {
   const call = vi.fn(async () => ({ ok: true })),
     c = make(call);
-  await c.send("first", "p1");
+  await c.send("first");
   const child = control.children[0];
   child.notify({
     method: "turn/completed",
     params: { turn: { id: (c as any).turn, status: "completed" } },
   });
   await tick();
-  await c.send("second", "p2");
-  expect(
-    child.sent.filter((m: any) => m.method === "thread/start"),
-  ).toHaveLength(2);
+  await c.send("now the same for this one");
+  const starts = child.sent.filter((m: any) => m.method === "thread/start");
+  expect(starts).toHaveLength(1);
+  // Saved, so a reconnect can pick it up.
+  expect(starts[0].params.ephemeral).toBe(false);
+  const turns = child.sent.filter((m: any) => m.method === "turn/start");
+  expect(turns[1].params.threadId).toBe(turns[0].params.threadId);
   await c.stop();
   child.notify({
     id: 99,
@@ -177,6 +180,153 @@ it("project switches start a new conversation and reject tools after stop", asyn
   });
   await tick();
   expect(call).not.toHaveBeenCalled();
+});
+it("resumes the conversation after a reconnect instead of starting over", async () => {
+  const c = make();
+  await c.send("Add a title");
+  const first = control.children[0];
+  const thread = first.sent.find((m: any) => m.method === "turn/start").params
+    .threadId;
+  first.notify({
+    method: "turn/completed",
+    params: { turn: { id: (c as any).turn, status: "completed" } },
+  });
+  await tick();
+  await c.reconnect();
+  await c.send("Make it bigger");
+  const second = control.children[1];
+  const resume = second.sent.find((m: any) => m.method === "thread/resume");
+  expect(resume.params.threadId).toBe(thread);
+  expect(second.sent.some((m: any) => m.method === "thread/start")).toBe(false);
+  const turn = second.sent.find((m: any) => m.method === "turn/start");
+  expect(turn.params.threadId).toBe(thread);
+});
+it("says so in the chat when the earlier conversation can't be resumed", async () => {
+  const c = make();
+  const seen: any[] = [];
+  c.on("event", (e) => seen.push(e));
+  await c.send("Add a title");
+  control.children[0].notify({
+    method: "turn/completed",
+    params: { turn: { id: (c as any).turn, status: "completed" } },
+  });
+  await tick();
+  await c.reconnect();
+  control.hook = (child, m) => {
+    if (m.method !== "thread/resume") return false;
+    child.notify({ id: m.id, error: { message: "no rollout found" } });
+    return true;
+  };
+  await c.send("Make it bigger");
+  const second = control.children[1];
+  expect(second.sent.some((m: any) => m.method === "thread/start")).toBe(true);
+  expect(seen.some((e) => e.type === "notice")).toBe(true);
+});
+it("shows commentary as progress and only the final answer as the reply", async () => {
+  const c = make();
+  const seen: any[] = [];
+  c.on("event", (e) => seen.push(e));
+  await c.send("Center the title");
+  const child = control.children[0];
+  const turn = (c as any).turn;
+  child.notify({
+    method: "item/agentMessage/delta",
+    params: { itemId: "m1", delta: "Checking the " },
+  });
+  child.notify({
+    method: "item/completed",
+    params: {
+      item: { type: "agentMessage", id: "m1", text: "Checking the title", phase: "commentary" },
+    },
+  });
+  // Unmarked text before a tool call is progress too.
+  child.notify({
+    method: "item/completed",
+    params: { item: { type: "agentMessage", id: "m2", text: "Moving it", phase: null } },
+  });
+  child.notify({
+    id: 80,
+    method: "item/tool/call",
+    params: { tool: "edit", arguments: {} },
+  });
+  await tick();
+  child.notify({
+    method: "item/completed",
+    params: {
+      item: { type: "agentMessage", id: "m3", text: "The title is centered.", phase: "final_answer" },
+    },
+  });
+  child.notify({
+    method: "turn/completed",
+    params: { turn: { id: turn, status: "completed" } },
+  });
+  await tick();
+  const notes = seen.filter((e) => e.type === "note").map((e) => e.text);
+  expect(notes).toEqual(["Checking the title", "Moving it"]);
+  const reply = seen
+    .filter((e) => e.type === "delta")
+    .map((e) => e.text)
+    .join("");
+  expect(reply).toBe("The title is centered.");
+});
+it("names the tool while it runs, not after it finishes", async () => {
+  const call = vi.fn(() => new Promise(() => {})) as any;
+  const c = make(call);
+  const seen: any[] = [];
+  c.on("event", (e) => seen.push(e));
+  await c.send("Transcribe the interview");
+  control.children[0].notify({
+    id: 82,
+    method: "item/tool/call",
+    params: { tool: "edit", arguments: {} },
+  });
+  await tick();
+  expect(call).toHaveBeenCalledTimes(1);
+  expect(seen).toContainEqual({ type: "tool", name: "edit" });
+});
+it("ends an unmarked message as the reply when no tool follows", async () => {
+  const c = make();
+  const seen: any[] = [];
+  c.on("event", (e) => seen.push(e));
+  await c.send("What is on the timeline?");
+  const child = control.children[0];
+  child.notify({
+    method: "item/agentMessage/delta",
+    params: { itemId: "m1", delta: "Two clips " },
+  });
+  child.notify({
+    method: "item/agentMessage/delta",
+    params: { itemId: "m1", delta: "and a title." },
+  });
+  child.notify({
+    method: "turn/completed",
+    params: { turn: { id: (c as any).turn, status: "completed" } },
+  });
+  await tick();
+  expect(
+    seen
+      .filter((e) => e.type === "delta")
+      .map((e) => e.text)
+      .join(""),
+  ).toBe("Two clips and a title.");
+  expect(seen.at(-1)).toMatchObject({ type: "completed" });
+});
+it("guards oversized tool results the way the MCP server does", async () => {
+  const call = vi.fn(async () => ({ huge: "x".repeat(200_000) }));
+  const c = make(call as any);
+  await c.send("Inspect everything");
+  const child = control.children[0];
+  child.notify({
+    id: 81,
+    method: "item/tool/call",
+    params: { tool: "edit", arguments: {} },
+  });
+  await tick();
+  await tick();
+  const response = child.sent.find((m: any) => m.id === 81);
+  const text = response.result.contentItems[0].text;
+  expect(text.length).toBeLessThan(1000);
+  expect(text).toContain("too large");
 });
 it("delivers requested preview images as image content to the assistant", async () => {
   const call = vi.fn(async () => ({
@@ -187,7 +337,7 @@ it("delivers requested preview images as image content to the assistant", async 
     structuredContent: { frame: 12 },
   }));
   const c = make(call as any);
-  await c.send("Review preview", "p1");
+  await c.send("Review preview");
   const child = control.children[0];
   child.notify({
     id: 91,
@@ -209,7 +359,7 @@ it("keeps waiting while a long Cutline tool runs, then times out only on Codex i
   let finish!: (value: unknown) => void;
   const call = vi.fn(() => new Promise((resolve) => (finish = resolve))) as any;
   const c = make(call);
-  await c.send("Import my 30 minute 4K interview", "p1");
+  await c.send("Import my 30 minute 4K interview");
   const child = control.children[0];
   child.notify({
     id: 70,
@@ -238,7 +388,7 @@ it("stop also stops the Cutline work the turn started", async () => {
     return new Promise(() => {});
   }) as any;
   const c = make(call);
-  await c.send("Remove the long pauses", "p1");
+  await c.send("Remove the long pauses");
   const child = control.children[0];
   child.notify({
     id: 72,
@@ -256,7 +406,7 @@ it("stop also stops the Cutline work the turn started", async () => {
     params: { turn: { id: (c as any).turn, status: "interrupted" } },
   });
   await tick();
-  await c.send("Try again", "p1");
+  await c.send("Try again");
   child.notify({
     id: 73,
     method: "item/tool/call",

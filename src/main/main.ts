@@ -1931,10 +1931,7 @@ function register() {
       return { started: true };
     },
     "codex.send": (args) =>
-      codex.send(
-        z.string().min(1).max(20000).parse(args.text),
-        store.project.id,
-      ),
+      codex.send(z.string().min(1).max(20000).parse(args.text)),
     "codex.stop": () => codex.stop(),
     "codex.newChat": () => codex.newChat(),
     "claude.newChat": () => claude.newChat(),
@@ -1965,10 +1962,7 @@ function register() {
     "claude.reconnect": () => claude.reconnect(),
     "claude.login": () => claude.login(),
     "claude.send": (args) =>
-      claude.send(
-        z.string().min(1).max(20000).parse(args.text),
-        store.project.id,
-      ),
+      claude.send(z.string().min(1).max(20000).parse(args.text)),
     "claude.stop": () => claude.stop(),
     "test.import": async (args) => {
       if (!process.env.CUTLINE_QA) throw Error("Unavailable");

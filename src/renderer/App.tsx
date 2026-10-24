@@ -1894,6 +1894,7 @@ export function App() {
               style={{ display: right === "assistant" ? "flex" : "none" }}
             >
               <Assistant
+                project={{ id: p.id, name: p.name }}
                 selected={selected}
                 report={report}
                 draft={assistantDraft}

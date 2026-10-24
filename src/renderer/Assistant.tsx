@@ -10,7 +10,8 @@ import { errorText } from "./controls";
 import "./assistant.css";
 type Provider = "claude" | "codex";
 type Message = {
-  role: "user" | "assistant" | "error" | "note";
+  /** A divider marks where another project was opened. */
+  role: "user" | "assistant" | "error" | "note" | "divider";
   text: string;
   /** For an error: what to send to try again. */
   retry?: string;
@@ -187,6 +188,7 @@ export function MessageText({ text }: { text: string }) {
 }
 export function Assistant({
   report,
+  project,
   selected,
   draft,
   playhead,
@@ -194,6 +196,8 @@ export function Assistant({
   hasVideo = false,
 }: {
   report: (e: unknown) => void;
+  /** The open project. The conversation carries on when it changes. */
+  project?: { id: string; name: string };
   selected?: string;
   draft?: { id: number; text: string };
   playhead?: Playhead;
@@ -244,6 +248,29 @@ export function Assistant({
   });
   const addTo = (p: Provider, message: Message) =>
     setChats((old) => ({ ...old, [p]: [...old[p], message] }));
+  // Opening another project keeps both conversations; each chat marks where
+  // the switch happened.
+  const shownProject = useRef(project?.id);
+  useEffect(() => {
+    if (!project || project.id === shownProject.current) return;
+    shownProject.current = project.id;
+    const divider: Message = {
+      role: "divider",
+      text: `Now editing ${project.name}`,
+    };
+    setChats((old) => {
+      const next = { ...old };
+      for (const p of ["claude", "codex"] as Provider[]) {
+        const list = next[p];
+        if (!list.length) continue;
+        next[p] =
+          list.at(-1)?.role === "divider"
+            ? [...list.slice(0, -1), divider]
+            : [...list, divider];
+      }
+      return next;
+    });
+  }, [project?.id]);
   const flush = () => {
     clearTimeout(timer.current);
     timer.current = undefined;
@@ -311,10 +338,13 @@ export function Assistant({
         }
         if (e.type === "note" && p === providerRef.current)
           setStep(String(e.text).split("\n")[0].slice(0, 160));
+        // Something the person should read in the chat, not a progress step.
+        if (e.type === "notice") addTo(p, { role: "note", text: String(e.text) });
         if (e.type === "connecting")
           setFor(setStatus, p, `Connecting to ${label}…`);
         if (e.type === "warning") {
-          setFor(setStatus, p, `${label} is recovering…`);
+          // A final error arrives with the turn's end, in the chat.
+          if (e.retry !== false) setFor(setStatus, p, `${label} is recovering…`);
           if (e.message && p === "claude") report(e.message);
         }
         if (e.type === "tool" && p === providerRef.current)
@@ -427,7 +457,11 @@ export function Assistant({
       frame === undefined
         ? ""
         : `Playhead at ${(frame / fps).toFixed(2)} s (frame ${frame}).`;
-    const context = [where, selected ? `Selected clip ID: ${selected}.` : ""]
+    const context = [
+      project ? `Project "${project.name}".` : "",
+      where,
+      selected ? `Selected clip ID: ${selected}.` : "",
+    ]
       .filter(Boolean)
       .join(" ");
     try {
@@ -542,7 +576,12 @@ export function Assistant({
             </p>
           </div>
         )}
-        {messages.map((m, i) => (
+        {messages.map((m, i) =>
+          m.role === "divider" ? (
+            <div className="message-divider" role="separator" key={i}>
+              <span>{m.text}</span>
+            </div>
+          ) : (
           <div className={"message " + m.role} key={i}>
             {/* The bubble shows who spoke; screen readers still hear it. */}
             <span className="sr-only">
@@ -567,7 +606,8 @@ export function Assistant({
               <MessageText text={m.text} />
             )}
           </div>
-        ))}
+          ),
+        )}
         {working && (
           <div className="thinking" aria-live="polite">
             <span className="thinking-dots" aria-hidden="true">
