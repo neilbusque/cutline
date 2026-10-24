@@ -1078,10 +1078,13 @@ function messageBox(options: Electron.MessageBoxOptions) {
     ? dialog.showMessageBox(win, options)
     : dialog.showMessageBox(options);
 }
-/** Saves to the project file, or asks where when there is none or it can't be written. */
+/**
+ * Saves to the project file, or asks where when there is none, it can't be
+ * written, or it was moved or changed outside this session.
+ */
 async function saveProject(chooseFile = false) {
   let file = store.filePath;
-  if (!file || chooseFile || store.saveError) {
+  if (!file || chooseFile || store.saveError || store.fileProblem()) {
     const options: Electron.SaveDialogOptions = {
       defaultPath: store.project.name + ".cutline",
       filters: [{ name: "Cutline project", extensions: ["cutline"] }],
