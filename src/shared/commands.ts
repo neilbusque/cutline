@@ -702,7 +702,29 @@ export function removePauses(
     // time they spanned. One that sat only inside a pause moves to the cut.
     const duration = stop - start >= 1 ? stop - start : x.duration;
     if (start !== x.start || duration !== x.duration)
-      update(x.id, { start, duration });
+      update(x.id, {
+        start,
+        duration,
+        // Keys stay on the moments they mark, such as a music duck under each
+        // phrase. Keys that land on one frame keep the later one.
+        ...(duration !== x.duration && x.keyframes.length
+          ? {
+              keyframes: [
+                ...new Map(
+                  x.keyframes.map((key) => {
+                    const frame = Math.max(
+                      0,
+                      map(x.start + key.frame - x.animationOffset) -
+                        start +
+                        x.animationOffset,
+                    );
+                    return [`${key.property} ${frame}`, { ...key, frame }];
+                  }),
+                ).values(),
+              ].sort((a, b) => a.frame - b.frame),
+            }
+          : {}),
+      });
   }
   return [
     ...[...patches].map(([clipId, patch]): Command => ({

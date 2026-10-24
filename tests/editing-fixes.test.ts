@@ -288,6 +288,39 @@ describe("remove pauses keeps everything attached to the speech", () => {
     expect(byId(next, "music")).toMatchObject({ start: 0, duration: 366 });
   });
 
+  it("keeps a music duck on the speech after the pause is cut", () => {
+    const p = talkingHead();
+    // Ducked to 0.1 under speech, up to 0.5 in the 2 s to 5 s pause.
+    const volume = (pairs: [number, number][]) =>
+      pairs.map(([frame, value]) => ({
+        property: "volume" as const,
+        frame,
+        value,
+        easing: "linear" as const,
+      }));
+    byId(p, "music").keyframes = volume([
+      [0, 0.1],
+      [62, 0.1],
+      [70, 0.5],
+      [140, 0.5],
+      [147, 0.1],
+      [300, 0.1],
+      [330, 0.8],
+    ]);
+    const before = byId(p, "music");
+    // Speech at source 5.2 s played at frame 156; it now plays at 72.
+    expect(animatedValue(before, "volume", 156)).toBeCloseTo(0.1, 5);
+    const next = tx(p, removePauses(p, "v", pause));
+    const music = byId(next, "music");
+    expect(animatedValue(music, "volume", 72)).toBeCloseTo(0.1, 5);
+    expect(animatedValue(music, "volume", 30)).toBeCloseTo(0.1, 5);
+    // Keys after the clip move with everything else: the swell at 330 is now at 246.
+    expect(animatedValue(music, "volume", 246)).toBeCloseTo(0.8, 5);
+    expect(music.keyframes.map((key) => key.frame)).toEqual([
+      0, 62, 63, 216, 246,
+    ]);
+  });
+
   it("never cuts into a crossfade at either end of the clip", () => {
     const p = newProject();
     p.assets = [media("a"), media("talk"), media("c")];
