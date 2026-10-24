@@ -152,6 +152,7 @@ export function MotionLibrary({
   select,
   addText,
   mediaBase = "",
+  openSettings,
 }: {
   p: Project;
   /** New items start at the playhead; read when they are added. */
@@ -160,6 +161,7 @@ export function MotionLibrary({
   select: (id: string) => void;
   addText: (preset: Clip["preset"]) => void;
   mediaBase?: string;
+  openSettings?: () => void;
 }) {
   const [tab, setTab] = useState<
     "sequence" | "scenes" | "shapes" | "vectors" | "text"
@@ -657,6 +659,8 @@ export function MotionLibrary({
               edit={edit}
               select={select}
               onError={setError}
+              mediaBase={mediaBase}
+              openSettings={openSettings}
             />
             <div className="section-heading">
               <span>Draw or import</span>

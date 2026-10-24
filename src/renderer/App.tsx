@@ -1442,6 +1442,7 @@ export function App() {
           {left === "text" && (
             <MotionLibrary
               mediaBase={base}
+              openSettings={() => setSettingsOpen(true)}
               p={p}
               playhead={playhead}
               edit={edit}

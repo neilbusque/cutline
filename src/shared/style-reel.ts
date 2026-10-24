@@ -49,7 +49,13 @@ export type StyleReelStyle = (typeof styleReelStyles)[number]["id"];
 export type StyleLayout = "split" | "full" | "face" | "speaker";
 
 export type StyleVisual =
-  | { kind: "asset"; assetId: string; logo?: boolean }
+  | {
+      kind: "asset";
+      assetId: string;
+      logo?: boolean;
+      /** A cut-out picture made for an idea: placed like a drawing, unframed. */
+      drawing?: boolean;
+    }
   | {
       kind: "svg";
       svg: string;
@@ -637,13 +643,19 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
         continue;
       }
       const aspect = (asset.width ?? 16) / (asset.height ?? 9);
-      const fill = style === "locked-split" && !visual.logo;
+      const fill = style === "locked-split" && !visual.logo && !visual.drawing;
       const box = fill
         ? area
         : rectFit(
             aspect,
             area,
-            visual.logo ? 0.4 : style === "cards" ? 0.84 : 0.82,
+            visual.logo
+              ? 0.4
+              : visual.drawing
+                ? 0.72
+                : style === "cards"
+                  ? 0.84
+                  : 0.82,
           );
       const clip: Clip = {
         ...makeClip(
@@ -661,7 +673,7 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
         ...box,
         fit: "cover",
         cameraMotion: "none",
-        ...(fill
+        ...(fill || visual.drawing
           ? {}
           : {
               mask: "rounded" as const,
@@ -763,7 +775,12 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
       const keys = entrance(style, fps);
       const motion = MotionSchema.parse({
         id: uid(),
-        name: visual.kind === "svg" ? `${visual.title} logo` : "Beat line",
+        name:
+          visual.kind === "svg"
+            ? visual.drawing
+              ? visual.title
+              : `${visual.title} logo`
+            : "Beat line",
         source: `style-reel:${style}:${visual.kind}`,
         layers: layers.map((layer) =>
           MotionLayerSchema.parse({

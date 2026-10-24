@@ -99,7 +99,10 @@ export function findCodex() {
   );
 }
 
-/** A one-shot, tool-free question to the signed-in Claude Code or ChatGPT (Codex). */
+/**
+ * A one-shot, tool-free question to the signed-in Claude Code or ChatGPT
+ * (Codex). An image (PNG) is shown to the model with the prompt.
+ */
 export function assistantAsker(
   provider: "claude" | "chatgpt",
   options: {
@@ -109,19 +112,22 @@ export function assistantAsker(
   },
 ) {
   mkdirSync(options.workDir, { recursive: true });
-  return async (system: string, prompt: string) => {
+  return async (system: string, prompt: string, image?: Uint8Array) => {
     if (provider === "claude") {
       const bin = findClaude();
       if (!bin)
         throw Error(
           "Claude Code isn't installed. Install it from claude.com/code and sign in once, or choose ChatGPT.",
         );
+      // Images travel as a stream-json message; Claude Code reads it only
+      // from a pipe, which is how run() feeds stdin.
       const out = await run(
         bin,
         [
           "-p",
-          "--output-format",
-          "json",
+          ...(image
+            ? ["--input-format", "stream-json", "--output-format", "stream-json", "--verbose"]
+            : ["--output-format", "json"]),
           "--model",
           options.claudeModel ?? "opus",
           "--tools",
@@ -133,12 +139,38 @@ export function assistantAsker(
           "--system-prompt",
           system,
         ],
-        prompt,
+        image
+          ? JSON.stringify({
+              type: "user",
+              message: {
+                role: "user",
+                content: [
+                  {
+                    type: "image",
+                    source: {
+                      type: "base64",
+                      media_type: "image/png",
+                      data: Buffer.from(image).toString("base64"),
+                    },
+                  },
+                  { type: "text", text: prompt },
+                ],
+              },
+            }) + "\n"
+          : prompt,
         { cwd: options.workDir, timeoutMs: 240000, signal: options.signal },
       );
       let parsed: { result?: string; is_error?: boolean };
       try {
-        parsed = JSON.parse(out);
+        parsed = image
+          ? JSON.parse(
+              out
+                .trim()
+                .split("\n")
+                .reverse()
+                .find((line) => line.includes('"type":"result"')) ?? "",
+            )
+          : JSON.parse(out);
       } catch {
         throw Error("Claude returned an unreadable reply. Try again.");
       }
@@ -158,6 +190,8 @@ export function assistantAsker(
     const dir = mkdtempSync(path.join(options.workDir, "codex-"));
     try {
       const answer = path.join(dir, "answer.txt");
+      const picture = path.join(dir, "render.png");
+      if (image) writeFileSync(picture, image);
       await run(
         bin,
         [
@@ -174,7 +208,9 @@ export function assistantAsker(
           "features.shell_tool=false",
           "-o",
           answer,
+          // The prompt comes from stdin; --image takes the values after it.
           "-",
+          ...(image ? ["--image", picture] : []),
         ],
         `${system}\n\nDo not run commands or create files.\n\n${prompt}`,
         { cwd: dir, timeoutMs: 240000, signal: options.signal },
@@ -188,6 +224,19 @@ export function assistantAsker(
       rmSync(dir, { recursive: true, force: true });
     }
   };
+}
+
+/**
+ * A drawing as Cutline's vector preview shows it, on the same neutral board,
+ * for the assistant to look at its own work.
+ */
+export async function renderSvg(svg: string) {
+  const sharp = (await import("sharp")).default;
+  return sharp(Buffer.from(svg), { density: 144 })
+    .resize(768, 768, { fit: "inside" })
+    .flatten({ background: "#f4f3ef" })
+    .png()
+    .toBuffer();
 }
 
 /* ------------------------------------------------------------------------ */

@@ -49,6 +49,8 @@ export const VectorGenerateSchema = z.strictObject({
     .array(z.string().regex(/^#[0-9a-fA-F]{6}$/))
     .max(6)
     .optional(),
+  /** What the graphic sits on in the video, such as "near-black video". */
+  onto: z.string().trim().min(2).max(80).optional(),
 });
 export type VectorGenerateInput = z.infer<typeof VectorGenerateSchema>;
 
@@ -84,6 +86,9 @@ export function vectorUserPrompt(input: VectorGenerateInput) {
     input.palette?.length
       ? `Use this palette (add tints or shades of it only): ${input.palette.join(", ")}.`
       : "",
+    input.onto
+      ? `It sits on ${input.onto}: draw no background, tile or frame, and pick colors that stand out on it.`
+      : "",
     "Reply with the SVG only.",
   ]
     .filter(Boolean)
@@ -103,17 +108,23 @@ export function extractSvg(reply: string): string {
 
 /**
  * Asks a model for an SVG and checks it with the importer. One repair round
- * sends the importer's complaint back, which fixes most broken replies.
+ * sends the importer's complaint back, which fixes most broken replies. With
+ * decline, the model may answer that the subject is too detailed instead.
  */
 export async function generateVector(
   input: VectorGenerateInput,
   ask: (system: string, prompt: string) => Promise<string>,
+  options: { decline?: string } = {},
 ): Promise<{ svg: string; parsed: ParsedEditableSvg; attempts: number }> {
-  const system = vectorSystemPrompt();
+  const system = [vectorSystemPrompt(), options.decline]
+    .filter(Boolean)
+    .join("\n");
   let prompt = vectorUserPrompt(input);
   let problem = "";
   for (let attempt = 1; attempt <= 2; attempt++) {
     const reply = await ask(system, prompt);
+    if (options.decline && /<too-detailed\s*\/>/u.test(reply) && !/<svg[\s>]/u.test(reply))
+      throw Error("The subject is too detailed for a vector.");
     let svg = "";
     try {
       svg = extractSvg(reply);

@@ -85,13 +85,16 @@ import {
 import { readTranscript, searchTranscript } from "../shared/transcript";
 import { cutlineTools, longRunningTools } from "./agent-tools";
 import { agentMediaTools, createAgentMedia } from "./agent-media";
-import { assistantAsker, References } from "./vector-studio";
+import { assistantAsker, References, renderSvg } from "./vector-studio";
 import { capturePage } from "./page-capture";
+import { withoutBackdrop } from "../shared/vector-generation";
 import {
-  generateVector,
-  VectorGenerateSchema,
-  withoutBackdrop,
-} from "../shared/vector-generation";
+  generateGraphic,
+  GraphicGenerateSchema,
+  type GraphicGenerateInput,
+  type GraphicResult,
+} from "../shared/graphics";
+import { HiggsfieldPictures } from "./higgsfield-pictures";
 import { AgentTasks } from "./agent-tasks";
 import {
   previewContent,
@@ -116,6 +119,7 @@ import {
 } from "../shared/model";
 app.setName("Cutline");
 let generation: GenerationLibrary;
+let pictures: HiggsfieldPictures;
 let generationCredentials: GenerationCredentials;
 let stock: StockLibrary;
 let stockCredentials: StockCredentials;
@@ -156,6 +160,18 @@ function saveAssistantSettings() {
     JSON.stringify(assistantSettings),
   );
 }
+/** Whether a graphic too detailed for a vector may become a Higgsfield picture. */
+let graphicsSettings = { pictures: true };
+const graphicsSettingsFile = () =>
+  path.join(sessionContext.rootData, "graphics-settings.json");
+function loadGraphicsSettings() {
+  try {
+    const saved = JSON.parse(readFileSync(graphicsSettingsFile(), "utf8"));
+    graphicsSettings = { pictures: saved.pictures !== false };
+  } catch {
+    /* First run: pictures allowed once Higgsfield is connected. */
+  }
+}
 let store: Store;
 let media: Media;
 let jobs: Jobs;
@@ -166,6 +182,37 @@ let agentIO: ReturnType<typeof createAgentIO>;
 let agentMedia: ReturnType<typeof createAgentMedia>;
 let references: References;
 let vectorGeneration: AbortController | undefined;
+/**
+ * A graphic through Cutline's one route: the signed-in Claude or ChatGPT draws
+ * a vector and checks its render; a subject too detailed for that becomes a
+ * Higgsfield picture when Higgsfield is connected and allowed in Settings.
+ */
+async function makeGraphic(
+  input: GraphicGenerateInput,
+  options: {
+    signal?: AbortSignal;
+    onStep?: (step: "drawing" | "reviewing" | "picture") => void;
+  } = {},
+): Promise<GraphicResult> {
+  const connected = (await generationCredentials.status()).configured;
+  const allowed =
+    connected && (graphicsSettings.pictures || input.route === "picture");
+  return generateGraphic(input, {
+    ask: assistantAsker(input.provider, {
+      workDir: path.join(data, "assistant", "vectors"),
+      signal: options.signal,
+      claudeModel: assistantSettings.claudeModel,
+    }),
+    render: renderSvg,
+    picture: allowed
+      ? (request) => pictures.generate(request, options.signal)
+      : undefined,
+    pictureUnavailable: connected
+      ? "Detailed pictures are off. Turn them on in Settings > Higgsfield to make this as a picture."
+      : "This one is detailed. Connect Higgsfield in Settings to make it as a picture.",
+    onStep: options.onStep,
+  });
+}
 let musicControl: ReturnType<typeof createMusicControl>;
 let lastAgentCall: { tool: string; at: string } | undefined;
 const previewRequests = new Map<
@@ -1525,33 +1572,61 @@ function register() {
       if (problem) throw Error(problem);
     },
     "projects.trash": (args) => trashProject(String(args?.path)),
-    /** A vector drawn by the signed-in Claude Code or ChatGPT, checked by the importer. */
-    "vector.generate": async (args) => {
-      const input = VectorGenerateSchema.parse(args ?? {});
+    /**
+     * Motion > Vectors > Generate: a vector, or a Higgsfield picture that is
+     * imported into the project's media right away so it is never paid twice.
+     */
+    "graphic.generate": async (args) => {
+      const input = GraphicGenerateSchema.parse(args ?? {});
       vectorGeneration?.abort();
       const controller = (vectorGeneration = new AbortController());
       try {
-        const result = await generateVector(
-          input,
-          assistantAsker(input.provider, {
-            workDir: path.join(data, "assistant", "vectors"),
-            signal: controller.signal,
-            claudeModel: assistantSettings.claudeModel,
+        const made = await makeGraphic(input, {
+          signal: controller.signal,
+          onStep: (step) => send("graphic", { step }),
+        });
+        if (made.kind === "vector") return made;
+        const imported = await media.import(made.file);
+        imported.name = input.prompt.replace(/\s+/gu, " ").slice(0, 60);
+        store.commit(
+          validateProject({
+            ...store.project,
+            assets: [...store.project.assets, imported],
           }),
+          "Add generated picture",
         );
-        return {
-          svg: result.svg,
-          warnings: result.parsed.warnings ?? [],
-          layers: result.parsed.layers.length,
-        };
+        return { ...made, assetId: imported.id };
       } finally {
         if (vectorGeneration === controller) vectorGeneration = undefined;
       }
     },
-    "vector.cancel": () => {
+    "graphic.cancel": () => {
       vectorGeneration?.abort();
       vectorGeneration = undefined;
     },
+    "graphic.settings": async () => ({
+      ...graphicsSettings,
+      connected: (await generationCredentials.status()).configured,
+    }),
+    "graphic.settings.set": async (args) => {
+      graphicsSettings = {
+        pictures: z.boolean().parse(args?.pictures),
+      };
+      writeFileSync(graphicsSettingsFile(), JSON.stringify(graphicsSettings));
+      return {
+        ...graphicsSettings,
+        connected: (await generationCredentials.status()).configured,
+      };
+    },
+    "graphic.estimate": (args) =>
+      pictures.estimate({
+        prompt: "estimate",
+        style: "flat",
+        aspect: z
+          .enum(["square", "wide", "tall"])
+          .catch("square")
+          .parse(args?.aspect),
+      }),
     "reference.search": (args) =>
       references.searchLogos(
         z
@@ -1817,6 +1892,11 @@ app.whenReady().then(async () => {
   );
   generation.start();
   app.on("before-quit", () => generation.stop());
+  pictures = new HiggsfieldPictures(
+    path.join(data, "generated-media", "pictures"),
+    () => generationCredentials.getKey(),
+  );
+  loadGraphicsSettings();
   mcpLauncher = writeAgentLauncher(
     path.join(data, "agent"),
     process.execPath,
@@ -1842,24 +1922,21 @@ app.whenReady().then(async () => {
     autoEdit: autoEditForAgent,
     relink: (assetId, file) => relinkMedia({ store, media }, assetId, file),
     draw: async (description, style) => {
-      const result = await generateVector(
-        {
-          prompt: `${description}. Draw no background, tile or frame: the subject alone is placed on ${style === "locked-split" ? "near-black" : style === "cards" ? "warm off-white" : "soft pastel"} video, so pick colors that stand out on it.`,
+      const made = await makeGraphic(
+        GraphicGenerateSchema.parse({
+          prompt: description,
+          onto: `${style === "locked-split" ? "near-black" : style === "cards" ? "warm off-white" : "soft pastel"} video`,
           style: style === "cards" ? "glyph" : "flat",
           provider:
             assistantSettings.provider === "codex" ? "chatgpt" : "claude",
           aspect: "square",
-        },
-        assistantAsker(
-          assistantSettings.provider === "codex" ? "chatgpt" : "claude",
-          {
-            workDir: path.join(data, "assistant", "vectors"),
-            claudeModel: assistantSettings.claudeModel,
-          },
-        ),
+        }),
       );
-      return withoutBackdrop(result.svg);
+      return made.kind === "vector"
+        ? { kind: "svg", svg: withoutBackdrop(made.svg) }
+        : { kind: "image", file: made.file };
     },
+    graphic: (input) => makeGraphic(input),
     references: {
       logo: (query) => references.logo(query),
       screenshot: async (url, options) => {

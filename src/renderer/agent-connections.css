@@ -342,3 +342,10 @@
 .higgsfield-settings > h3 {
   margin: 0;
 }
+.ac-toggle {
+  cursor: pointer;
+}
+.ac-toggle input[type="checkbox"] {
+  flex: none;
+  margin-right: 4px;
+}

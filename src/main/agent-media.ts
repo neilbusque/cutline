@@ -30,6 +30,12 @@ import {
   type StyleBeat,
   type StyleReelStyle,
 } from "../shared/style-reel";
+import {
+  GraphicGenerateSchema,
+  placePicture,
+  type GraphicGenerateInput,
+  type GraphicResult,
+} from "../shared/graphics";
 
 /**
  * Stock, narration, Auto edit and relink for agents: the same work as the
@@ -114,6 +120,17 @@ export const StyleReelArgsSchema = z.strictObject({
     .min(1)
     .max(80),
 });
+export const GraphicArgsSchema = z.strictObject({
+  ...guard,
+  ...GraphicGenerateSchema.pick({
+    prompt: true,
+    style: true,
+    aspect: true,
+    palette: true,
+    route: true,
+  }).partial({ style: true, aspect: true, route: true }).shape,
+  at: AgentTimeSchema.optional(),
+});
 export const RelinkArgsSchema = z.strictObject({
   ...guard,
   assetId: id,
@@ -127,6 +144,7 @@ const schemas = {
   cutline_relink: RelinkArgsSchema,
   cutline_reference: ReferenceArgsSchema,
   cutline_style_reel: StyleReelArgsSchema,
+  cutline_graphic: GraphicArgsSchema,
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   cutline_stock_import:
@@ -141,6 +159,8 @@ const descriptions: Record<keyof typeof schemas, string> = {
     "Show what the script names: kind logo (target=product or domain) or screenshot (target=url, CSS selector, phone view). at places it.",
   cutline_style_reel:
     "Lay out a creator-style Short on the speaker video from timed beats; show = logo name, page url, assetId, text, or a drawing to make.",
+  cutline_graphic:
+    "Make an original graphic from a sentence: an editable vector drawn and checked by Claude or ChatGPT, or a cut-out Higgsfield picture when too detailed (if allowed). at places it.",
 };
 const hints: Record<
   keyof typeof schemas,
@@ -152,6 +172,7 @@ const hints: Record<
   cutline_relink: { destructive: false, network: false },
   cutline_reference: { destructive: false, network: true },
   cutline_style_reel: { destructive: true, network: true },
+  cutline_graphic: { destructive: false, network: true },
 };
 
 export const agentMediaTools: Tool[] = Object.entries(schemas).map(
@@ -204,8 +225,16 @@ export type AgentMediaDeps = {
     assetId: string,
     file: string,
   ) => Promise<{ relinked: number; cleared: boolean }>;
-  /** An original illustration drawn by the signed-in assistant, as SVG. */
-  draw?: (description: string, style: StyleReelStyle) => Promise<string>;
+  /**
+   * An original illustration for an idea: a vector drawn by the signed-in
+   * assistant, or a cut-out picture file when the idea is too detailed.
+   */
+  draw?: (
+    description: string,
+    style: StyleReelStyle,
+  ) => Promise<{ kind: "svg"; svg: string } | { kind: "image"; file: string }>;
+  /** cutline_graphic's work: the same route as Motion > Vectors > Generate. */
+  graphic?: (input: GraphicGenerateInput) => Promise<GraphicResult>;
   references?: {
     logo: (query: { name?: string; domain?: string }) => Promise<BrandLogo>;
     screenshot: (
@@ -397,7 +426,12 @@ export function createAgentMedia(deps: AgentMediaDeps) {
   const land = (
     asset: Asset,
     label: string,
-    place?: (project: Project) => ReturnType<typeof placement>,
+    place?: (project: Project) => {
+      clip: Clip;
+      track: Track;
+      commands: Command[];
+      warnings?: string[];
+    },
   ) => {
     const base = validateProject({
       ...store.project,
@@ -717,7 +751,10 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     const beats: StyleBeat[] = [];
     // Drawings take 15 to 30 seconds each, so three are made at a time
     // before the beats are laid out.
-    const drawings = new Map<number, Promise<string>>();
+    const drawings = new Map<
+      number,
+      ReturnType<NonNullable<AgentMediaDeps["draw"]>>
+    >();
     const queue = args.beats
       .map((beat, index) => ({ beat, index }))
       .filter(({ beat }) => beat.kind === "draw" && beat.show);
@@ -745,17 +782,26 @@ export function createAgentMedia(deps: AgentMediaDeps) {
       try {
         if (!kind || !beat.show) beats.push(base);
         else if (kind === "draw") {
-          const svg = await drawings.get(index)!;
+          const drawn = await drawings.get(index)!;
           stillOpen();
-          beats.push({
-            ...base,
-            visual: {
-              kind: "svg",
-              svg,
-              title: beat.show.slice(0, 60),
-              drawing: true,
-            },
-          });
+          if (drawn.kind === "image") {
+            const asset = await deps.media.import(drawn.file);
+            asset.name = beat.show.slice(0, 60);
+            imported.push(asset);
+            beats.push({
+              ...base,
+              visual: { kind: "asset", assetId: asset.id, drawing: true },
+            });
+          } else
+            beats.push({
+              ...base,
+              visual: {
+                kind: "svg",
+                svg: drawn.svg,
+                title: beat.show.slice(0, 60),
+                drawing: true,
+              },
+            });
         } else if (kind === "text")
           beats.push({ ...base, visual: { kind: "text", text: beat.show } });
         else if (kind === "asset")
@@ -835,8 +881,75 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     };
   }
 
+  async function graphic(raw: unknown) {
+    const args = GraphicArgsSchema.parse(raw ?? {});
+    assertRevision(args);
+    if (!deps.graphic) throw Error("Graphics are not available here.");
+    const projectId = store.project.id;
+    const { projectId: _, revision: __, at, ...request } = args;
+    const made = await deps.graphic(GraphicGenerateSchema.parse(request));
+    if (store.project.id !== projectId)
+      throw Error(
+        "A different project was opened meanwhile. Inspect it and try again.",
+      );
+    const name = args.prompt.replace(/\s+/gu, " ").slice(0, 60);
+    if (made.kind === "vector") {
+      if (at === undefined)
+        return {
+          kind: "vector",
+          svg: made.svg,
+          layers: made.layers,
+          warnings: made.warnings,
+          note: "Not placed: give at to add it, or pass this svg to cutline_edit motion.svg.",
+        };
+      const created = createVectorScene(
+        store.project,
+        toFrame(at, store.project.fps),
+        parseEditableSvg(made.svg),
+        { name },
+      );
+      store.commit(
+        applyCommands(store.project, {
+          projectId: store.project.id,
+          revision: store.project.revision,
+          label: `Add ${name}`,
+          commands: created.commands,
+        }),
+        `Add ${name}`,
+      );
+      return {
+        revision: store.project.revision,
+        kind: "vector",
+        clipId: created.clip.id,
+        motionId: created.motion.id,
+        layers: made.layers,
+        reviewed: made.attempts > 1,
+        warnings: made.warnings,
+        ...(made.note ? { note: made.note } : {}),
+      };
+    }
+    const asset = await deps.media.import(made.file);
+    asset.name = name;
+    const landed = land(
+      asset,
+      at ? `Add ${name}` : `Import ${name}`,
+      at
+        ? (project) => placePicture(project, toFrame(at, project.fps), asset)
+        : undefined,
+    );
+    return {
+      ...landed,
+      kind: "picture",
+      reason: made.reason,
+      cutout: made.cutout,
+      ...(made.usd ? { usd: made.usd } : {}),
+    };
+  }
+
   return async (name: string, raw: unknown): Promise<unknown> => {
     switch (name) {
+      case "cutline_graphic":
+        return graphic(raw);
       case "cutline_style_reel":
         return styleReel(raw);
       case "cutline_reference":

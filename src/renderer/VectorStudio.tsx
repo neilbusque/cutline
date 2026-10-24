@@ -7,9 +7,13 @@ import type { Command } from "../shared/commands";
 import { parseEditableSvg } from "../shared/vector-path";
 import { createVectorScene } from "../shared/vector-scenes";
 import { vectorStyles, type VectorStyle } from "../shared/vector-generation";
+import { placePicture, type GraphicResult } from "../shared/graphics";
+import { plural } from "../shared/plural";
+import { GENERATION_SETTINGS_EVENT } from "./HiggsfieldSettings";
 import type { Playhead } from "./playhead";
 
-type Generated = { svg: string; warnings: string[]; layers: number };
+type Generated = GraphicResult & { assetId?: string };
+type Step = "drawing" | "reviewing" | "picture";
 type LogoMatch = { title: string; slug: string; color: string };
 
 const providers = [
@@ -67,12 +71,16 @@ export function VectorStudio({
   edit,
   select,
   onError,
+  mediaBase,
+  openSettings,
 }: {
   p: Project;
   playhead: Playhead;
   edit: (label: string, commands: Command[]) => Promise<boolean>;
   select: (id: string) => void;
   onError: (message: string) => void;
+  mediaBase: string;
+  openSettings?: () => void;
 }) {
   const [prompt, setPrompt] = useState("");
   const [style, setStyle] = useState<VectorStyle>("flat");
@@ -80,7 +88,26 @@ export function VectorStudio({
   const [provider, setProvider] =
     useState<(typeof providers)[number][0]>("claude");
   const [generating, setGenerating] = useState(false);
+  const [step, setStep] = useState<Step>("drawing");
   const [result, setResult] = useState<Generated>();
+  // Higgsfield connected: offers "Make it a picture" on a drawn result.
+  const [pictures, setPictures] = useState(false);
+  useEffect(() => {
+    const refresh = () =>
+      window.cutline
+        .invoke("graphic.settings")
+        .then((value: { connected: boolean }) => setPictures(!!value?.connected))
+        .catch(() => setPictures(false));
+    refresh();
+    window.addEventListener(GENERATION_SETTINGS_EVENT, refresh);
+    const off = window.cutline.on("graphic", (event: { step?: Step }) => {
+      if (event?.step) setStep(event.step);
+    });
+    return () => {
+      window.removeEventListener(GENERATION_SETTINGS_EVENT, refresh);
+      off();
+    };
+  }, []);
   const [query, setQuery] = useState("");
   // Results remember the text they answer, so a quick click never adds the
   // previous search's logo.
@@ -125,19 +152,21 @@ export function VectorStudio({
         : String(failure),
     );
 
-  const generate = async () => {
+  const generate = async (route: "auto" | "vector" | "picture" = "auto") => {
     if (generating || prompt.trim().length < 2) return;
     setGenerating(true);
+    setStep(route === "picture" ? "picture" : "drawing");
     setResult(undefined);
     setNote("");
     onError("");
     try {
       setResult(
-        await window.cutline.invoke("vector.generate", {
+        await window.cutline.invoke("graphic.generate", {
           prompt: prompt.trim(),
           style,
           aspect,
           provider,
+          route,
         }),
       );
     } catch (failure) {
@@ -150,22 +179,55 @@ export function VectorStudio({
     if (!result) return;
     try {
       const name =
-        prompt.trim().replace(/\s+/gu, " ").slice(0, 60) || "Generated vector";
-      const created = createVectorScene(
-        p,
-        playhead.get(),
-        parseEditableSvg(result.svg),
-        { name },
-      );
-      if (await edit(`Add ${name}`, created.commands)) {
-        select(created.clip.id);
-        setNote(
-          `${name} added at ${(playhead.get() / p.fps).toFixed(1)}s. Select it to animate its layers or apply a logo reveal.`,
-        );
+        prompt.trim().replace(/\s+/gu, " ").slice(0, 60) || "Generated graphic";
+      const at = playhead.get();
+      let clipId: string;
+      if (result.kind === "picture") {
+        const asset = p.assets.find((item) => item.id === result.assetId);
+        if (!asset) throw Error("The picture is no longer in Media. Generate it again.");
+        const placed = placePicture(p, at, asset);
+        if (!(await edit(`Add ${name}`, placed.commands))) return;
+        clipId = placed.clip.id;
+      } else {
+        const created = createVectorScene(p, at, parseEditableSvg(result.svg), {
+          name,
+        });
+        if (!(await edit(`Add ${name}`, created.commands))) return;
+        clipId = created.clip.id;
       }
+      select(clipId);
+      setNote(
+        result.kind === "picture"
+          ? `${name} added at ${(at / p.fps).toFixed(1)}s.`
+          : `${name} added at ${(at / p.fps).toFixed(1)}s. Select it to animate its layers or apply a logo reveal.`,
+      );
     } catch (failure) {
       fail(failure);
     }
+  };
+  const drawer = provider === "claude" ? "Claude" : "ChatGPT";
+  const progress =
+    step === "picture"
+      ? "Making a picture with Higgsfield…"
+      : step === "reviewing"
+        ? `${drawer} is checking the drawing…`
+        : `Drawing with ${drawer}…`;
+  const summary = (made: Generated) => {
+    if (made.kind === "picture")
+      return [
+        made.reason === "asked"
+          ? "Picture made with Higgsfield"
+          : "Too detailed for a vector, so Higgsfield made a picture",
+        made.usd ? ` for about $${Number(made.usd).toFixed(2)}` : "",
+        ". It is in Media.",
+        made.cutout ? "" : " Its background could not be removed.",
+      ].join("");
+    return [
+      `${plural(made.layers, "editable layer")}.`,
+      made.revised ? ` ${drawer} checked the drawing and refined it.` : "",
+      made.warnings.length ? ` ${made.warnings.join(" ")}` : "",
+      made.note ? ` ${made.note}` : "",
+    ].join("");
   };
   const addReference = async (args: Record<string, unknown>, label: string) => {
     if (working) return;
@@ -221,16 +283,20 @@ export function VectorStudio({
     </fieldset>
   );
 
+  const pictureAsset =
+    result?.kind === "picture"
+      ? p.assets.find((item) => item.id === result.assetId)
+      : undefined;
   return (
     <div className="vs-studio">
       <section className="vs-section" aria-labelledby="vs-generate">
         <div className="section-heading">
-          <span id="vs-generate">Generate a vector</span>
+          <span id="vs-generate">Generate a graphic</span>
         </div>
         <label className="mg-sequence-field">
           <span>Describe it</span>
           <textarea
-            aria-label="Describe the vector"
+            aria-label="Describe the graphic"
             rows={3}
             maxLength={2000}
             placeholder="A coffee cup with rising steam"
@@ -242,32 +308,45 @@ export function VectorStudio({
             }}
           />
         </label>
-        <label className="mg-sequence-field">
-          <span>Style</span>
-          <select
-            aria-label="Vector style"
-            value={style}
-            onChange={(event) => setStyle(event.target.value as VectorStyle)}
-          >
-            {vectorStyles.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="vs-row">
-          {segmented("Shape", aspects, aspect, setAspect)}
-          {segmented("Drawn by", providers, provider, setProvider)}
+        <div className="vs-pair">
+          <label className="mg-sequence-field">
+            <span>Style</span>
+            <select
+              aria-label="Graphic style"
+              value={style}
+              onChange={(event) => setStyle(event.target.value as VectorStyle)}
+            >
+              {vectorStyles.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="mg-sequence-field">
+            <span>Shape</span>
+            <select
+              aria-label="Graphic shape"
+              value={aspect}
+              onChange={(event) =>
+                setAspect(event.target.value as (typeof aspects)[number][0])
+              }
+            >
+              {aspects.map(([id, name]) => (
+                <option key={id} value={id}>
+                  {name}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
+        {segmented("Drawn by", providers, provider, setProvider)}
         {generating ? (
           <div className="vs-progress" role="status">
-            <span>
-              Drawing with {provider === "claude" ? "Claude" : "ChatGPT"}…
-            </span>
+            <span>{progress}</span>
             <button
               className="vs-link"
-              onClick={() => void window.cutline.invoke("vector.cancel")}
+              onClick={() => void window.cutline.invoke("graphic.cancel")}
             >
               <X size={12} /> Cancel
             </button>
@@ -284,18 +363,40 @@ export function VectorStudio({
         )}
         {result && !generating && (
           <div className="vs-result">
-            <VectorPreview svg={result.svg} />
-            <p className="mg-sequence-hint">
-              {result.layers} editable{" "}
-              {result.layers === 1 ? "layer" : "layers"}.
-              {result.warnings.length ? ` ${result.warnings.join(" ")}` : ""}
-            </p>
+            {result.kind === "vector" ? (
+              <VectorPreview svg={result.svg} />
+            ) : (
+              <div className="vs-preview vs-picture" aria-label="Generated picture preview">
+                {pictureAsset && (
+                  <img
+                    src={`${mediaBase}/media/${pictureAsset.id}/original`}
+                    alt=""
+                  />
+                )}
+              </div>
+            )}
+            <p className="mg-sequence-hint">{summary(result)}</p>
             <button
               className="import-button control"
               onClick={() => void addGenerated()}
             >
               Add to timeline
             </button>
+            {result.kind === "vector" && pictures && (
+              <button className="vs-link vs-switch" onClick={() => void generate("picture")}>
+                Make it a picture with Higgsfield instead
+              </button>
+            )}
+            {result.kind === "vector" && !pictures && openSettings && result.note && (
+              <button className="vs-link vs-switch" onClick={openSettings}>
+                Open Settings
+              </button>
+            )}
+            {result.kind === "picture" && (
+              <button className="vs-link vs-switch" onClick={() => void generate("vector")}>
+                Draw it as a vector instead
+              </button>
+            )}
           </div>
         )}
       </section>

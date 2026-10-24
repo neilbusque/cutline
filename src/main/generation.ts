@@ -47,7 +47,7 @@ type SavedJob = GenerationJob &
     referencePaths?: string[];
     outputUrl?: string;
   };
-class ProviderError extends Error {
+export class ProviderError extends Error {
   constructor(public status: number) {
     super(
       (
@@ -104,6 +104,58 @@ export async function publicMediaUrl(value: string, resolve = lookup) {
   )
     throw Error("Higgsfield returned a non-public media address.");
   return u.toString();
+}
+
+/** One Higgsfield API call. The key only ever goes to the API host. */
+export async function higgsfieldCall(
+  fetcher: typeof fetch,
+  route: string,
+  key: string,
+  body?: unknown,
+  idempotency?: string,
+) {
+  const response = await fetcher(API + route, {
+    method: body === undefined ? "GET" : "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(45000),
+    headers: {
+      Authorization: `Key ${key}`,
+      "Content-Type": "application/json",
+      ...(idempotency ? { "Idempotency-Key": idempotency } : {}),
+    },
+    ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+  });
+  if (!response.ok) throw new ProviderError(response.status);
+  if (response.status === 202 && route.endsWith("/cancel")) return {};
+  return await response.json();
+}
+
+/** A provider media transfer: public HTTPS only, every redirect checked again. */
+export async function providerMedia(
+  fetcher: typeof fetch,
+  url: string,
+  init: RequestInit = {},
+) {
+  let current = await publicMediaUrl(url);
+  for (let i = 0; i < 5; i++) {
+    const response = await fetcher(current, {
+      ...init,
+      redirect: "manual",
+      signal: AbortSignal.timeout(180000),
+    });
+    if ([301, 302, 303, 307, 308].includes(response.status)) {
+      await response.body?.cancel();
+      // Signed upload headers never leave the exact signed destination.
+      if (init.method === "PUT") throw Error("Reference upload was redirected.");
+      current = await publicMediaUrl(
+        new URL(response.headers.get("location") ?? "", current).toString(),
+      );
+      continue;
+    }
+    if (!response.ok) throw Error("Media transfer failed.");
+    return response;
+  }
+  throw Error("Too many media redirects.");
 }
 
 export class GenerationLibrary {
@@ -249,26 +301,8 @@ export class GenerationLibrary {
       if (this.pending.get(id) === promise) this.pending.delete(id);
     }
   }
-  private async api(
-    route: string,
-    key: string,
-    body?: unknown,
-    idempotency?: string,
-  ) {
-    const response = await this.fetcher(API + route, {
-      method: body === undefined ? "GET" : "POST",
-      redirect: "error",
-      signal: AbortSignal.timeout(45000),
-      headers: {
-        Authorization: `Key ${key}`,
-        "Content-Type": "application/json",
-        ...(idempotency ? { "Idempotency-Key": idempotency } : {}),
-      },
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
-    });
-    if (!response.ok) throw new ProviderError(response.status);
-    if (response.status === 202 && route.endsWith("/cancel")) return {};
-    return await response.json();
+  private api(route: string, key: string, body?: unknown, idempotency?: string) {
+    return higgsfieldCall(this.fetcher, route, key, body, idempotency);
   }
   async pickReference(selectedPath: string) {
     const file = path.resolve(selectedPath);
@@ -510,28 +544,8 @@ export class GenerationLibrary {
       return this.public(job);
     });
   }
-  private async external(url: string, init: RequestInit = {}) {
-    let current = await publicMediaUrl(url);
-    for (let i = 0; i < 5; i++) {
-      const response = await this.fetcher(current, {
-        ...init,
-        redirect: "manual",
-        signal: AbortSignal.timeout(180000),
-      });
-      if ([301, 302, 303, 307, 308].includes(response.status)) {
-        await response.body?.cancel();
-        // Signed upload headers never leave the exact signed destination.
-        if (init.method === "PUT")
-          throw Error("Reference upload was redirected.");
-        current = await publicMediaUrl(
-          new URL(response.headers.get("location") ?? "", current).toString(),
-        );
-        continue;
-      }
-      if (!response.ok) throw Error("Media transfer failed.");
-      return response;
-    }
-    throw Error("Too many media redirects.");
+  private external(url: string, init: RequestInit = {}) {
+    return providerMedia(this.fetcher, url, init);
   }
   private async readReference(file: string) {
     const info = await stat(file);

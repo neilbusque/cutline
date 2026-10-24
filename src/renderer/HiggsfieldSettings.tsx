@@ -14,7 +14,10 @@ const errorText = (error: unknown) =>
 /** The Generate panel listens for this to refresh its connection state. */
 export const GENERATION_SETTINGS_EVENT = "cutline:generation-settings";
 
-/** Video generation in Settings: the Higgsfield key, saved encrypted on this Mac. */
+/**
+ * Pictures and video in Settings: the Higgsfield key, saved encrypted on this
+ * Mac, and whether detailed graphics may become Higgsfield pictures.
+ */
 export function HiggsfieldSettings({
   report,
 }: {
@@ -22,6 +25,8 @@ export function HiggsfieldSettings({
 }) {
   const api = window.cutline;
   const [settings, setSettings] = useState<GenerationSettings>();
+  const [pictures, setPictures] = useState(true);
+  const [price, setPrice] = useState<string>();
   const [key, setKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -33,10 +38,34 @@ export function HiggsfieldSettings({
       .invoke("generation.settings")
       .then((value: GenerationSettings) => live && setSettings(value))
       .catch((failure: unknown) => live && setError(errorText(failure)));
+    api
+      .invoke("graphic.settings")
+      .then((value: { pictures: boolean }) => live && setPictures(value.pictures))
+      .catch(() => {});
     return () => {
       live = false;
     };
   }, []);
+  useEffect(() => {
+    if (!settings?.configured) return;
+    let live = true;
+    api
+      .invoke("graphic.estimate", { aspect: "square" })
+      .then((usd?: string) => live && usd && setPrice(Number(usd).toFixed(2)))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [settings?.configured]);
+  const allowPictures = async (value: boolean) => {
+    setPictures(value);
+    try {
+      await api.invoke("graphic.settings.set", { pictures: value });
+    } catch (failure) {
+      setPictures(!value);
+      setError(errorText(failure));
+    }
+  };
 
   const change = async (disconnect: boolean) => {
     if (busy || (!disconnect && !key.trim())) return;
@@ -65,15 +94,15 @@ export function HiggsfieldSettings({
 
   return (
     <div className="agent-connections higgsfield-settings">
-      <h3>Video generation</h3>
+      <h3>Pictures and video</h3>
       <div className="ac-group">
         <div className="ac-row">
           <div>
             <strong>Higgsfield</strong>
             <small>
               {settings?.configured
-                ? "Connected. Generate creates clips with your credits."
-                : "Paste your API key to create video clips in Generate."}
+                ? "Connected. Makes video clips and detailed pictures with your credits."
+                : "Paste your API key to make video clips and detailed pictures."}
             </small>
           </div>
           {settings?.configured ? (
@@ -95,6 +124,23 @@ export function HiggsfieldSettings({
             </button>
           )}
         </div>
+        {settings?.configured && (
+          <label className="ac-row ac-toggle">
+            <div>
+              <strong>Detailed graphics as pictures</strong>
+              <small>
+                When Claude or ChatGPT can't draw a graphic as a clean vector
+                {price ? `, about $${price} each` : ""}.
+              </small>
+            </div>
+            <input
+              type="checkbox"
+              aria-label="Make detailed graphics as Higgsfield pictures"
+              checked={pictures}
+              onChange={(event) => void allowPictures(event.target.checked)}
+            />
+          </label>
+        )}
         {!settings?.configured && (
           <form
             className="ac-row"
