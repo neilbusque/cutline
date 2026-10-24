@@ -44,6 +44,7 @@ import {
   shapeTypes,
 } from "./motion-presets";
 import { compatibleTrack, trimClip } from "./timeline";
+import { linkedCaptionCommands } from "./linked-captions";
 import { newTrack } from "./layers";
 import { captionTextPatch } from "./caption-edit";
 import { captionStylePatch, captionStyles } from "./caption-styles";
@@ -757,34 +758,10 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
               `Trim for ${c.id} was bounded to available source frames: ${trimmed.start}–${trimmed.start + trimmed.duration}.`,
             );
           const { id: ignored, ...patch } = trimmed;
-          const commands: Command[] = [
+          run([
             { type: "clip.update", id: c.id, patch },
-          ];
-          for (const caption of working.clips.filter(
-            (part) => part.captionSourceId === c.id,
-          )) {
-            const left = Math.max(caption.start, trimmed.start),
-              right = Math.min(
-                caption.start + caption.duration,
-                trimmed.start + trimmed.duration,
-              );
-            if (left >= right)
-              commands.push({
-                type: "clip.delete",
-                id: caption.id,
-                ripple: false,
-              });
-            else {
-              const { id: ignored, ...patch } = trimClip(
-                working,
-                trimClip(working, caption, "right", right),
-                "left",
-                left,
-              );
-              commands.push({ type: "clip.update", id: caption.id, patch });
-            }
-          }
-          run(commands);
+            ...linkedCaptionCommands(working, c, trimmed, "trim"),
+          ]);
           break;
         }
         case "clip.move": {

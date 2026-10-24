@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { makeClip, newProject, type Project } from "../src/shared/model";
+import {
+  makeClip,
+  newProject,
+  validateProject,
+  type Project,
+} from "../src/shared/model";
 import { linkedCaptionCommands } from "../src/shared/linked-captions";
+import { applyAgentEdit } from "../src/shared/agent-edit";
+import { toSrt } from "../src/shared/subtitles";
 
 const fake = (clips: object[]) => ({ clips }) as unknown as Project;
 
@@ -59,6 +66,73 @@ describe("linked captions follow manual moves and trims", () => {
     if (command.type !== "clip.update") return;
     expect(command.patch.start).toBe(100);
     expect(command.patch.duration).toBe(20);
+  });
+
+  it("removes a caption whose words a trim leaves out, so no blank cue is exported", () => {
+    // 30 fps: "Hey you" is spoken in frames 0 to 15 of a cue that ends at 19.
+    const p = newProject();
+    p.assets = [
+      {
+        id: "talk",
+        name: "Talk",
+        kind: "video",
+        path: "/local/talk.mp4",
+        duration: 20,
+        hasAudio: true,
+      },
+    ];
+    const video = {
+      ...makeClip(p, "video", "video", 0, p.assets[0]),
+      id: "v",
+      duration: 300,
+    };
+    const spoken = {
+      ...makeClip(p, "caption", "captions", 0),
+      id: "early",
+      duration: 19,
+      captionSourceId: "v",
+      text: "Hey you",
+      words: [
+        { text: "Hey", start: 0, end: 0.25 },
+        { text: "you", start: 0.27, end: 0.5 },
+      ],
+    };
+    const later = {
+      ...makeClip(p, "caption", "captions", 19),
+      id: "later",
+      duration: 40,
+      captionSourceId: "v",
+      text: "over here",
+      words: [
+        { text: "over", start: 0.1, end: 0.6 },
+        { text: "here", start: 0.7, end: 1.2 },
+      ],
+    };
+    p.clips = [video, spoken, later];
+    const commands = linkedCaptionCommands(
+      p,
+      video,
+      { start: 16, duration: 284 },
+      "trim",
+    );
+    expect(commands).toEqual([
+      { type: "clip.delete", id: "early", ripple: false },
+    ]);
+    // The agent's clip.trim follows the same rule.
+    const trimmed = applyAgentEdit(validateProject(p), {
+      projectId: p.id,
+      revision: p.revision,
+      label: "Trim head",
+      actions: [{ type: "clip.trim", clipId: "v", start: { frame: 16 } }],
+    }).project;
+    expect(trimmed.clips.map((c) => c.id)).toEqual(["v", "later"]);
+    // An empty caption never becomes an empty subtitle cue.
+    expect(
+      toSrt(
+        [{ ...spoken, text: " ", words: [] }, later],
+        p.fps,
+      ),
+    ).toBe("1\n00:00:00,633 --> 00:00:01,967\nover here\n");
   });
 
   it("does nothing for clips without captions", () => {

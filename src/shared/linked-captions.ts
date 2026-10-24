@@ -45,7 +45,11 @@ export function linkedCaptionCommands(
       "left",
       left,
     );
-    commands.push({ type: "clip.update", id: caption.id, patch });
+    // A trim that leaves none of a caption's words removes it, rather than
+    // keeping a blank caption and an empty subtitle cue.
+    if (caption.words.length && !patch.words.length)
+      commands.push({ type: "clip.delete", id: caption.id, ripple: false });
+    else commands.push({ type: "clip.update", id: caption.id, patch });
   }
   return commands;
 }
