@@ -9,7 +9,7 @@ import {
   VectorGenerateSchema,
   vectorUserPrompt,
 } from "../src/shared/vector-generation";
-import { References } from "../src/main/vector-studio";
+import { assistantError, References } from "../src/main/vector-studio";
 import { newProject } from "../src/shared/model";
 import { referenceCard } from "../src/main/agent-media";
 
@@ -42,6 +42,17 @@ describe("generated vectors", () => {
     expect(prompt).toContain('viewBox="0 0 800 450"');
     expect(prompt).toContain("round caps");
     expect(prompt).toContain("#112233");
+  });
+
+  it("explains sign-in and update problems for the assistant that drew", () => {
+    expect(assistantError("401 Unauthorized")).toContain("claude auth login");
+    expect(assistantError("401 Unauthorized", "chatgpt")).toContain(
+      "ChatGPT app and sign in to Codex",
+    );
+    expect(assistantError("model requires a newer version, out of date", "chatgpt")).toContain(
+      "Update the ChatGPT app",
+    );
+    expect(assistantError("usage limit reached", "chatgpt")).toContain("usage limit");
   });
 
   it("asks for a whole frame with its own background for a Story shot", () => {

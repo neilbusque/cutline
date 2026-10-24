@@ -43,11 +43,24 @@ function cliEnv() {
   return env;
 }
 
+/** Assistant processes drawing right now, so quitting can stop them. */
+const drawingChildren = new Set<ReturnType<typeof spawn>>();
+/** Stops every Claude or Codex process still drawing (on quit). */
+export function stopDrawings() {
+  for (const child of drawingChildren) child.kill();
+  drawingChildren.clear();
+}
+
 function run(
   bin: string,
   args: string[],
   input: string,
-  options: { cwd: string; timeoutMs: number; signal?: AbortSignal },
+  options: {
+    cwd: string;
+    timeoutMs: number;
+    signal?: AbortSignal;
+    provider: "claude" | "chatgpt";
+  },
 ) {
   return new Promise<string>((resolve, reject) => {
     if (options.signal?.aborted) return reject(Error("Cancelled"));
@@ -56,6 +69,10 @@ function run(
       env: cliEnv(),
       stdio: "pipe",
     });
+    drawingChildren.add(child);
+    // A process stopped before reading all of a large message (an image to
+    // review) breaks the pipe; the close handler settles the call.
+    child.stdin.on("error", () => {});
     let out = "",
       err = "";
     const timer = setTimeout(() => {
@@ -75,10 +92,12 @@ function run(
     child.stderr.on("data", (chunk) => (err = (err + chunk).slice(-4000)));
     child.on("error", (error) => {
       clearTimeout(timer);
+      drawingChildren.delete(child);
       reject(error);
     });
     child.on("close", (code) => {
       clearTimeout(timer);
+      drawingChildren.delete(child);
       options.signal?.removeEventListener("abort", abort);
       if (code === 0) return resolve(out);
       // Claude Code reports most failures as JSON on stdout, not stderr.
@@ -99,6 +118,7 @@ function run(
             reported ||
               err.trim().split("\n").at(-1) ||
               `The assistant stopped (exit ${code}).`,
+            options.provider,
           ),
         ),
       );
@@ -108,11 +128,18 @@ function run(
 }
 
 /** What to do about a failed assistant call, in plain words. */
-export function assistantError(text: string) {
+export function assistantError(
+  text: string,
+  provider: "claude" | "chatgpt" = "claude",
+) {
   if (/does not support this model|or newer is required|out of date/iu.test(text))
-    return "Claude Code is out of date. Run `claude update` in Terminal, then try again.";
+    return provider === "claude"
+      ? "Claude Code is out of date. Run `claude update` in Terminal, then try again."
+      : "Codex is out of date. Update the ChatGPT app, then try again.";
   if (/log ?in|sign in|auth|unauthori[sz]ed/iu.test(text))
-    return "Claude needs you to sign in. Run `claude auth login` in Terminal.";
+    return provider === "claude"
+      ? "Claude needs you to sign in. Run `claude auth login` in Terminal."
+      : "ChatGPT needs you to sign in. Open the ChatGPT app and sign in to Codex.";
   if (/usage limit|limit reached|rate limit|quota/iu.test(text))
     return "The assistant's usage limit is reached. Try again later or choose the other assistant.";
   return text;
@@ -192,7 +219,12 @@ export function assistantAsker(
               },
             }) + "\n"
           : prompt,
-        { cwd: options.workDir, timeoutMs: 240000, signal: options.signal },
+        {
+          cwd: options.workDir,
+          timeoutMs: 240000,
+          signal: options.signal,
+          provider: "claude",
+        },
       );
       let parsed: { result?: string; is_error?: boolean };
       try {
@@ -246,7 +278,12 @@ export function assistantAsker(
           ...(image ? ["--image", picture] : []),
         ],
         `${system}\n\nDo not run commands or create files.\n\n${prompt}`,
-        { cwd: dir, timeoutMs: 240000, signal: options.signal },
+        {
+          cwd: dir,
+          timeoutMs: 240000,
+          signal: options.signal,
+          provider: "chatgpt",
+        },
       );
       if (!existsSync(answer))
         throw Error(

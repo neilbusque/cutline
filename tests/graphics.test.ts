@@ -191,6 +191,31 @@ describe("making a graphic", () => {
     expect(calls[1].prompt).toContain("edge to edge");
   });
 
+  it("reports an assistant that couldn't answer instead of buying a picture", async () => {
+    for (const problem of [
+      "Claude Code isn't installed. Install it from claude.com/code and sign in once, or choose ChatGPT.",
+      "The assistant's usage limit is reached. Try again later or choose the other assistant.",
+      "Claude needs you to sign in. Run `claude auth login` in Terminal.",
+      "The assistant took too long. Try again or simplify the request.",
+    ]) {
+      const ask = vi.fn(async () => {
+        throw Error(problem);
+      });
+      const make = vi.fn(async () => picture);
+      await expect(
+        generateGraphic({ prompt: "a coffee cup" }, { ask, render, picture: make }),
+      ).rejects.toThrow(problem);
+      expect(make).not.toHaveBeenCalled();
+    }
+  });
+
+  it("still turns a reply with no usable drawing into a picture", async () => {
+    const { ask } = assistant("Sorry, here is a description instead.", "Still no drawing.");
+    const make = vi.fn(async () => picture);
+    const made = await generateGraphic({ prompt: "a busy market" }, { ask, render, picture: make });
+    expect(made).toMatchObject({ kind: "picture", reason: "unusable" });
+  });
+
   it("stops at once when cancelled", async () => {
     const ask = vi.fn(async () => {
       throw Error("Cancelled");

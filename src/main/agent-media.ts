@@ -241,7 +241,11 @@ export type AgentMediaDeps = {
     description: string,
     style: StyleReelStyle,
     signal?: AbortSignal,
-  ) => Promise<{ kind: "svg"; svg: string } | { kind: "image"; file: string }>;
+  ) => Promise<
+    | { kind: "svg"; svg: string }
+    /** cutout false: the picture kept its backdrop. */
+    | { kind: "image"; file: string; cutout?: boolean }
+  >;
   /** cutline_graphic's work: the same route as Generate > Graphic. */
   graphic?: (
     input: GraphicGenerateInput,
@@ -868,9 +872,16 @@ export function createAgentMedia(deps: AgentMediaDeps) {
             const asset = await deps.media.import(drawn.file);
             asset.name = beat.show.slice(0, 60);
             imported.push(asset);
+            // A picture that kept its backdrop shows as a framed card, not a
+            // solid block over the speaker.
+            const cut = drawn.cutout !== false;
+            if (!cut)
+              warnings.push(
+                `${beat.show.slice(0, 60)}: the picture's background could not be removed, so it shows as a framed card.`,
+              );
             beats.push({
               ...base,
-              visual: { kind: "asset", assetId: asset.id, drawing: true },
+              visual: { kind: "asset", assetId: asset.id, drawing: cut },
             });
           } else
             beats.push({
@@ -974,7 +985,9 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     );
     if (store.openSession !== opening)
       throw Error(
-        "A different project was opened meanwhile. Inspect it and try again.",
+        made.kind === "picture"
+          ? `A different project was opened meanwhile, so the picture was not added. It is saved at ${made.file}: import it with cutline_import_media instead of making it again.`
+          : "A different project was opened meanwhile. Inspect it and try again.",
       );
     const name = args.prompt.replace(/\s+/gu, " ").slice(0, 60);
     if (made.kind === "vector") {

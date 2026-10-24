@@ -185,7 +185,11 @@ export function GraphicStudio({
       return [
         made.reason === "asked"
           ? "Picture made with Higgsfield"
-          : "Too detailed for a vector, so Higgsfield made a picture",
+          : made.reason === "unusable"
+            ? `${drawer}'s drawing couldn't be used, so Higgsfield made a picture`
+            : made.reason === "lost-detail"
+              ? "The vector would have lost detail, so Higgsfield made a picture"
+              : "Too detailed for a vector, so Higgsfield made a picture",
         made.usd ? ` for about $${Number(made.usd).toFixed(2)}` : "",
         ". It is in Media.",
         made.cutout ? "" : " Its background could not be removed.",

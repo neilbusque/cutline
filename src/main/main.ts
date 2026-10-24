@@ -96,9 +96,11 @@ import { cutlineTools, longRunningTools } from "./agent-tools";
 import { agentMediaTools, createAgentMedia } from "./agent-media";
 import {
   assistantAsker,
+  findCodex,
   fitSvg,
   References,
   renderSvg,
+  stopDrawings,
 } from "./vector-studio";
 import { capturePage } from "./page-capture";
 import { keepEditorAlive } from "./editor-window";
@@ -177,7 +179,10 @@ function saveAssistantSettings() {
     JSON.stringify(assistantSettings),
   );
 }
-/** Whether a graphic too detailed for a vector may become a Higgsfield picture. */
+/**
+ * Whether a graphic too detailed for a vector may become a Higgsfield picture.
+ * Read from disk at each use, so a change reaches every open session.
+ */
 let graphicsSettings = { pictures: true };
 const graphicsSettingsFile = () =>
   path.join(sessionContext.rootData, "graphics-settings.json");
@@ -216,6 +221,7 @@ async function makeGraphic(
   } = {},
 ): Promise<GraphicResult> {
   const connected = (await generationCredentials.status()).configured;
+  loadGraphicsSettings();
   const allowed =
     connected && (graphicsSettings.pictures || input.route === "picture");
   const made = await generateGraphic(input, {
@@ -244,9 +250,26 @@ async function makeGraphic(
 }
 /**
  * Drawings made for Shorts, by description and look, so running a Short again
- * (or after an edit) reuses them instead of drawing or paying again.
+ * (or after an edit) reuses them instead of drawing or paying again. A drawing
+ * still in progress is shared too, so one asked for twice is made once.
  */
-const drawings = new Map<string, { kind: "svg"; svg: string } | { kind: "image"; file: string }>();
+const drawings = new Map<
+  string,
+  Promise<
+    | { kind: "svg"; svg: string }
+    | { kind: "image"; file: string; cutout?: boolean }
+  >
+>();
+/**
+ * Who draws for agents, Shorts and Story: the assistant chosen in the
+ * Assistant panel, or the other one when that one isn't installed.
+ */
+function drawingProvider(): "claude" | "chatgpt" {
+  const chosen = assistantSettings.provider === "codex" ? "chatgpt" : "claude";
+  if (chosen === "claude" && !findClaude() && findCodex()) return "chatgpt";
+  if (chosen === "chatgpt" && !findCodex() && findClaude()) return "claude";
+  return chosen;
+}
 let musicControl: ReturnType<typeof createMusicControl>;
 let lastAgentCall: { tool: string; at: string } | undefined;
 const previewRequests = new Map<
@@ -1772,8 +1795,7 @@ function register() {
           GraphicGenerateSchema.parse({
             prompt,
             style: "flat",
-            provider:
-              assistantSettings.provider === "codex" ? "chatgpt" : "claude",
+            provider: drawingProvider(),
             aspect:
               p.width > p.height ? "wide" : p.height > p.width ? "tall" : "square",
             route: "vector",
@@ -1809,10 +1831,13 @@ function register() {
       shotDrawing?.abort();
       shotDrawing = undefined;
     },
-    "graphic.settings": async () => ({
-      ...graphicsSettings,
-      connected: (await generationCredentials.status()).configured,
-    }),
+    "graphic.settings": async () => {
+      loadGraphicsSettings();
+      return {
+        ...graphicsSettings,
+        connected: (await generationCredentials.status()).configured,
+      };
+    },
     "graphic.settings.set": async (args) => {
       graphicsSettings = {
         pictures: z.boolean().parse(args?.pictures),
@@ -2146,23 +2171,39 @@ app.whenReady().then(async () => {
         prompt: description,
         onto: `${style === "locked-split" ? "near-black" : style === "cards" ? "warm off-white" : "soft pastel"} video`,
         style: style === "cards" ? "glyph" : "flat",
-        provider: assistantSettings.provider === "codex" ? "chatgpt" : "claude",
+        provider: drawingProvider(),
         aspect: "square",
       });
       const key = createHash("sha256")
         .update(JSON.stringify([input, assistantSettings.claudeModel]))
         .digest("hex");
       const kept = drawings.get(key);
-      if (kept && (kept.kind === "svg" || existsSync(kept.file))) return kept;
-      const made = await makeGraphic(input, { signal });
-      const drawn =
+      if (kept) {
+        const done = await kept.catch(() => undefined);
+        if (done && (done.kind === "svg" || existsSync(done.file))) return done;
+        if (drawings.get(key) === kept) drawings.delete(key);
+      }
+      const fit = (svg: string) =>
+        fitSvg(withoutBackdrop(svg)).catch(() => svg);
+      const drawing = makeGraphic(input, { signal }).then(async (made) =>
         made.kind === "vector"
-          ? { kind: "svg" as const, svg: await fitSvg(withoutBackdrop(made.svg)).catch(() => made.svg) }
-          : { kind: "image" as const, file: made.file };
-      drawings.set(key, drawn);
-      return drawn;
+          ? { kind: "svg" as const, svg: await fit(made.svg) }
+          : // A picture that kept its backdrop: the drawing made first is
+            // better, when there is one.
+            !made.cutout && made.drawing
+            ? { kind: "svg" as const, svg: await fit(made.drawing.svg) }
+            : { kind: "image" as const, file: made.file, cutout: made.cutout },
+      );
+      drawings.set(key, drawing);
+      drawing.catch(() => {
+        if (drawings.get(key) === drawing) drawings.delete(key);
+      });
+      return drawing;
     },
-    graphic: (input, signal) => makeGraphic(input, { signal }),
+    // Agents' graphics are drawn by the assistant chosen in Cutline, never
+    // by a default that may not be installed.
+    graphic: (input, signal) =>
+      makeGraphic({ ...input, provider: drawingProvider() }, { signal }),
     references: {
       logo: (query) => references.logo(query),
       inLibrary: (name) => references.inLibrary(name),
@@ -2429,6 +2470,10 @@ app.on("before-quit", (event) => {
     return;
   }
   generation?.stop();
+  // Drawings in progress stop with Cutline instead of running on alone.
+  vectorGeneration?.abort();
+  shotDrawing?.abort();
+  stopDrawings();
   // Undo history is written in the background; finish it before quitting.
   store?.close();
   sessions.close();

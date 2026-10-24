@@ -168,4 +168,76 @@ describe("Higgsfield pictures", () => {
     expect(await pictures.estimate({ ...request, prompt: "y" })).toBe("0.04");
     expect(calls.filter((call) => call.url.includes("/estimate/"))).toHaveLength(1);
   });
+
+  const submits = (calls: { url: string; init: RequestInit }[]) =>
+    calls.filter((call) => call.url.endsWith("text-to-image") && !call.url.includes("/estimate/"));
+  const request = { prompt: "a teal disc", style: "flat" as const, aspect: "square" as const };
+
+  it("never sends a paid request after Cancel", async () => {
+    const { fetcher, calls } = provider([]);
+    const pictures = new HiggsfieldPictures(folder, async () => key, fetcher, instant);
+    const stop = new AbortController();
+    stop.abort();
+    await expect(pictures.generate(request, stop.signal)).rejects.toThrow("Cancelled");
+    expect(submits(calls)).toHaveLength(0);
+  });
+
+  it("keeps asking through a rate limit or outage while the picture is made", async () => {
+    const { fetcher, calls } = provider(["in_progress", "completed"]);
+    let hiccups = 2;
+    const flaky = (async (url: string | URL | Request, init?: RequestInit) =>
+      String(url).endsWith("/status") && hiccups-- > 0
+        ? json({ error: "busy" }, hiccups ? 429 : 503)
+        : fetcher(url, init)) as typeof fetch;
+    const pictures = new HiggsfieldPictures(folder, async () => key, flaky, instant);
+    const made = await pictures.generate(request);
+    expect(made.cutout).toBe(true);
+    expect(submits(calls)).toHaveLength(1);
+  });
+
+  it("picks up an unfinished paid picture instead of paying again", async () => {
+    const { fetcher, calls } = provider(["in_progress", "completed"]);
+    let broken = true;
+    const once = (async (url: string | URL | Request, init?: RequestInit) =>
+      String(url).endsWith("/status") && broken
+        ? ((broken = false), json({ error: "gone" }, 404))
+        : fetcher(url, init)) as typeof fetch;
+    const pictures = new HiggsfieldPictures(folder, async () => key, once, instant);
+    await expect(pictures.generate(request)).rejects.toThrow();
+    // Asked again (even after a restart): the same request is polled, not bought.
+    const again = new HiggsfieldPictures(folder, async () => key, once, instant);
+    const made = await again.generate(request);
+    expect(made.cutout).toBe(true);
+    expect(submits(calls)).toHaveLength(1);
+  });
+
+  it("sends an unanswered submit again with the same key, so it is charged once", async () => {
+    const { fetcher, calls } = provider([]);
+    let lost = true;
+    const dropped = (async (url: string | URL | Request, init?: RequestInit) => {
+      const address = String(url);
+      if (address.endsWith("text-to-image") && !address.includes("/estimate/") && lost) {
+        lost = false;
+        calls.push({ url: address, init: init ?? {} });
+        throw new TypeError("fetch failed");
+      }
+      return fetcher(url, init);
+    }) as typeof fetch;
+    const pictures = new HiggsfieldPictures(folder, async () => key, dropped, instant);
+    await expect(pictures.generate(request)).rejects.toThrow("fetch failed");
+    await pictures.generate(request);
+    const keys = submits(calls).map(
+      (call) => (call.init.headers as Record<string, string>)["Idempotency-Key"],
+    );
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it("makes the same picture once when it is asked for twice at the same time", async () => {
+    const { fetcher, calls } = provider(["in_progress", "completed"]);
+    const pictures = new HiggsfieldPictures(folder, async () => key, fetcher, instant);
+    const [a, b] = await Promise.all([pictures.generate(request), pictures.generate(request)]);
+    expect(b.file).toBe(a.file);
+    expect(submits(calls)).toHaveLength(1);
+  });
 });

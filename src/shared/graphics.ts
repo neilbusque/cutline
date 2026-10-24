@@ -129,6 +129,9 @@ export function reviewSystemPrompt() {
   ].join("\n");
 }
 
+/** generateVector's errors for a reply that held no usable drawing. */
+const drawingFailed = /did not return an SVG|could not be used/u;
+
 /** The review's 1 to 5 score, or undefined when it gave none. */
 export function reviewScore(reply: string) {
   const score = Number(/<score>\s*([1-5])\s*<\/score>/u.exec(reply)?.[1]);
@@ -285,10 +288,12 @@ export async function generateGraphic(
       decline: canDecline ? declineRule() : undefined,
     });
   } catch (error) {
-    if (canDecline && /too detailed/u.test((error as Error).message))
-      return picture("too-detailed");
-    if (canDecline && !/Cancelled/u.test((error as Error).message))
-      return picture("unusable");
+    const message = (error as Error).message;
+    if (canDecline && /too detailed/u.test(message)) return picture("too-detailed");
+    // Only a drawing that came back unusable becomes a picture. An assistant
+    // that couldn't answer (not installed, signed out, out of usage, too
+    // slow) is reported as it is and never spends Higgsfield credits.
+    if (canDecline && drawingFailed.test(message)) return picture("unusable");
     throw error;
   }
   if (canDecline && lostDetail(drawn.parsed)) return picture("lost-detail", drawn);
