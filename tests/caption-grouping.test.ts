@@ -389,7 +389,10 @@ describe("Built-in caption placement on a vertical Reel", () => {
     inside(placement, 1080, 1920);
     expect(placement.x + placement.width / 2).toBe(540);
     const p = newProject();
-    const two = buildCaptionClips(p, spoken("Every frame should read clearly here"));
+    const two = buildCaptionClips(
+      p,
+      spoken("Every frame should read clearly here"),
+    );
     for (const c of two) {
       inside(c, p.width, p.height);
       // The rendered lines fit the box, so they stay inside too.
@@ -454,9 +457,7 @@ describe("Subtitle file import", () => {
       ]);
       // Back-to-back cues share one frame boundary.
       for (let i = 1; i < 4; i++)
-        expect(clips[i].start).toBe(
-          clips[i - 1].start + clips[i - 1].duration,
-        );
+        expect(clips[i].start).toBe(clips[i - 1].start + clips[i - 1].duration);
       // A short cue before a gap ends where its author ended it.
       expect(clips[3].start + clips[3].duration).toBe(Math.ceil(5.6 * fps));
     },
@@ -471,9 +472,9 @@ describe("Subtitle file import", () => {
       actions: [{ type: "caption.import", srt, at: { frame: 30 } }],
     }).project.clips;
     const app = srtCaptionClips(p, srt, 30);
-    expect(imported.map(({ start, duration, text }) => [start, duration, text])).toEqual(
-      app.map(({ start, duration, text }) => [start, duration, text]),
-    );
+    expect(
+      imported.map(({ start, duration, text }) => [start, duration, text]),
+    ).toEqual(app.map(({ start, duration, text }) => [start, duration, text]));
     expect(app.map((clip) => [clip.start, clip.duration])).toEqual([
       [60, 31],
       [91, 45],

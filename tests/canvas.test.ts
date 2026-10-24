@@ -383,13 +383,21 @@ describe("atomic canvas resize", () => {
       ],
     }).project;
     const byMenu = resized(portrait, 1920, 1080);
-    expect(byAgent).toMatchObject({ width: 1920, height: 1080, name: "Landscape cut" });
+    expect(byAgent).toMatchObject({
+      width: 1920,
+      height: 1080,
+      name: "Landscape cut",
+    });
     for (const id of ["footage", "caption"]) {
       const agent = byAgent.clips.find((c) => c.id === id)!,
         menu = byMenu.clips.find((c) => c.id === id)!;
-      expect([agent.x, agent.y, agent.width, agent.height, agent.fontSize]).toEqual(
-        [menu.x, menu.y, menu.width, menu.height, menu.fontSize],
-      );
+      expect([
+        agent.x,
+        agent.y,
+        agent.width,
+        agent.height,
+        agent.fontSize,
+      ]).toEqual([menu.x, menu.y, menu.width, menu.height, menu.fontSize]);
     }
     const footage = byAgent.clips.find((c) => c.id === "footage")!,
       caption = byAgent.clips.find((c) => c.id === "caption")!;

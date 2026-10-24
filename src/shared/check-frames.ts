@@ -16,8 +16,7 @@ export function checkFrames(
   const settled = [
     ...new Set(
       beats.map(
-        (beat) =>
-          beat.start + Math.max(0, Math.min(beat.duration - 1, settle)),
+        (beat) => beat.start + Math.max(0, Math.min(beat.duration - 1, settle)),
       ),
     ),
   ]

@@ -1117,7 +1117,8 @@ export function parseEditableSvg(svg: string): ParsedEditableSvg {
           : stroke.color;
     if (stroke.kind === "gradient")
       warnings.add("Gradient outlines were drawn in a solid color.");
-    if (["rect", "circle", "ellipse"].includes(tag)) clockwise.add(layers.length);
+    if (["rect", "circle", "ellipse"].includes(tag))
+      clockwise.add(layers.length);
     layers.push({
       type: "path",
       name: (

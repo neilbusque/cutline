@@ -132,12 +132,9 @@ describe("linked captions follow manual moves and trims", () => {
     }).project;
     expect(trimmed.clips.map((c) => c.id)).toEqual(["v", "later"]);
     // An empty caption never becomes an empty subtitle cue.
-    expect(
-      toSrt(
-        [{ ...spoken, text: " ", words: [] }, later],
-        p.fps,
-      ),
-    ).toBe("1\n00:00:00,633 --> 00:00:01,967\nover here\n");
+    expect(toSrt([{ ...spoken, text: " ", words: [] }, later], p.fps)).toBe(
+      "1\n00:00:00,633 --> 00:00:01,967\nover here\n",
+    );
   });
 
   it("does nothing for clips without captions", () => {
@@ -178,7 +175,12 @@ describe("captions stay on the speech when a clip's speed or source in changes",
       duration: 600,
       keyframes: [
         // A punch-in on the word spoken at 10 s of source.
-        { property: "scale" as const, frame: 300, value: 1.2, easing: "hold" as const },
+        {
+          property: "scale" as const,
+          frame: 300,
+          value: 1.2,
+          easing: "hold" as const,
+        },
       ],
     };
     p.clips = [
@@ -226,7 +228,8 @@ describe("captions stay on the speech when a clip's speed or source in changes",
     expect(captions.flatMap((c) => c.words.map((w) => w.text))).toEqual(
       spoken.map((w) => w.text),
     );
-    for (const c of captions) expect(c.start + c.duration).toBeLessThanOrEqual(330);
+    for (const c of captions)
+      expect(c.start + c.duration).toBeLessThanOrEqual(330);
     // The punch-in stays on its word: source 10 s now plays 5 s into the clip.
     expect(fast.clips.find((c) => c.id === "v")!.keyframes[0].frame).toBe(150);
   });
@@ -251,7 +254,11 @@ describe("captions stay on the speech when a clip's speed or source in changes",
       revision: p.revision,
       label: "Speed up",
       actions: [
-        { type: "clip.update", clipId: "v", patch: { speed: 1.25, duration: 480 } },
+        {
+          type: "clip.update",
+          clipId: "v",
+          patch: { speed: 1.25, duration: 480 },
+        },
       ],
     }).project;
     expect(Math.max(...drift(fast))).toBeLessThan(1.5 / 30);

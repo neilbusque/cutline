@@ -171,8 +171,12 @@ describe("SVG import from real design tools and AI output", () => {
     expect(() => svg(diamond)).toThrow(/simplify/);
     // Apart from the stick it joins as before.
     expect(
-      svg(diamond.replace(/M38 70L50 82L62 70L50 58Z/u, "M138 70L150 82L162 70L150 58Z"))
-        .layers,
+      svg(
+        diamond.replace(
+          /M38 70L50 82L62 70L50 58Z/u,
+          "M138 70L150 82L162 70L150 58Z",
+        ),
+      ).layers,
     ).toHaveLength(64);
     // See-through circles would darken where they overlap, so only ones
     // apart from each other join.

@@ -924,7 +924,10 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
         reelEnd,
         beats
           .filter((beat) => beat.visual || layoutFor(style, beat) !== "speaker")
-          .map((beat) => ({ start: beat.start, duration: beat.end - beat.start })),
+          .map((beat) => ({
+            start: beat.start,
+            duration: beat.end - beat.start,
+          })),
       ),
     },
   };

@@ -107,8 +107,11 @@ describe("Caption text corrections", () => {
       ).map((item) => item.after),
     ).toEqual(["Don't touch Dan or Don's"]);
     expect(
-      captionReplacementPlan([phrase("name", "Visit café Ünder")], "café", "cafe")[0]
-        .after,
+      captionReplacementPlan(
+        [phrase("name", "Visit café Ünder")],
+        "café",
+        "cafe",
+      )[0].after,
     ).toBe("Visit cafe Ünder");
   });
   it("labels exact frame positions at supported frame rates", () => {

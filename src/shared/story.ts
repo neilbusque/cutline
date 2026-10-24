@@ -338,7 +338,9 @@ export function buildStoryTimeline(
     0,
     ...media,
   );
-  next.tracks.unshift(...newTracks.filter((track) => track.id === captionTrack));
+  next.tracks.unshift(
+    ...newTracks.filter((track) => track.id === captionTrack),
+  );
   next.tracks.push(...newTracks.filter((track) => track.kind === "audio"));
   const clips: Clip[] = [];
   const motionIds: string[] = [];

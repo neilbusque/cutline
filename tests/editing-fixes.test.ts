@@ -494,7 +494,13 @@ describe("ripple delete never slides one clip onto another", () => {
   function timeline() {
     const p = newProject();
     p.tracks.push(
-      { id: "voice", name: "Voice", kind: "audio", muted: false, hidden: false },
+      {
+        id: "voice",
+        name: "Voice",
+        kind: "audio",
+        muted: false,
+        hidden: false,
+      },
       { id: "talk", name: "Talk", kind: "audio", muted: false, hidden: false },
     );
     p.assets = [
@@ -504,7 +510,14 @@ describe("ripple delete never slides one clip onto another", () => {
       media("song", "audio", 30),
       media("vo", "audio", 30),
     ];
-    const at = (id: string, kind: "video" | "audio", track: string, asset: number, start: number, duration: number) => ({
+    const at = (
+      id: string,
+      kind: "video" | "audio",
+      track: string,
+      asset: number,
+      start: number,
+      duration: number,
+    ) => ({
       ...makeClip(p, kind, track, start, p.assets[asset]),
       id,
       duration,
@@ -695,18 +708,38 @@ describe("transitions move the captions of the clips they move", () => {
     const p = newProject();
     p.assets = [media("a"), media("b")];
     const words = (names: string[], step: number) =>
-      names.map((text, i) => ({ text, start: i * step, end: i * step + step * 0.8 }));
+      names.map((text, i) => ({
+        text,
+        start: i * step,
+        end: i * step + step * 0.8,
+      }));
     p.clips = [
-      { ...makeClip(p, "video", "video", 0, p.assets[0]), id: "a", duration: 300 },
-      { ...makeClip(p, "video", "video", 300, p.assets[1]), id: "b", duration: 300 },
+      {
+        ...makeClip(p, "video", "video", 0, p.assets[0]),
+        id: "a",
+        duration: 300,
+      },
+      {
+        ...makeClip(p, "video", "video", 300, p.assets[1]),
+        id: "b",
+        duration: 300,
+      },
       // 30 fps: the last phrase of a runs to its end, b speaks from its start.
-      caption("w35", 262, 38, words(["w35", "w36", "w37", "w38", "w39"], 0.25), {
-        captionSourceId: "a",
-      }),
+      caption(
+        "w35",
+        262,
+        38,
+        words(["w35", "w36", "w37", "w38", "w39"], 0.25),
+        {
+          captionSourceId: "a",
+        },
+      ),
       caption("w0", 300, 37, words(["w0", "w1", "w2", "w3", "w4"], 0.24), {
         captionSourceId: "b",
       }),
-      caption("w5", 337, 40, words(["w5", "w6"], 0.6), { captionSourceId: "b" }),
+      caption("w5", 337, 40, words(["w5", "w6"], 0.6), {
+        captionSourceId: "b",
+      }),
     ];
     const faded = tx(validateProject(p), [
       { type: "clip.transition", id: "b", kind: "crossfade", frames: 15 },
@@ -721,11 +754,16 @@ describe("transitions move the captions of the clips they move", () => {
       expect(
         faded.clips.filter(
           (c) =>
-            c.kind === "caption" && c.start <= frame && frame < c.start + c.duration,
+            c.kind === "caption" &&
+            c.start <= frame &&
+            frame < c.start + c.duration,
         ).length,
       ).toBeLessThanOrEqual(1);
     // A crossfade into a clip without captions leaves the outgoing ones alone.
-    const silent = { ...p, clips: p.clips.filter((c) => c.captionSourceId !== "b") };
+    const silent = {
+      ...p,
+      clips: p.clips.filter((c) => c.captionSourceId !== "b"),
+    };
     expect(
       byId(
         tx(validateProject(silent), [
@@ -1180,7 +1218,9 @@ describe("timing that reads the same at any frame rate", () => {
       // Media clips keep the schema default.
       expect(makeClip(p, "image", "video", 0).animationFrames).toBe(18);
     }
-    expect(makeClip({ ...newProject(), fps: 60 }, "text", "titles").animationFrames).toBe(36);
+    expect(
+      makeClip({ ...newProject(), fps: 60 }, "text", "titles").animationFrames,
+    ).toBe(36);
   });
 
   it("refuses agent times past the timeline's end in plain words instead of a schema error", () => {

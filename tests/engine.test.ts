@@ -166,8 +166,10 @@ describe("atomic editing", () => {
       ],
     });
     expect(
-      raw([{ type: "clip.update", id: "old", patch: { volume: 0.5 } }], older)
-        .clips.find((c) => c.id === "old")?.volume,
+      raw(
+        [{ type: "clip.update", id: "old", patch: { volume: 0.5 } }],
+        older,
+      ).clips.find((c) => c.id === "old")?.volume,
     ).toBe(0.5);
   });
   it("shifts all later tracks on ripple delete", () => {

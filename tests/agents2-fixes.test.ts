@@ -1161,8 +1161,7 @@ describe("agent media tools are listed, guarded and long-running", () => {
 });
 
 describe("cutline_reference without at checks what would be shown", () => {
-  const mark =
-    '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>';
+  const mark = '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>';
   function withReferences(logo: (query: unknown) => Promise<unknown>) {
     const screenshot = vi.fn(async () => ({
       file: "/captures/repo.png",
@@ -1211,7 +1210,11 @@ describe("cutline_reference without at checks what would be shown", () => {
       kind: "logo",
       target: "Acme",
     })) as any;
-    expect(checked).toMatchObject({ found: true, kind: "image", title: "Acme" });
+    expect(checked).toMatchObject({
+      found: true,
+      kind: "image",
+      title: "Acme",
+    });
     expect(checked.warnings[0]).toMatch(/name only/);
     expect(bitmap.importMedia).not.toHaveBeenCalled();
 
@@ -1224,7 +1227,10 @@ describe("cutline_reference without at checks what would be shown", () => {
         kind: "logo",
         target: "Zed",
       }),
-    ).toMatchObject({ found: false, note: expect.stringMatching(/No logo found/) });
+    ).toMatchObject({
+      found: false,
+      note: expect.stringMatching(/No logo found/),
+    });
 
     const page = withReferences(async () => ({}));
     const shot = (await page.call("cutline_reference", {
@@ -1257,7 +1263,9 @@ describe("cutline_reference without at checks what would be shown", () => {
       at: { seconds: 2 },
     })) as any;
     expect(placed.revision).toBe(store.project.revision);
-    expect(store.project.clips.find((c) => c.id === placed.clipId)?.start).toBe(60);
+    expect(store.project.clips.find((c) => c.id === placed.clipId)?.start).toBe(
+      60,
+    );
   });
 });
 

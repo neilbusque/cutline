@@ -277,7 +277,9 @@ describe("Story timeline assembly", () => {
       "Story voiceover",
     ]);
     // Earlier tracks draw on top: a toolbar or agent title goes on Titles.
-    expect(names.indexOf("Titles")).toBeLessThan(names.indexOf("Story visuals"));
+    expect(names.indexOf("Titles")).toBeLessThan(
+      names.indexOf("Story visuals"),
+    );
     expect(result.project.story!.assembly!.trackIds).toHaveLength(3);
   });
 

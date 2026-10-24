@@ -84,7 +84,9 @@ describe("builders say which frames to check", () => {
     const frames = plan.checkFrames!;
     expect(frames[0]).toBe(plan.startFrame);
     expect(frames.at(-1)).toBe(plan.startFrame + plan.durationFrames - 1);
-    expect(frames.length).toBeGreaterThanOrEqual(2 + Math.min(10, plan.beatCount));
+    expect(frames.length).toBeGreaterThanOrEqual(
+      2 + Math.min(10, plan.beatCount),
+    );
     expect(frames.length).toBeLessThanOrEqual(12);
 
     const story = newProject();

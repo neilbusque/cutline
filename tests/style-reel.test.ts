@@ -271,8 +271,18 @@ describe("creator-style Shorts cut the speaker the way a split does", () => {
       fadeIn: 12,
       fadeOut: 12,
       keyframes: [
-        { property: "opacity" as const, frame: 0, value: 1, easing: "linear" as const },
-        { property: "opacity" as const, frame: 359, value: 0.8, easing: "linear" as const },
+        {
+          property: "opacity" as const,
+          frame: 0,
+          value: 1,
+          easing: "linear" as const,
+        },
+        {
+          property: "opacity" as const,
+          frame: 359,
+          value: 0.8,
+          easing: "linear" as const,
+        },
       ],
     });
     // Generated captions, owned by the speaker clip.
@@ -312,11 +322,11 @@ describe("creator-style Shorts cut the speaker the way a split does", () => {
       [0, 12],
     ]);
     // Keys keep their phase across the cuts, as after a split.
-    expect(cut.map((c) => c.animationOffset)).toEqual(
-      cut.map((c) => c.start),
-    );
+    expect(cut.map((c) => c.animationOffset)).toEqual(cut.map((c) => c.start));
     const captions = project.clips.filter((c) => c.kind === "caption");
-    expect(new Set(captions.map((c) => c.captionSourceId)).size).toBeGreaterThan(1);
+    expect(
+      new Set(captions.map((c) => c.captionSourceId)).size,
+    ).toBeGreaterThan(1);
     for (const caption of captions) {
       const owner = cut.find((c) => c.id === caption.captionSourceId)!;
       expect(owner).toBeDefined();
@@ -365,8 +375,8 @@ describe("creator-style Shorts cut the speaker the way a split does", () => {
     const next = project.clips.find((c) => c.id === "next")!;
     expect(next.transition?.fromId).toBe(cut.at(-1)!.id);
     expect(activeTransition(project, next)?.previous.id).toBe(cut.at(-1)!.id);
-    expect(
-      warnings.filter((w) => w.includes("inside a crossfade")),
-    ).toEqual(["The speaker is not cut at 9.7s, which is inside a crossfade."]);
+    expect(warnings.filter((w) => w.includes("inside a crossfade"))).toEqual([
+      "The speaker is not cut at 9.7s, which is inside a crossfade.",
+    ]);
   });
 });
