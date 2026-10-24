@@ -69,7 +69,16 @@ try {
     }),
   );
   const call = async (name, args = {}) => {
-    const response = await client.callTool({ name, arguments: args });
+    let response = await client.callTool({ name, arguments: args });
+    // The window's copy of the project can trail the app by one edit.
+    const stale = /now at revision (\d+)/u.exec(
+      response.content.map((item) => item.text ?? "").join(""),
+    );
+    if (response.isError && stale && "revision" in args)
+      response = await client.callTool({
+        name,
+        arguments: { ...args, revision: Number(stale[1]) },
+      });
     const text = response.content
       .filter((item) => item.type === "text")
       .map((item) => item.text)
