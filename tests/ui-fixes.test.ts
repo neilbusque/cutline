@@ -1,8 +1,10 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { newProject } from "../src/shared/model";
+import { applyCommands, type Command } from "../src/shared/commands";
+import { makeClip, newProject, type Project } from "../src/shared/model";
 import { errorText } from "../src/renderer/controls";
+import { timingCommands, trimCommands } from "../src/renderer/edit-gestures";
 import { createValueStore } from "../src/renderer/playhead";
 
 const remote = (message: string) =>
@@ -254,5 +256,78 @@ describe("Story on a new project", () => {
       story: StoryPlanSchema.parse({ brief: "A morning routine" }),
     });
     expect(html).toContain("Storyline saved");
+  });
+});
+
+describe("generated captions follow every trim and timing edit", () => {
+  const captioned = () => {
+    const p = newProject();
+    const asset = {
+      id: "talk",
+      name: "Talk",
+      kind: "video" as const,
+      path: "/local/talk.mp4",
+      duration: 20,
+      hasAudio: true,
+    };
+    p.assets = [asset];
+    const video = {
+      ...makeClip(p, "video", "video", 0, asset),
+      id: "talk-clip",
+      duration: 300,
+    };
+    const caption = (id: string, start: number) => ({
+      ...makeClip(p, "caption", "captions", start),
+      id,
+      duration: 60,
+      text: "Hello there",
+      captionSourceId: video.id,
+    });
+    p.clips = [video, caption("a", 0), caption("b", 120), caption("c", 240)];
+    return { p, video };
+  };
+  const apply = (p: Project, commands: Command[]) =>
+    applyCommands(p, {
+      projectId: p.id,
+      revision: p.revision,
+      label: "Edit",
+      commands,
+    });
+  const inside = (p: Project) => {
+    const video = p.clips.find((c) => c.id === "talk-clip")!;
+    return p.clips
+      .filter((c) => c.captionSourceId === video.id)
+      .every(
+        (c) =>
+          c.start >= video.start &&
+          c.start + c.duration <= video.start + video.duration,
+      );
+  };
+
+  it("Trim end cuts the captions to the new end", () => {
+    const { p, video } = captioned();
+    const next = apply(p, trimCommands(p, video, "right", 150));
+    expect(inside(next)).toBe(true);
+    expect(next.clips.map((c) => c.id)).not.toContain("c");
+  });
+
+  it("Trim start cuts the captions to the new start", () => {
+    const { p, video } = captioned();
+    const next = apply(p, trimCommands(p, video, "left", 30));
+    expect(inside(next)).toBe(true);
+    expect(next.clips.find((c) => c.id === "a")!.start).toBe(30);
+  });
+
+  it("a typed Start moves the captions with the clip", () => {
+    const { p, video } = captioned();
+    const next = apply(p, timingCommands(p, video, { start: 90 }));
+    expect(inside(next)).toBe(true);
+    expect(next.clips.find((c) => c.id === "b")!.start).toBe(210);
+  });
+
+  it("a typed Duration trims the captions", () => {
+    const { p, video } = captioned();
+    const next = apply(p, timingCommands(p, video, { duration: 100 }));
+    expect(inside(next)).toBe(true);
   });
 });

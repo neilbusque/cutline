@@ -18,7 +18,7 @@ import {
 } from "../shared/model";
 import { type Command } from "../shared/commands";
 import { SlidersHorizontal, Sparkles } from "lucide-react";
-import { createDraftCommit } from "./edit-gestures";
+import { createDraftCommit, timingCommands } from "./edit-gestures";
 import { kindLabel, optionLabel } from "./labels";
 import { usePlayheadFrame, type Playhead } from "./playhead";
 export { optionLabel };
@@ -258,14 +258,24 @@ export function Inspector({
             value={c.start / p.fps}
             min={0}
             step={1 / p.fps}
-            onChange={(n) => patch({ start: Math.round(n * p.fps) })}
+            onChange={(n) =>
+              edit(
+                "Adjust clip",
+                timingCommands(p, c, { start: Math.round(n * p.fps) }),
+              )
+            }
           />
           <NumberField
             label="Duration (s)"
             value={c.duration / p.fps}
             min={1 / p.fps}
             step={1 / p.fps}
-            onChange={(n) => patch({ duration: Math.round(n * p.fps) })}
+            onChange={(n) =>
+              edit(
+                "Adjust clip",
+                timingCommands(p, c, { duration: Math.round(n * p.fps) }),
+              )
+            }
           />
         </div>
         {asset && asset.kind !== "image" && (

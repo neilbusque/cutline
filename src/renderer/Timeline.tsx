@@ -33,7 +33,7 @@ import {
 } from "../shared/timeline";
 import { type Command } from "../shared/commands";
 import { linkedCaptionCommands } from "../shared/linked-captions";
-import { createNudge } from "./edit-gestures";
+import { createNudge, trimCommands } from "./edit-gestures";
 import { clipLabel, clipNote, countLabel, kindLabel } from "./labels";
 import { usePlayheadValue, useStoreValue, type Playhead } from "./playhead";
 import { clipFocusTarget, clipKeyMove, clipTabStop } from "./timeline-focus";
@@ -439,13 +439,11 @@ export function Timeline({
             aria-label="Trim start to playhead"
             disabled={!atSelected}
             onClick={() => {
-              if (currentClip) {
-                const c = trimClip(p, currentClip, "left", playhead.get());
-                const { id, ...patch } = c;
-                edit("Trim start to playhead", [
-                  { type: "clip.update", id, patch },
-                ]);
-              }
+              if (currentClip)
+                edit(
+                  "Trim start to playhead",
+                  trimCommands(p, currentClip, "left", playhead.get()),
+                );
             }}
           >
             Trim start
@@ -455,13 +453,11 @@ export function Timeline({
             aria-label="Trim end to playhead"
             disabled={!atSelected}
             onClick={() => {
-              if (currentClip) {
-                const c = trimClip(p, currentClip, "right", playhead.get());
-                const { id, ...patch } = c;
-                edit("Trim end to playhead", [
-                  { type: "clip.update", id, patch },
-                ]);
-              }
+              if (currentClip)
+                edit(
+                  "Trim end to playhead",
+                  trimCommands(p, currentClip, "right", playhead.get()),
+                );
             }}
           >
             Trim end

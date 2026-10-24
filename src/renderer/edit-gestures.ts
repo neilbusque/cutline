@@ -1,5 +1,7 @@
 import type { Clip, Project, Snapshot } from "../shared/model";
 import type { Command } from "../shared/commands";
+import { linkedCaptionCommands } from "../shared/linked-captions";
+import { trimClip } from "../shared/timeline";
 
 export type EditRequest = {
   projectId: string;
@@ -196,6 +198,45 @@ export function previewTransform(c: Clip, change: Transform, local: number) {
     ].sort((a, b) => a.frame - b.frame);
   }
   return next;
+}
+
+/**
+ * Trim Start or Trim End to a frame. Like a dragged edge, the clip's
+ * generated captions are cut to its new bounds.
+ */
+export function trimCommands(
+  project: Project,
+  clip: Clip,
+  edge: "left" | "right",
+  frame: number,
+): Command[] {
+  const trimmed = trimClip(project, clip, edge, frame);
+  const { id, ...patch } = trimmed;
+  return [
+    { type: "clip.update", id, patch },
+    ...linkedCaptionCommands(project, clip, trimmed, "trim"),
+  ];
+}
+
+/**
+ * Start or Duration typed in Properties. A new start moves the clip's
+ * generated captions with it; a new duration trims them, as dragging does.
+ */
+export function timingCommands(
+  project: Project,
+  clip: Clip,
+  change: { start: number } | { duration: number },
+): Command[] {
+  const after = { start: clip.start, duration: clip.duration, ...change };
+  return [
+    { type: "clip.update", id: clip.id, patch: change },
+    ...linkedCaptionCommands(
+      project,
+      clip,
+      after,
+      "start" in change ? "move" : "trim",
+    ),
+  ];
 }
 
 /** The project with a layer that is being dragged in the preview. */
