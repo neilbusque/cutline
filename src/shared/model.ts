@@ -1,6 +1,11 @@
 import { animatedProperties, propertyBounds } from "./animation";
 import { z } from "zod";
-import { validateVectorPath, validateVectorViewBox } from "./vector-path";
+import {
+  MAX_VECTOR_LAYERS,
+  MAX_VECTOR_PATH_LENGTH,
+  validateVectorPath,
+  validateVectorViewBox,
+} from "./vector-path";
 import { StoryPlanSchema } from "./story-schema";
 export const uid = () => crypto.randomUUID();
 const finite = z.number().finite();
@@ -144,6 +149,33 @@ export const KeyframeSchema = z.object({
     ])
     .optional(),
 });
+const VectorGradientSchema = z.object({
+  type: z.enum(["linear", "radial"]),
+  units: z.enum(["objectBoundingBox", "userSpaceOnUse"]),
+  x1: finite.optional(),
+  y1: finite.optional(),
+  x2: finite.optional(),
+  y2: finite.optional(),
+  cx: finite.optional(),
+  cy: finite.optional(),
+  r: finite.min(0).optional(),
+  fx: finite.optional(),
+  fy: finite.optional(),
+  transform: z
+    .tuple([finite, finite, finite, finite, finite, finite])
+    .optional(),
+  spread: z.enum(["pad", "reflect", "repeat"]).default("pad"),
+  stops: z
+    .array(
+      z.object({
+        offset: finite.min(0).max(1),
+        color,
+        opacity: finite.min(0).max(1).default(1),
+      }),
+    )
+    .min(1)
+    .max(16),
+});
 export const MotionLayerSchema = z
   .object({
     name: z.string().max(80).optional(),
@@ -157,7 +189,7 @@ export const MotionLayerSchema = z
       "line",
       "path",
     ]),
-    vectorPath: z.string().max(16000).optional(),
+    vectorPath: z.string().max(MAX_VECTOR_PATH_LENGTH).optional(),
     vectorViewBox: z
       .tuple([finite, finite, finite.positive(), finite.positive()])
       .optional(),
@@ -168,6 +200,8 @@ export const MotionLayerSchema = z
     vectorLineCap: z.enum(["butt", "round", "square"]).optional(),
     vectorLineJoin: z.enum(["miter", "round", "bevel"]).optional(),
     vectorAspectRatio: z.enum(["meet", "none"]).default("meet"),
+    /** Imported SVG gradient fill; replaces background while present. */
+    vectorGradient: VectorGradientSchema.optional(),
     text: z.string().max(1000).default(""),
     x: finite.min(-4000).max(4000).default(0),
     y: finite.min(-4000).max(4000).default(0),
@@ -228,7 +262,7 @@ export const MotionLayerSchema = z
 export const MotionSchema = z.object({
   id: z.string(),
   name: z.string().max(100),
-  layers: z.array(MotionLayerSchema).min(1).max(24),
+  layers: z.array(MotionLayerSchema).min(1).max(MAX_VECTOR_LAYERS),
   source: z.string().optional(),
 });
 export const PropertyKeyframeSchema = z

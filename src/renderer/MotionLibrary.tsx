@@ -28,6 +28,7 @@ import {
 import { MotionTile } from "./MotionTile";
 import { parseEditableSvg } from "../shared/vector-path";
 import { createVectorScene } from "../shared/vector-scenes";
+import { VectorStudio } from "./VectorStudio";
 import type { Playhead } from "./playhead";
 import {
   createMotionSequence,
@@ -349,7 +350,7 @@ export function MotionLibrary({
           </button>
         ))}
       </div>
-      {tab !== "sequence" && (
+      {tab !== "sequence" && tab !== "vectors" && (
         <label className="search-field mg-search">
           <Search size={13} />
           <input
@@ -649,6 +650,16 @@ export function MotionLibrary({
         )}
         {tab === "vectors" && (
           <>
+            <VectorStudio
+              p={p}
+              playhead={playhead}
+              edit={edit}
+              select={select}
+              onError={setError}
+            />
+            <div className="section-heading">
+              <span>Draw or import</span>
+            </div>
             <div className="mg-vector-actions">
               <button
                 className="import-button primary"

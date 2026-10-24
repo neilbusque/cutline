@@ -65,18 +65,19 @@ export function createVectorScene(
       const dot = matrix[0] * matrix[2] + matrix[1] * matrix[3];
       const vx = width / layer.vectorViewBox[2],
         vy = height / layer.vectorViewBox[3];
-      const stroked = layer.strokeWidth > 0 && layer.stroke !== "transparent";
-      if (
-        stroked &&
-        (Math.abs(sx - sy) > Math.max(1, sx, sy) * 1e-7 ||
-          Math.abs(dot) > Math.max(1, sx * sy) * 1e-7 ||
-          (layer.vectorAspectRatio === "none" &&
-            Math.abs(vx - vy) > Math.max(1, vx, vy) * 1e-7))
-      )
-        throw Error(
-          "Nonuniformly transformed SVG strokes must be expanded to filled paths before import.",
-        );
-      const strokeWidth = layer.strokeWidth * sx * Math.min(vx, vy);
+      // A stretched outline can only keep one width here; the average of its two
+      // scales looks closest. Uniform transforms are exact.
+      const uniform =
+        Math.abs(sx - sy) <= Math.max(1, sx, sy) * 1e-7 &&
+        Math.abs(dot) <= Math.max(1, sx * sy) * 1e-7;
+      const strokeWidth = Math.min(
+        100,
+        layer.strokeWidth *
+          (uniform ? sx : Math.sqrt(sx * sy)) *
+          (layer.vectorAspectRatio === "none"
+            ? Math.sqrt(vx * vy)
+            : Math.min(vx, vy)),
+      );
       return {
         ...layer,
         strokeWidth,

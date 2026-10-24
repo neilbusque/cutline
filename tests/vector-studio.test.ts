@@ -1,0 +1,164 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { afterEach, describe, expect, it } from "vitest";
+import {
+  extractSvg,
+  generateVector,
+  VectorGenerateSchema,
+  vectorUserPrompt,
+} from "../src/shared/vector-generation";
+import { References } from "../src/main/vector-studio";
+import { newProject } from "../src/shared/model";
+import { referenceCard } from "../src/main/agent-media";
+
+const good =
+  '<svg viewBox="0 0 512 512"><path id="cup" d="M100 200H400V400H100Z" fill="#c0703a"/></svg>';
+
+describe("generated vectors", () => {
+  it("pulls the SVG out of a chatty or fenced reply", () => {
+    expect(extractSvg("Here you go:\n```svg\n" + good + "\n```")).toBe(good);
+    expect(() => extractSvg("I can't draw that.")).toThrow(
+      /did not return an SVG/,
+    );
+  });
+
+  it("writes the style, art board and palette into the request", () => {
+    const prompt = vectorUserPrompt(
+      VectorGenerateSchema.parse({
+        prompt: "a rocket",
+        style: "line",
+        aspect: "wide",
+        palette: ["#112233"],
+      }),
+    );
+    expect(prompt).toContain('viewBox="0 0 800 450"');
+    expect(prompt).toContain("round caps");
+    expect(prompt).toContain("#112233");
+  });
+
+  it("sends the importer's complaint back once and returns the fixed SVG", async () => {
+    const prompts: string[] = [];
+    const replies = [
+      '<svg viewBox="0 0 10 10"><text>Hi</text><rect width="5" height="5"/></svg>',
+      good,
+    ];
+    const result = await generateVector(
+      VectorGenerateSchema.parse({ prompt: "a cup" }),
+      async (_system, prompt) => {
+        prompts.push(prompt);
+        return replies.shift()!;
+      },
+    );
+    expect(result.attempts).toBe(2);
+    expect(result.svg).toBe(good);
+    expect(prompts[1]).toMatch(/Text was left out/);
+  });
+
+  it("explains a reply that never becomes a usable vector", async () => {
+    await expect(
+      generateVector(
+        VectorGenerateSchema.parse({ prompt: "a cup" }),
+        async () => "<svg><path d='bad'/></svg>",
+      ),
+    ).rejects.toThrow(/could not be used/);
+  });
+});
+
+describe("references", () => {
+  let dir = "";
+  afterEach(() => dir && rmSync(dir, { recursive: true, force: true }));
+  const library = [
+    { title: "Claude", slug: "claude", hex: "D97757" },
+    { title: "Cursor", hex: "000000" },
+    { title: "Google Gemini", slug: "googlegemini", hex: "8E75B2" },
+  ];
+  const fake = (routes: Record<string, () => Response>) =>
+    (async (url: string) => {
+      const route = routes[String(url)];
+      return route ? route() : new Response("missing", { status: 404 });
+    }) as unknown as typeof fetch;
+  const icons = "https://cdn.jsdelivr.net/npm/simple-icons@16.35.0";
+
+  it("finds library marks by name or alias and returns them as vectors", async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "cutline-refs-"));
+    const refs = new References(
+      dir,
+      fake({
+        [`${icons}/data/simple-icons.json`]: () =>
+          new Response(JSON.stringify(library)),
+        [`${icons}/icons/claude.svg`]: () =>
+          new Response(
+            '<svg viewBox="0 0 24 24"><path d="M0 0H24V24Z"/></svg>',
+          ),
+      }),
+    );
+    expect((await refs.searchLogos("claude code"))[0]).toMatchObject({
+      slug: "claude",
+    });
+    expect((await refs.searchLogos("Gemini"))[0]).toMatchObject({
+      slug: "googlegemini",
+    });
+    expect((await refs.searchLogos("chatgpt"))[0].slug).toBe(
+      "site:chatgpt.com",
+    );
+    const logo = await refs.logo({ name: "Claude" });
+    expect(logo).toMatchObject({
+      kind: "vector",
+      title: "Claude",
+      color: "#D97757",
+    });
+  });
+
+  it("falls back to the brand site's largest icon", async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "cutline-refs-"));
+    const png = new Uint8Array(1200).fill(7);
+    const refs = new References(
+      dir,
+      fake({
+        [`${icons}/data/simple-icons.json`]: () =>
+          new Response(JSON.stringify(library)),
+        "https://chatgpt.com/": () =>
+          new Response(
+            '<link rel="icon" href="/favicon-32.png" sizes="32x32"><link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">',
+          ),
+        "https://chatgpt.com/apple-touch-icon.png": () =>
+          new Response(png, { headers: { "content-type": "image/png" } }),
+        "https://chatgpt.com/favicon-32.png": () =>
+          new Response(new Uint8Array(500), {
+            headers: { "content-type": "image/png" },
+          }),
+      }),
+    );
+    const logo = await refs.logo({ name: "ChatGPT" });
+    expect(logo.kind).toBe("image");
+    if (logo.kind === "image") {
+      expect(logo.source).toBe("https://chatgpt.com/apple-touch-icon.png");
+      expect(readFileSync(logo.file)).toHaveLength(1200);
+    }
+    await expect(refs.logo({ name: "zzqq unknown" })).rejects.toThrow(/domain/);
+  });
+
+  it("frames a screenshot as a card above the captions on a tall reel", () => {
+    const p = { ...newProject(), width: 1080, height: 1920 };
+    const asset = {
+      id: "shot",
+      name: "Repo",
+      kind: "image" as const,
+      path: "/tmp/shot.png",
+      duration: 0,
+      width: 2880,
+      height: 1800,
+      hasAudio: false,
+    };
+    const card = referenceCard(p, asset, { at: { frame: 30 } }, "screenshot");
+    expect(card.clip).toMatchObject({
+      mask: "rounded",
+      start: 30,
+      duration: 90,
+    });
+    expect(card.clip.width).toBeCloseTo(1080 * 0.86);
+    expect(card.clip.height).toBeCloseTo((1080 * 0.86) / 1.6);
+    expect(card.clip.y + card.clip.height).toBeLessThan(1920 * 0.7);
+  });
+});

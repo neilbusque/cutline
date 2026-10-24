@@ -14,4 +14,4 @@ The Signature example uses three eight-beat scenes at 104 BPM, 30 fps and 1280×
 
 Connected Claude and Codex clients, and Cutline's ChatGPT-signed-in assistant, can read names and visibility, edit animation and move keys through the same validated editing schema. Ask the agent to inspect the project and schema, apply one revision-checked transaction, inspect rendered previews, then save or export. See [Agent control](agent-control.md) for connection details. The ChatGPT website requires its own configured HTTPS/tunnel connection; a local launcher connects local clients.
 
-The editor supports editable 2D vector/text animation, compositing, captions, transitions and music response. Each motion supports up to 24 layers and 100 keyframe records per layer. It does not provide After Effects project import, 3D, tracking, rotoscoping or third-party After Effects plugins.
+The editor supports editable 2D vector/text animation, compositing, captions, transitions and music response. Each motion supports up to 64 layers and 100 keyframe records per layer. It does not provide After Effects project import, 3D, tracking, rotoscoping or third-party After Effects plugins.

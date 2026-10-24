@@ -25,6 +25,7 @@ import {
 } from "../shared/model";
 import { createLogoRevealCommands } from "../shared/logo-presets";
 import { VectorEditor } from "./VectorEditor";
+import { MAX_VECTOR_LAYERS } from "../shared/vector-path";
 import {
   motionProperties,
   motionPropertyBounds,
@@ -544,7 +545,7 @@ export function MotionInspector({
         <button
           className="control"
           aria-label="Duplicate motion layer"
-          disabled={motion.layers.length + selection.length > 24}
+          disabled={motion.layers.length + selection.length > MAX_VECTOR_LAYERS}
           onClick={() => {
             const layers: Layer[] = [];
             const copies: number[] = [];
@@ -1594,7 +1595,7 @@ export function MotionInspector({
             <button
               className="control"
               key={type}
-              disabled={motion.layers.length >= 24}
+              disabled={motion.layers.length >= MAX_VECTOR_LAYERS}
               onClick={() => {
                 const width = Math.min(
                   4000,

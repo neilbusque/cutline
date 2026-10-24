@@ -128,7 +128,7 @@ const descriptions: Record<keyof typeof schemas, string> = {
   cutline_import_media:
     "Import local media by absolute path. Returns revision, asset IDs and per-file failures; valid files still import. Place with cutline_edit clip.add. One Undo; originals stay local.",
   cutline_vector_import:
-    "Import local SVG by absolute path as editable layers at startFrame. Paths/shapes/paint/transforms supported; unsupported features reject atomically. One revision-checked Undo; embeds validated data, leaves original unchanged.",
+    "Import local SVG by absolute path as editable layers at startFrame. Unsupported parts (text, filters) are listed in warnings. One Undo.",
   cutline_save_project:
     "Save to optional absolute .cutline path, current file or new local project. Cannot overwrite unrelated files or source media.",
   cutline_open_project:
@@ -213,8 +213,8 @@ export function createAgentIO(options: {
           !statSync(file).isFile()
         )
           throw Error("Choose an existing local .svg file by absolute path.");
-        if (statSync(file).size > 262144)
-          throw Error("This SVG is too large. Simplify it to 256 KiB or less.");
+        if (statSync(file).size > 1048576)
+          throw Error("This SVG is too large. Simplify it to 1 MiB or less.");
         const parsed = parseEditableSvg(readFileSync(file, "utf8"));
         const created = createVectorScene(
           store.project,
@@ -237,6 +237,7 @@ export function createAgentIO(options: {
           clipId: created.clip.id,
           motionId: created.motion.id,
           vectorLayers: created.motion.layers.length,
+          warnings: parsed.warnings ?? [],
         };
       }
       case "cutline_import_media": {

@@ -73,7 +73,7 @@ describe("bounded editable vectors", () => {
       "M1e999 0",
       "M10000001 0",
       "M0 0<script>",
-      "M0 0" + "L0 0".repeat(5000),
+      "M0 0" + "L0 0".repeat(17000),
     ])
       expect(() => validateVectorPath(path)).toThrow();
   });
@@ -138,7 +138,7 @@ describe("bounded editable vectors", () => {
   });
   it("converts common primitive geometry without importing raw SVG elements", () => {
     const source =
-      '<svg viewBox="0 0 100 100"><rect x="1" y="2" width="40" height="30" rx="4"/><circle cx="50" cy="50" r="8"/><ellipse cx="50" cy="50" rx="20" ry="10"/><polygon points="0,0 10,0 10,10"/><polyline points="0 0 10 10"/><line x1="1" y1="2" x2="5" y2="6"/></svg>';
+      '<svg viewBox="0 0 100 100"><rect x="1" y="2" width="40" height="30" rx="4"/><circle cx="50" cy="50" r="8"/><ellipse cx="50" cy="50" rx="20" ry="10"/><polygon points="0,0 10,0 10,10"/><polyline points="0 0 10 10"/><line x1="1" y1="2" x2="5" y2="6" stroke="#fff"/></svg>';
     const parsed = parseEditableSvg(source);
     expect(parsed.layers).toHaveLength(6);
     expect(
@@ -152,31 +152,30 @@ describe("bounded editable vectors", () => {
     expect(parsed.layers[0].vectorPath).toContain("A4 4");
     expect(parsed.layers[5].vectorPath).toBe("M1 2L5 6");
   });
-  it("rejects unsafe or unsupported SVG content atomically and bounds nesting/path count", () => {
+  it("rejects unsafe or broken SVG content atomically and bounds nesting", () => {
     const bad = [
       "<svg><script>alert(1)</script></svg>",
       '<!DOCTYPE svg [<!ENTITY x SYSTEM "file:///secret">]><svg/>',
       '<svg><use href="#other"/></svg>',
       '<svg><image href="https://example.com/x"/></svg>',
-      '<svg><path d="M0 0L1 1" onclick="alert(1)"/></svg>',
-      '<svg><path d="M0 0L1 1" fill="url(#g)"/></svg>',
-      '<svg><style>path{fill:red}</style><path d="M0 0L1 1"/></svg>',
       "<svg><text>Brand</text></svg>",
-      '<svg><g opacity=".5"><path d="M0 0L1 1"/></g></svg>',
-      '<svg><path d="M0 0L1 1" style="filter:blur(1px)"/></svg>',
       '<svg><path d="M0 0L1 1"/><path d="bad"/></svg>',
       '<svg viewBox="0 0 -1 2"><path d="M0 0L1 1"/></svg>',
       '<svg><path d="M0 0L1 1"></g></svg>',
-      '<svg><path d="M0 0L1 1"><path d="M0 0L1 1"/></path></svg>',
       "<svg>" +
-        "<g>".repeat(32) +
+        "<g>".repeat(70) +
         '<path d="M0 0L1 1"/>' +
-        "</g>".repeat(32) +
+        "</g>".repeat(70) +
         "</svg>",
-      "<svg>" + '<path d="M0 0L1 1"/>'.repeat(25) + "</svg>",
       "x".repeat(262145),
+      "x".repeat(1048577),
     ];
     bad.forEach((text) => expect(() => parseEditableSvg(text)).toThrow());
+    // Event handlers and scripts never reach the project: only path data does.
+    const handled = parseEditableSvg(
+      '<svg><script>alert(1)</script><path d="M0 0L1 1" onclick="alert(1)"/></svg>',
+    );
+    expect(JSON.stringify(handled)).not.toMatch(/alert|onclick|script/);
     expect(
       parseEditableSvg(
         '<?xml version="1.0"?><svg><title>A &amp; B</title><!--safe--><path d="M0 0L1 1"/></svg>',
@@ -283,7 +282,7 @@ describe("vector model, creation, rendering and structured editing", () => {
       p.motions,
     );
   });
-  it("converts uniform SVG stroke units to viewport pixels and rejects distorted outlined transforms", () => {
+  it("converts uniform SVG stroke units to viewport pixels and averages distorted outlines", () => {
     const p = newProject(),
       source = parseEditableSvg(
         '<svg viewBox="0 0 100 100"><path d="M0 0L20 20" stroke="black" stroke-width="2" transform="scale(2)"/></svg>',
@@ -293,15 +292,15 @@ describe("vector model, creation, rendering and structured editing", () => {
       height: 500,
     });
     expect(created.motion.layers[0].strokeWidth).toBe(20);
-    expect(() =>
-      createVectorScene(
-        p,
-        0,
-        parseEditableSvg(
-          '<svg viewBox="0 0 100 100"><path d="M0 0L20 20" stroke="black" transform="scale(2 1)"/></svg>',
-        ),
+    const stretched = createVectorScene(
+      p,
+      0,
+      parseEditableSvg(
+        '<svg viewBox="0 0 100 100"><path d="M0 0L20 20" stroke="black" transform="scale(2 1)"/></svg>',
       ),
-    ).toThrow(/expanded/);
+      { width: 500, height: 500 },
+    );
+    expect(stretched.motion.layers[0].strokeWidth).toBeCloseTo(Math.SQRT2 * 5);
     expect(() => createVectorScene(p, 0, source, { width: 4001 })).toThrow();
   });
   it("renders imported paths with transforms, evenodd fill, independent fill reveal and a pixel-true outline", () => {

@@ -22,6 +22,9 @@ import {
 } from "../shared/model";
 import { SpeechInputSchema, speechVoices } from "../shared/tts";
 import type { StockKind, StockProvider } from "../shared/stock";
+import type { BrandLogo } from "./vector-studio";
+import { parseEditableSvg } from "../shared/vector-path";
+import { createVectorScene } from "../shared/vector-scenes";
 
 /**
  * Stock, narration, Auto edit and relink for agents: the same work as the
@@ -79,6 +82,16 @@ export const AutoEditArgsSchema = z
   .refine((a) => (a.assetId === undefined) !== (a.path === undefined), {
     message: "Give the video as assetId or path, not both.",
   });
+export const ReferenceArgsSchema = z.strictObject({
+  ...guard,
+  kind: z.enum(["logo", "screenshot"]),
+  /** Product name or website for a logo; page address for a screenshot. */
+  target: z.string().trim().min(1).max(2000),
+  phone: z.boolean().optional(),
+  selector: z.string().max(300).optional(),
+  color: z.enum(["brand", "white", "black"]).optional(),
+  at: AgentTimeSchema.optional(),
+});
 export const RelinkArgsSchema = z.strictObject({
   ...guard,
   assetId: id,
@@ -90,6 +103,7 @@ const schemas = {
   cutline_voiceover: VoiceoverArgsSchema,
   cutline_auto_edit: AutoEditArgsSchema,
   cutline_relink: RelinkArgsSchema,
+  cutline_reference: ReferenceArgsSchema,
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   cutline_stock_import:
@@ -100,6 +114,8 @@ const descriptions: Record<keyof typeof schemas, string> = {
     "Auto-edit assetId or absolute video path: speech/pause cuts/captions, optional B-roll/music. Replaces timeline, sets 1080x1920. Undoable; wait with cutline_jobs.",
   cutline_relink:
     "Relink asset/other missing folder files to absolute local path. Keeps credits; transcript/beats require matching length. Undoable.",
+  cutline_reference:
+    "Show what the script names: kind logo (target=product or domain) or screenshot (target=url, CSS selector, phone view). at places it.",
 };
 const hints: Record<
   keyof typeof schemas,
@@ -109,6 +125,7 @@ const hints: Record<
   cutline_voiceover: { destructive: false, network: false },
   cutline_auto_edit: { destructive: true, network: true },
   cutline_relink: { destructive: false, network: false },
+  cutline_reference: { destructive: false, network: true },
 };
 
 export const agentMediaTools: Tool[] = Object.entries(schemas).map(
@@ -161,6 +178,13 @@ export type AgentMediaDeps = {
     assetId: string,
     file: string,
   ) => Promise<{ relinked: number; cleared: boolean }>;
+  references?: {
+    logo: (query: { name?: string; domain?: string }) => Promise<BrandLogo>;
+    screenshot: (
+      url: string,
+      options: { device: "desktop" | "phone"; selector?: string },
+    ) => Promise<{ file: string; title: string }>;
+  };
 };
 
 const toFrame = (time: Time, fps: number) =>
@@ -269,6 +293,67 @@ function placement(
   };
   commands.push({ type: "clip.add", clip });
   return { clip, track, commands, warnings };
+}
+
+/**
+ * A reference shown as a card: centered, rounded, with a soft shadow, sized to
+ * the image so nothing is cropped, and kept above the caption zone on tall frames.
+ */
+export function referenceCard(
+  project: Project,
+  asset: Asset,
+  request: { at: Time; duration?: Time },
+  kind: "logo" | "screenshot",
+  size?: number,
+) {
+  const fps = project.fps;
+  const placed = placement(
+    project,
+    asset,
+    { at: request.at, duration: request.duration ?? { frame: fps * 3 } },
+    "broll",
+  );
+  const W = project.width,
+    H = project.height;
+  const aspect = (asset.width ?? 16) / (asset.height ?? 10);
+  const tall = H > W;
+  const maxW = W * (size ?? (kind === "logo" ? 0.3 : 0.86));
+  const maxH = H * (kind === "logo" ? 0.3 : tall ? 0.58 : 0.8);
+  const width = Math.min(maxW, maxH * aspect),
+    height = width / aspect;
+  const centerY = tall ? H * 0.4 : H / 2;
+  const clip = {
+    ...placed.clip,
+    x: (W - width) / 2,
+    y: centerY - height / 2,
+    width,
+    height,
+    fit: "cover" as const,
+    cameraMotion: "none" as const,
+    fadeIn: Math.round(fps * 0.2),
+    fadeOut: Math.round(fps * 0.2),
+    // Screenshots float as cards; a bitmap logo is an app icon, so it gets
+    // the rounded corners an icon has.
+    ...(kind === "screenshot"
+      ? {
+          mask: "rounded" as const,
+          cornerRadius: Math.round(Math.min(W, H) * 0.025),
+          shadowBlur: 60,
+          shadowY: 24,
+          shadowColor: "#00000066",
+        }
+      : {
+          mask: "rounded" as const,
+          cornerRadius: Math.round(width * 0.22),
+        }),
+  };
+  return {
+    ...placed,
+    clip,
+    commands: placed.commands.map((command) =>
+      command.type === "clip.add" ? { ...command, clip } : command,
+    ),
+  };
 }
 
 export function createAgentMedia(deps: AgentMediaDeps) {
@@ -474,8 +559,125 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     };
   }
 
+  async function reference(raw: unknown) {
+    const args = ReferenceArgsSchema.parse(raw ?? {});
+    assertRevision(args);
+    if (!deps.references) throw Error("References are not available here.");
+    const projectId = store.project.id;
+    const stillOpen = () => {
+      if (store.project.id !== projectId)
+        throw Error(
+          "A different project was opened meanwhile. Inspect it and try again.",
+        );
+    };
+    if (args.kind === "logo") {
+      const site = /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/iu.test(
+        args.target,
+      );
+      const logo = await deps.references.logo(
+        site
+          ? { domain: args.target.replace(/^https?:\/\//u, "").split("/")[0] }
+          : { name: args.target },
+      );
+      stillOpen();
+      if (logo.kind === "vector") {
+        if (args.at === undefined)
+          throw Error(
+            "Give at: a vector logo is added straight to the timeline.",
+          );
+        const color =
+          args.color === "white"
+            ? "#ffffff"
+            : args.color === "black"
+              ? "#000000"
+              : logo.color;
+        // Library marks carry no fill of their own; a site's SVG keeps its colors.
+        const svg =
+          color && !/\bfill=/u.test(logo.svg)
+            ? logo.svg.replace(/<svg\b/u, `<svg fill="${color}"`)
+            : logo.svg;
+        const parsed = parseEditableSvg(svg);
+        const side = Math.min(store.project.width, store.project.height) * 0.3;
+        const aspect = parsed.width / parsed.height;
+        const created = createVectorScene(
+          store.project,
+          toFrame(args.at, store.project.fps),
+          parsed,
+          {
+            name: `${logo.title} logo`,
+            ...(aspect >= 1 ? { width: side } : { height: side }),
+          },
+        );
+        // Tall frames: lift the mark above the captions, like a card.
+        if (store.project.height > store.project.width)
+          for (const layer of created.motion.layers)
+            layer.y = store.project.height * 0.4 - layer.height / 2;
+        created.clip.duration = store.project.fps * 3;
+        const next = applyCommands(store.project, {
+          projectId: store.project.id,
+          revision: store.project.revision,
+          label: `Add ${logo.title} logo`,
+          commands: created.commands,
+        });
+        store.commit(next, `Add ${logo.title} logo`);
+        return {
+          revision: store.project.revision,
+          kind: "vector",
+          clipId: created.clip.id,
+          motionId: created.motion.id,
+          title: logo.title,
+          source: logo.source,
+          warnings: parsed.warnings ?? [],
+        };
+      }
+      const asset = await deps.media.import(logo.file);
+      stillOpen();
+      asset.name = `${logo.title} logo`;
+      const at = args.at;
+      const landed = land(
+        asset,
+        `Add ${logo.title} logo`,
+        at
+          ? (project) => referenceCard(project, asset, { at }, "logo")
+          : undefined,
+      );
+      return {
+        ...landed,
+        kind: "image",
+        title: logo.title,
+        source: logo.source,
+      };
+    }
+    const shot = await deps.jobs.run("reference", "Capturing the page", () =>
+      deps.references!.screenshot(args.target, {
+        device: args.phone ? "phone" : "desktop",
+        selector: args.selector,
+      }),
+    );
+    stillOpen();
+    const asset = await deps.media.import(shot.file);
+    stillOpen();
+    asset.name = shot.title.slice(0, 150);
+    const at = args.at;
+    const landed = land(
+      asset,
+      at ? "Add page screenshot" : "Import page screenshot",
+      at
+        ? (project) => referenceCard(project, asset, { at }, "screenshot")
+        : undefined,
+    );
+    return {
+      ...landed,
+      kind: "screenshot",
+      title: shot.title,
+      file: shot.file,
+    };
+  }
+
   return async (name: string, raw: unknown): Promise<unknown> => {
     switch (name) {
+      case "cutline_reference":
+        return reference(raw);
       case "cutline_stock_import":
         return stockImport(raw);
       case "cutline_voiceover":

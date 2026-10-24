@@ -47,6 +47,8 @@ import { captionTextPatch } from "./caption-edit";
 import { captionStylePatch, captionStyles } from "./caption-styles";
 import { captionClips, parseSrt } from "./subtitles";
 import {
+  MAX_VECTOR_LAYERS,
+  MAX_VECTOR_PATH_LENGTH,
   parseEditableSvg,
   pointsToVectorPath,
   type VectorPathDefinition,
@@ -102,9 +104,14 @@ function partialShape(shape: Record<string, z.ZodType>, omit: string[] = []) {
 export const AgentClipPatchSchema = partialShape(ClipSchema.shape, [
   "id",
 ]) as z.ZodType<Partial<Omit<Clip, "id">>>;
+// Imported gradients come only from SVG (motion.svg), which keeps the tool list small.
 export const AgentMotionLayerPatchSchema = partialShape(
   MotionLayerSchema.shape,
+  ["vectorGradient"],
 ) as z.ZodType<Partial<MotionLayer>>;
+const { vectorGradient: _gradient, ...layerDefinitionShape } =
+  MotionLayerSchema.shape;
+const AgentLayerDefinitionSchema = z.object(layerDefinitionShape);
 const trackPatch = partialShape(TrackSchema.shape, ["id"]) as z.ZodType<
   Partial<Omit<Track, "id">>
 >;
@@ -167,7 +174,7 @@ const canvasCoordinate = z.number().finite().min(0).max(8000);
 export const AgentActionSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("motion.svg"),
-    svg: z.string().min(1).max(262144),
+    svg: z.string().min(1).max(1048576),
     at: AgentTimeSchema,
     ...vectorPlacement,
     ref,
@@ -175,7 +182,7 @@ export const AgentActionSchema = z.discriminatedUnion("type", [
   z
     .strictObject({
       type: z.literal("motion.vector"),
-      path: z.string().min(1).max(16000).optional(),
+      path: z.string().min(1).max(MAX_VECTOR_PATH_LENGTH).optional(),
       points: z.array(penPoint).min(2).max(2000).optional(),
       closed: z.boolean().default(false),
       viewBox: MotionLayerSchema.shape.vectorViewBox.unwrap(),
@@ -346,8 +353,8 @@ export const AgentActionSchema = z.discriminatedUnion("type", [
   z.strictObject({
     type: z.literal("motion.layer.add"),
     motionId: id,
-    definition: MotionLayerSchema,
-    index: z.number().int().min(0).max(24).optional(),
+    definition: AgentLayerDefinitionSchema,
+    index: z.number().int().min(0).max(MAX_VECTOR_LAYERS).optional(),
   }),
   z.strictObject({
     type: z.literal("motion.layer.update"),
@@ -602,6 +609,10 @@ export function applyAgentEdit(project: Project, raw: unknown) {
                     } as VectorPathDefinition,
                   ],
                 };
+          if (source.warnings?.length)
+            warnings.push(
+              ...source.warnings.map((w) => `actions[${index}]: ${w}`),
+            );
           const created = createVectorScene(
             working,
             toFrame(action.at, working.fps),
@@ -939,7 +950,11 @@ export function applyAgentEdit(project: Project, raw: unknown) {
               throw Error(
                 "Insert the layer at an existing index or append it.",
               );
-            m.layers.splice(index, 0, action.definition);
+            m.layers.splice(
+              index,
+              0,
+              MotionLayerSchema.parse(action.definition),
+            );
           } else {
             const l = checkedLayer(m, action.layer);
             if (action.type === "motion.layer.update")
@@ -1392,7 +1407,12 @@ export function agentEditingGuide() {
       "audio.duck lowers a music clip under voice clips in one undoable action. by words (default) follows each spoken phrase in the transcript, and a clip without a transcript ducks for its whole span; by clips uses the whole span. depthDb defaults to -14 (12 to 18 dB under speech reads well), attackFrames to 0.2 s before speech and releaseFrames to 0.3 s after it; pauses under about 0.75 s stay ducked. level is the volume outside speech: by default the clip's volume, or its loudest earlier volume key. It replaces the clip's earlier volume keys, so ducking again with a new depth starts over. Volume is linear: 0.5 is about -6 dB, 0.25 about -12 dB, 0.1 is -20 dB.",
     music:
       "Use cutline_music_create/analyze/grid/inspect/sync/reactive. Rhythm belongs to source audio; beats map through the music clip start, sourceIn and speed. clip.musicReactive binds visual pulse to a placed audio clip; scope=accents responds only on graphical motion accents, leaving headline and full-frame backgrounds steady. Use restrained strength for Signature and Studio scenes. Missing music bindings remain inert. Defaults protect spoken clips from cut syncing; dryRun shows proposed commands. Captions follow their owned source clips.",
-    limits: { actions: 500, motionLayers: 24, motionKeys: 100, clipKeys: 2000 },
+    limits: {
+      actions: 500,
+      motionLayers: MAX_VECTOR_LAYERS,
+      motionKeys: 100,
+      clipKeys: 2000,
+    },
     actions: Object.fromEntries(
       advertisedActions().map((option) => [typeOf(option), fieldList(option)]),
     ),

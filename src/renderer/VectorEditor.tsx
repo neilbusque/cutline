@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Plus, Trash2, MousePointer2, PenLine } from "lucide-react";
 import { MotionLayerSchema, type MotionLayer } from "../shared/model";
 import {
+  MAX_VECTOR_PATH_LENGTH,
   pointsToVectorPath,
   parseVectorPath,
   vectorPathToPoints,
@@ -555,7 +556,7 @@ export function VectorEditor({
           <textarea
             aria-label="SVG path data"
             value={draft.path}
-            maxLength={16000}
+            maxLength={MAX_VECTOR_PATH_LENGTH}
             spellCheck={false}
             onChange={(event) => {
               releaseGesture();

@@ -85,6 +85,12 @@ import {
 import { readTranscript, searchTranscript } from "../shared/transcript";
 import { cutlineTools, longRunningTools } from "./agent-tools";
 import { agentMediaTools, createAgentMedia } from "./agent-media";
+import { assistantAsker, References } from "./vector-studio";
+import { capturePage } from "./page-capture";
+import {
+  generateVector,
+  VectorGenerateSchema,
+} from "../shared/vector-generation";
 import { AgentTasks } from "./agent-tasks";
 import {
   previewContent,
@@ -157,6 +163,8 @@ let bridge: Awaited<ReturnType<typeof startBridge>>;
 let mcpLauncher = "";
 let agentIO: ReturnType<typeof createAgentIO>;
 let agentMedia: ReturnType<typeof createAgentMedia>;
+let references: References;
+let vectorGeneration: AbortController | undefined;
 let musicControl: ReturnType<typeof createMusicControl>;
 let lastAgentCall: { tool: string; at: string } | undefined;
 const previewRequests = new Map<
@@ -1516,6 +1524,41 @@ function register() {
       if (problem) throw Error(problem);
     },
     "projects.trash": (args) => trashProject(String(args?.path)),
+    /** A vector drawn by the signed-in Claude Code or ChatGPT, checked by the importer. */
+    "vector.generate": async (args) => {
+      const input = VectorGenerateSchema.parse(args ?? {});
+      vectorGeneration?.abort();
+      const controller = (vectorGeneration = new AbortController());
+      try {
+        const result = await generateVector(
+          input,
+          assistantAsker(input.provider, {
+            workDir: path.join(data, "assistant", "vectors"),
+            signal: controller.signal,
+            claudeModel: assistantSettings.claudeModel,
+          }),
+        );
+        return {
+          svg: result.svg,
+          warnings: result.parsed.warnings ?? [],
+          layers: result.parsed.layers.length,
+        };
+      } finally {
+        if (vectorGeneration === controller) vectorGeneration = undefined;
+      }
+    },
+    "vector.cancel": () => {
+      vectorGeneration?.abort();
+      vectorGeneration = undefined;
+    },
+    "reference.search": (args) =>
+      references.searchLogos(
+        z
+          .string()
+          .max(100)
+          .parse(args?.query ?? ""),
+      ),
+    "reference.add": (args) => agentMedia("cutline_reference", args),
     "vector.import": async (args) => {
       assertRevision(args);
       let file = args.path;
@@ -1788,6 +1831,7 @@ app.whenReady().then(async () => {
     preview,
     status: connectionStatus,
   });
+  references = new References(path.join(data, "references"));
   agentMedia = createAgentMedia({
     store,
     media,
@@ -1796,6 +1840,14 @@ app.whenReady().then(async () => {
     speech,
     autoEdit: autoEditForAgent,
     relink: (assetId, file) => relinkMedia({ store, media }, assetId, file),
+    references: {
+      logo: (query) => references.logo(query),
+      screenshot: async (url, options) => {
+        const file = references.screenshotPath(url);
+        const shot = await capturePage(url, file, options);
+        return { file, title: shot.title };
+      },
+    },
   });
   agentTasks = new AgentTasks(jobs);
   bridge = await startBridge(

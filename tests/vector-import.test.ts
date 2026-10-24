@@ -121,7 +121,7 @@ describe("local editable SVG import", () => {
     const file = path.join(directory, "Unsafe.svg");
     writeFileSync(
       file,
-      '<svg viewBox="0 0 100 100"><script>unsafe()</script><path d="M0 0 L10 10"/></svg>',
+      '<svg viewBox="0 0 100 100"><script>unsafe()</script><path d="M0 0 L10 10 nope"/></svg>',
     );
     const before = comparable(store.project),
       history = store.past.length;
@@ -136,11 +136,11 @@ describe("local editable SVG import", () => {
   it("rejects relative paths, wrong extensions and oversized files and exposes the import tool", async () => {
     const { directory, store, call, args } = fixture();
     const file = path.join(directory, "Large.svg");
-    writeFileSync(file, " ".repeat(262145));
+    writeFileSync(file, " ".repeat(1048577));
     const before = comparable(store.project),
       history = store.past.length;
     await expect(call("cutline_vector_import", args(file))).rejects.toThrow(
-      /256 KiB/,
+      /1 MiB/,
     );
     await expect(
       call("cutline_vector_import", args("relative.svg")),

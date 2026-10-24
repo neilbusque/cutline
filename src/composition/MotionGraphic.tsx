@@ -261,16 +261,52 @@ export function pathStrokeScale(
   return Number.isFinite(scale) && scale > 0 ? scale : 1;
 }
 
+/** An imported SVG gradient, drawn in the same units the source file used. */
+function VectorGradientDef({
+  id,
+  gradient: g,
+}: {
+  id: string;
+  gradient: NonNullable<MotionLayer["vectorGradient"]>;
+}) {
+  const shared = {
+    id,
+    gradientUnits: g.units,
+    spreadMethod: g.spread,
+    gradientTransform: g.transform
+      ? `matrix(${g.transform.join(" ")})`
+      : undefined,
+  };
+  const stops = g.stops.map((stop, index) => (
+    <stop
+      key={index}
+      offset={stop.offset}
+      stopColor={stop.color}
+      stopOpacity={stop.opacity}
+    />
+  ));
+  return g.type === "linear" ? (
+    <linearGradient {...shared} x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2}>
+      {stops}
+    </linearGradient>
+  ) : (
+    <radialGradient {...shared} cx={g.cx} cy={g.cy} r={g.r} fx={g.fx} fy={g.fy}>
+      {stops}
+    </radialGradient>
+  );
+}
+
 function MotionShape({ layer, id }: { layer: MotionLayer; id: string }) {
   const angle = (layer.gradientAngle * Math.PI) / 180;
   const path = layer.type === "path";
   const revealing = layer.trim < 1;
   const dx = Math.sin(angle) / 2,
     dy = -Math.cos(angle) / 2;
+  const imported = path ? layer.vectorGradient : undefined;
   const fill =
     layer.type === "line" || layer.background === "transparent"
       ? "none"
-      : layer.fillStyle === "gradient"
+      : imported || layer.fillStyle === "gradient"
         ? `url(#${id})`
         : layer.background;
   return (
@@ -292,19 +328,25 @@ function MotionShape({ layer, id }: { layer: MotionLayer; id: string }) {
       style={{ display: "block", overflow: "visible" }}
       aria-hidden="true"
     >
-      {layer.fillStyle === "gradient" && (
+      {imported ? (
         <defs>
-          <linearGradient
-            id={id}
-            x1={`${(0.5 - dx) * 100}%`}
-            y1={`${(0.5 - dy) * 100}%`}
-            x2={`${(0.5 + dx) * 100}%`}
-            y2={`${(0.5 + dy) * 100}%`}
-          >
-            <stop offset="0%" stopColor={layer.background} />
-            <stop offset="100%" stopColor={layer.gradientColor} />
-          </linearGradient>
+          <VectorGradientDef id={id} gradient={imported} />
         </defs>
+      ) : (
+        layer.fillStyle === "gradient" && (
+          <defs>
+            <linearGradient
+              id={id}
+              x1={`${(0.5 - dx) * 100}%`}
+              y1={`${(0.5 - dy) * 100}%`}
+              x2={`${(0.5 + dx) * 100}%`}
+              y2={`${(0.5 + dy) * 100}%`}
+            >
+              <stop offset="0%" stopColor={layer.background} />
+              <stop offset="100%" stopColor={layer.gradientColor} />
+            </linearGradient>
+          </defs>
+        )
       )}
       <path
         d={motionShapePath(layer)}
