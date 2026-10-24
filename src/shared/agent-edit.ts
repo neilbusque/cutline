@@ -1718,7 +1718,7 @@ export const agentEditTools: Tool[] = [
   {
     name: "cutline_edit",
     description:
-      "Atomic, undoable edit of clips, motion, vectors, keyframes, transitions, captions, audio ducking, tracks and settings. Read cutline_editing_schema for actions and recipes. Requires current projectId/revision; returns revision, created IDs and summary. dryRun validates without edits.",
+      "Atomic, undoable edit of clips, motion, vectors, keyframes, transitions, captions, audio ducking, tracks and settings. Read cutline_editing_schema for actions and recipes. Requires current projectId/revision; returns revision, created IDs and summary.",
     inputSchema: agentEditInputSchema() as Tool["inputSchema"],
     annotations: {
       readOnlyHint: false,
