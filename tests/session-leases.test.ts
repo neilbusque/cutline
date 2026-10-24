@@ -91,6 +91,72 @@ describe("independent session file ownership", () => {
     expect(a.tryAcquire("export:0")).toBeNull();
     next!();
   });
+  it("reclaims a lease whose PID now belongs to another program, never a live owner's", () => {
+    const { root, a } = setup();
+    const release = a.tryAcquire("export:0")!;
+    const file = path.join(
+      root,
+      "locks",
+      readdirSync(path.join(root, "locks"))[0],
+      "owner.json",
+    );
+    const owner = JSON.parse(readFileSync(file, "utf8"));
+    // This process owns it: ps agrees on when the owner started.
+    expect(typeof owner.started).toBe("number");
+    expect(
+      new SessionLeases(path.join(root, "locks"), "B").tryAcquire("export:0"),
+    ).toBeNull();
+    // After a crash the PID went to a program that started an hour later.
+    const reused = new SessionLeases(path.join(root, "locks"), "C", {
+      processStart: () => owner.started + 3_600_000,
+    });
+    const next = reused.tryAcquire("export:0");
+    expect(next).not.toBeNull();
+    release(); // The old owner's release leaves the new lease alone.
+    expect(a.tryAcquire("export:0")).toBeNull();
+    next!();
+  });
+  it("reclaims leases from older versions left by a crash before a restart or a PID reuse", () => {
+    const { root, a } = setup();
+    a.tryAcquire("export:0");
+    const file = path.join(
+      root,
+      "locks",
+      readdirSync(path.join(root, "locks"))[0],
+      "owner.json",
+    );
+    // Older versions recorded no start time.
+    const { started: _started, ...older } = JSON.parse(
+      readFileSync(file, "utf8"),
+    );
+    writeFileSync(file, JSON.stringify(older));
+    const written = new Date(Date.now() - 600_000);
+    utimesSync(file, written, written);
+    const locks = path.join(root, "locks");
+    // The owner's PID is alive and started before the lease: still its own.
+    expect(
+      new SessionLeases(locks, "B", {
+        processStart: () => written.getTime() - 5_000,
+      }).tryAcquire("export:0"),
+    ).toBeNull();
+    // Written before this Mac started up.
+    const restarted = new SessionLeases(locks, "C", {
+      bootTime: () => Date.now() - 60_000,
+      processStart: () => written.getTime() - 5_000,
+    }).tryAcquire("export:0");
+    expect(restarted).not.toBeNull();
+    restarted!();
+    a.tryAcquire("export:0");
+    const again = path.join(locks, readdirSync(locks)[0], "owner.json");
+    writeFileSync(again, JSON.stringify({ ...older, token: "older" }));
+    utimesSync(again, written, written);
+    // The PID now belongs to a program that started after the lease was written.
+    expect(
+      new SessionLeases(locks, "D", {
+        processStart: () => written.getTime() + 20_000,
+      }).tryAcquire("export:0"),
+    ).not.toBeNull();
+  });
   it("keeps a conflicting recovery unsaved rather than overwriting the live file", () => {
     const { root, a, b } = setup(),
       file = path.join(root, "video.cutline");

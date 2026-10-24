@@ -265,73 +265,143 @@ export async function contactSheet(options: {
 }
 
 /**
- * Renders frames offscreen with Remotion's renderStill in a worker process,
- * from the same composition and media as the MP4 export, so the images show
- * no selection outlines, guides or other editor overlays.
+ * Renders frames offscreen with Remotion in a worker process, from the same
+ * composition and media as the MP4 export, so the images show no selection
+ * outlines, guides or other editor overlays. One worker and its browser stay
+ * open between previews, so each preview costs no process or Chrome start;
+ * it closes after a quiet minute, and a stuck one is stopped and replaced.
  */
-export async function renderStills(options: {
-  workerPath: string;
-  serveUrl: string;
-  browserExecutable: string;
-  inputProps: Record<string, unknown>;
-  frames: number[];
-  scale: number;
-  directory: string;
-  timeoutMs?: number;
-  start?: (workerPath: string) => ChildProcess;
-}) {
-  const child =
-    options.start?.(options.workerPath) ??
-    fork(options.workerPath, [], {
-      env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
-      stdio: ["ignore", "ignore", "pipe", "ipc"],
-      detached: true,
+export class StillWorker {
+  private child?: ChildProcess;
+  private stderr = "";
+  private next = 0;
+  private idle?: NodeJS.Timeout;
+  private requests = new Map<
+    string,
+    {
+      child: ChildProcess;
+      resolve: (files: string[]) => void;
+      reject: (error: Error) => void;
+      timer: NodeJS.Timeout;
+    }
+  >();
+  constructor(
+    private options: {
+      workerPath: string;
+      /** How long a preview may take before its worker is replaced. */
+      timeoutMs?: number;
+      /** Quiet time after which the worker and its browser close. */
+      idleMs?: number;
+      start?: (workerPath: string) => ChildProcess;
+      /** Runs after a worker exits, such as a sweep for Chrome it left. */
+      exited?: () => void;
+    },
+  ) {}
+  render(request: {
+    serveUrl: string;
+    browserExecutable: string;
+    inputProps: Record<string, unknown>;
+    frames: number[];
+    scale: number;
+    directory: string;
+  }) {
+    clearTimeout(this.idle);
+    const child = this.worker();
+    const id = String(++this.next);
+    return new Promise<string[]>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.finish(
+          id,
+          Error("Rendering the preview took too long. Try fewer frames."),
+        );
+        // A stuck renderer is not trusted with the next preview.
+        this.stop(child);
+      }, this.options.timeoutMs ?? 90_000);
+      this.requests.set(id, { child, resolve, reject, timer });
+      child.send(
+        {
+          type: "render",
+          id,
+          serveUrl: request.serveUrl,
+          browserExecutable: request.browserExecutable,
+          inputProps: request.inputProps,
+          frames: request.frames,
+          scale: request.scale,
+          outputDirectory: request.directory,
+        },
+        (error) => error && this.finish(id, error),
+      );
     });
-  let stderr = "";
-  child.stderr?.on("data", (data) => (stderr = (stderr + data).slice(-2000)));
-  const stop = () => {
+  }
+  /** Closes the worker and its browser, as on quit. */
+  close() {
+    clearTimeout(this.idle);
+    const child = this.child;
+    this.child = undefined;
+    if (!child) return;
+    // The worker closes Chrome and exits when its connection ends.
+    if (child.connected) child.disconnect();
+    else this.stop(child);
+  }
+  private worker() {
+    const running = this.child;
+    if (running && running.connected && running.exitCode === null)
+      return running;
+    const child =
+      this.options.start?.(this.options.workerPath) ??
+      fork(this.options.workerPath, [], {
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
+        stdio: ["ignore", "ignore", "pipe", "ipc"],
+        detached: true,
+      });
+    this.child = child;
+    this.stderr = "";
+    child.stderr?.on(
+      "data",
+      (data) => (this.stderr = (this.stderr + data).slice(-2000)),
+    );
+    child.on("message", (message: any) => {
+      if (message?.type === "done") this.finish(message.id, message.files);
+      if (message?.type === "error")
+        this.finish(message.id, Error(message.message));
+    });
+    const gone = (error?: Error) => {
+      if (this.child === child) this.child = undefined;
+      for (const [id, request] of this.requests)
+        if (request.child === child)
+          this.finish(
+            id,
+            error ??
+              Error(this.stderr.trim() || "The preview renderer stopped."),
+          );
+    };
+    child.on("error", gone);
+    child.on("exit", () => {
+      gone();
+      this.options.exited?.();
+    });
+    return child;
+  }
+  private finish(id: string, result: string[] | Error) {
+    const request = this.requests.get(id);
+    if (!request) return;
+    this.requests.delete(id);
+    clearTimeout(request.timer);
+    if (result instanceof Error) request.reject(result);
+    else request.resolve(result);
+    if (this.requests.size) return;
+    clearTimeout(this.idle);
+    this.idle = setTimeout(() => this.close(), this.options.idleMs ?? 60_000);
+    this.idle.unref?.();
+  }
+  private stop(child: ChildProcess) {
+    if (this.child === child) this.child = undefined;
     if (child.exitCode !== null || !child.pid) return;
     try {
       process.kill(-child.pid, "SIGTERM");
     } catch {
       child.kill("SIGTERM");
     }
-  };
-  try {
-    return await new Promise<string[]>((resolve, reject) => {
-      const timer = setTimeout(() => {
-        reject(Error("Rendering the preview took too long. Try fewer frames."));
-        stop();
-      }, options.timeoutMs ?? 90_000);
-      child.on("message", (message: any) => {
-        if (message?.type === "done") {
-          clearTimeout(timer);
-          resolve(message.files);
-        }
-        if (message?.type === "error") {
-          clearTimeout(timer);
-          reject(Error(message.message));
-        }
-      });
-      child.on("error", (error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
-      child.on("exit", () => {
-        clearTimeout(timer);
-        reject(Error(stderr.trim() || "The preview renderer stopped."));
-      });
-      child.send({
-        serveUrl: options.serveUrl,
-        browserExecutable: options.browserExecutable,
-        inputProps: options.inputProps,
-        frames: options.frames,
-        scale: options.scale,
-        outputDirectory: options.directory,
-      });
-    });
-  } finally {
-    stop();
   }
 }
 

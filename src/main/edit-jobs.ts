@@ -28,12 +28,24 @@ function assertRevision(store: Store, args: any) {
   )
     throw Error("Project changed. Inspect the project and retry.");
 }
-/** The project the job started on, as it is now. */
-function stillOpen(store: Store, projectId: string, what: string) {
-  if (store.project.id !== projectId)
+/**
+ * Throws unless the project a long job started on is still open. Each opening
+ * has its own openSession, so a Finder duplicate or a backup of the project,
+ * which keep its ID, never receives the result.
+ */
+export function sameOpening(
+  store: Pick<Store, "openSession">,
+  opening: string,
+  what: string,
+) {
+  if (store.openSession !== opening)
     throw Error(
       `Another project was opened while ${what}. Open this project again and retry.`,
     );
+}
+/** The project the job started on, as it is now. */
+function stillOpen(store: Store, opening: string, what: string) {
+  sameOpening(store, opening, what);
   return store.project;
 }
 /** The clip and its media as they are now, if they are still the same source. */
@@ -51,6 +63,7 @@ export async function generateCaptions(
   args: any,
 ) {
   assertRevision(store, args);
+  const opening = store.openSession;
   const before = store.project;
   const clip = before.clips.find((c) => c.id === args.clipId);
   if (!clip) throw Error("Select a media clip");
@@ -63,7 +76,7 @@ export async function generateCaptions(
   const words = asset.words?.length
     ? asset.words
     : await media.transcribe(asset);
-  const now = stillOpen(store, args.projectId, "the captions were being made");
+  const now = stillOpen(store, opening, "the captions were being made");
   const current = sameSource(now, clip.id, asset);
   if (!current)
     throw Error(
@@ -101,6 +114,7 @@ export async function removeLongPauses(
   args: any,
 ) {
   assertRevision(store, args);
+  const opening = store.openSession;
   const p = store.project;
   const c = p.clips.find((c) => c.id === args.clipId);
   const a = p.assets.find((a) => a.id === c?.assetId);
@@ -110,7 +124,7 @@ export async function removeLongPauses(
       "This clip plays backwards or holds a frame, so its pauses can't be found. Turn off Reverse and Freeze frame first.",
     );
   const silences = await media.silences(a);
-  const now = stillOpen(store, args.projectId, "pauses were being found");
+  const now = stillOpen(store, opening, "pauses were being found");
   // Pauses are in source time, so they still fit a clip that moved meanwhile.
   if (!sameSource(now, c.id, a))
     throw Error(
@@ -131,6 +145,7 @@ export async function removeLongPauses(
 export async function buildReel(deps: EditJobDeps, args: any) {
   const { store, media, jobs } = deps;
   assertRevision(store, args);
+  const opening = store.openSession;
   const options = ReelOptionsSchema.parse(args.options);
   const start = store.project;
   // Validate all source ranges and the edit before starting expensive transcription.
@@ -175,7 +190,7 @@ export async function buildReel(deps: EditJobDeps, args: any) {
       const ids = initial.missingTranscriptAssetIds;
       for (let index = 0; index < ids.length; index++) {
         if (job.state === "cancelled") throw Error("Reel creation cancelled");
-        stillOpen(store, args.projectId, what);
+        stillOpen(store, opening, what);
         const asset = start.assets.find((a) => a.id === ids[index])!;
         jobs.update(job, {
           message: `Speech timing · ${index + 1} of ${ids.length}: ${asset.name}`,
@@ -189,7 +204,7 @@ export async function buildReel(deps: EditJobDeps, args: any) {
       if (job.state === "cancelled") throw Error("Reel creation cancelled");
       // Build on the project as it is now, keeping edits made meanwhile. The
       // plan fails if a chosen source was removed.
-      const prepared = structuredClone(stillOpen(store, args.projectId, what));
+      const prepared = structuredClone(stillOpen(store, opening, what));
       if (options.mode === "replace" && prepared.revision !== args.revision)
         throw Error(
           "Project changed while the Reel was being prepared. Your edit is safe. Build again to replace the current timeline.",

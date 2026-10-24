@@ -24,6 +24,7 @@ import {
   type EditJobDeps,
 } from "../src/main/edit-jobs";
 import { relinkMedia } from "../src/main/relink";
+import { createAgentIO } from "../src/main/agent-io";
 import { contentSecurityPolicy } from "../src/main/csp";
 import { confirmReplace } from "../src/main/project-guard";
 import { manualBeatGrid } from "../src/shared/music-sync";
@@ -250,16 +251,243 @@ describe("autosave failures", () => {
     const recovery = path.join(directory, "recovery.cutline");
     const store = new Store(recovery);
     store.save(path.join(drive, "Client cut.cutline"));
-    rmSync(drive, { recursive: true });
+    // The drive is ejected, with the project file on it.
+    renameSync(drive, path.join(directory, "Ejected"));
     work(store, "Edited while the drive was gone");
     expect(store.saveError).toBeTruthy();
     // The drive comes back and the next edit reaches the file.
-    mkdirSync(drive);
+    renameSync(path.join(directory, "Ejected"), drive);
     work(store, "Edited after it came back");
     expect(store.saveError).toBeNull();
     const relaunched = new Store(recovery);
     expect(relaunched.saveError).toBeNull();
     expect(relaunched.hasUnsavedWork()).toBe(false);
+  });
+});
+
+describe("project files changed or moved outside Cutline", () => {
+  const read = (file: string) => JSON.parse(readFileSync(file, "utf8"));
+  /** One session's data folder, the way each Cutline session has its own. */
+  const session = (directory: string, name: string) => {
+    mkdirSync(path.join(directory, name));
+    return path.join(directory, name, "recovery.cutline");
+  };
+
+  it("keeps autosaving to the same file after a relaunch when nothing else touched it", () => {
+    const directory = folder();
+    const recovery = session(directory, "video-2");
+    const file = path.join(directory, "Reel.cutline");
+    const store = new Store(recovery);
+    store.save(file);
+    work(store, "Reel");
+    work(store, "Reel, second pass", 2);
+    const relaunched = new Store(recovery);
+    expect(relaunched.notices).toEqual([]);
+    expect(relaunched.filePath).toBe(file);
+    expect(relaunched.saveError).toBeNull();
+    expect(relaunched.hasUnsavedWork()).toBe(false);
+    work(relaunched, "Reel, after the relaunch");
+    expect(relaunched.saveError).toBeNull();
+    expect(read(file).project.name).toBe("Reel, after the relaunch");
+  });
+
+  it("trusts an autosave from an older version when the file still holds the same project", () => {
+    const directory = folder();
+    const file = path.join(directory, "Reel.cutline");
+    const writer = new Store(session(directory, "main"));
+    writer.save(file);
+    work(writer, "Reel");
+    // Another session opens it without editing, and both quit.
+    const recovery = session(directory, "video-2");
+    new Store(recovery).load(file);
+    // Autosaves from before this version carry no file stamp.
+    const older = read(recovery);
+    delete older.fileStamp;
+    writeFileSync(recovery, JSON.stringify(older));
+    const relaunched = new Store(recovery);
+    expect(relaunched.notices).toEqual([]);
+    expect(relaunched.filePath).toBe(file);
+    work(relaunched, "Reel, edited later");
+    expect(read(file).project.name).toBe("Reel, edited later");
+  });
+
+  it("opens the newer file when another session changed it while this one was closed, keeping this copy as a backup", () => {
+    const directory = folder();
+    const file = path.join(directory, "Launch.cutline");
+    const recovery = session(directory, "video-2");
+    const video2 = new Store(recovery);
+    video2.save(file);
+    work(video2, "Launch, first cut");
+    video2.close();
+    // While Video 2 is closed, the main session opens Launch and edits it.
+    const main = new Store(session(directory, "main"));
+    main.load(file);
+    work(main, "Launch, final cut", 3);
+    main.close();
+    const relaunched = new Store(recovery);
+    expect(relaunched.project.name).toBe("Launch, final cut");
+    expect(relaunched.project.clips).toHaveLength(4);
+    expect(relaunched.filePath).toBe(file);
+    expect(relaunched.notices).toHaveLength(1);
+    expect(relaunched.notices[0]).toContain("opened the newer file");
+    expect(backupNames(path.join(directory, "video-2"))).toEqual([
+      "Launch, first cut",
+    ]);
+    // The next edit builds on the newer file instead of writing the old copy over it.
+    work(relaunched, "Launch, final cut, trimmed");
+    expect(read(file).project.clips).toHaveLength(5);
+    // The earlier copy opens from the backup as an unsaved project.
+    const [backup] = backups(path.join(directory, "video-2"));
+    const restored = new Store(session(directory, "restore"));
+    restored.restore(backup);
+    expect(restored.project.name).toBe("Launch, first cut");
+    expect(restored.filePath).toBeNull();
+  });
+
+  it("keeps both copies when the file changed elsewhere and this session has edits that never reached it", () => {
+    const directory = folder();
+    const drive = path.join(directory, "Drive");
+    mkdirSync(drive);
+    const file = path.join(drive, "Launch.cutline");
+    const recovery = session(directory, "video-2");
+    const video2 = new Store(recovery);
+    video2.save(file);
+    work(video2, "Launch");
+    // The drive goes away, so this edit reaches only recovery.
+    renameSync(drive, path.join(directory, "Away"));
+    work(video2, "Launch, edited while the drive was away", 2);
+    expect(video2.saveError).toBeTruthy();
+    video2.close();
+    renameSync(path.join(directory, "Away"), drive);
+    // Another session edits the file meanwhile.
+    const main = new Store(session(directory, "main"));
+    main.load(file);
+    work(main, "Launch, edited in main");
+    main.close();
+    const relaunched = new Store(recovery);
+    expect(relaunched.project.name).toBe(
+      "Launch, edited while the drive was away",
+    );
+    expect(relaunched.filePath).toBeNull();
+    expect(relaunched.hasUnsavedWork()).toBe(true);
+    expect(relaunched.notices[0]).toContain("left it as it is");
+    work(relaunched, "Launch, edited again");
+    expect(read(file).project.name).toBe("Launch, edited in main");
+  });
+
+  it("never writes over a project file that something else changed while it is open", () => {
+    const directory = folder();
+    const file = path.join(directory, "Launch.cutline");
+    const store = new Store(session(directory, "main"));
+    store.save(file);
+    work(store, "Launch");
+    // Another copy of Cutline, a sync app or a person changes the file.
+    const theirs = read(file);
+    theirs.project.name = "Launch, changed elsewhere";
+    writeFileSync(file, JSON.stringify(theirs));
+    expect(store.hasUnsavedWork()).toBe(true);
+    work(store, "Launch, edited here");
+    expect(store.saveError).toContain("changed outside this session");
+    expect(read(file).project.name).toBe("Launch, changed elsewhere");
+    // Saving there, as the person chooses, replaces it and autosave resumes.
+    store.save(file);
+    work(store, "Launch, saved again");
+    expect(store.saveError).toBeNull();
+    expect(read(file).project.name).toBe("Launch, saved again");
+  });
+
+  it("never recreates a project file renamed in Finder while it is open, before or after a relaunch", () => {
+    const directory = folder();
+    const file = path.join(directory, "Launch.cutline");
+    const renamed = path.join(directory, "Launch FINAL.cutline");
+    const recovery = session(directory, "main");
+    const store = new Store(recovery);
+    store.save(file);
+    work(store, "Launch");
+    renameSync(file, renamed);
+    expect(store.hasUnsavedWork()).toBe(true);
+    work(store, "Launch, after the rename", 2);
+    expect(existsSync(file)).toBe(false);
+    expect(store.saveError).toContain("moved, renamed or deleted");
+    expect(read(renamed).project.name).toBe("Launch");
+    store.close();
+    const relaunched = new Store(recovery);
+    expect(relaunched.project.name).toBe("Launch, after the rename");
+    expect(relaunched.saveError).toContain("moved, renamed or deleted");
+    expect(relaunched.hasUnsavedWork()).toBe(true);
+    work(relaunched, "Launch, edited again");
+    expect(existsSync(file)).toBe(false);
+    // Saving to the renamed file, as the person chooses, continues there.
+    relaunched.save(renamed);
+    work(relaunched, "Launch FINAL");
+    expect(relaunched.saveError).toBeNull();
+    expect(read(renamed).project.name).toBe("Launch FINAL");
+  });
+
+  it("asks again after a relaunch when the file went missing while Cutline was closed", () => {
+    const directory = folder();
+    const file = path.join(directory, "Draft (build 1).cutline");
+    const recovery = session(directory, "video-3");
+    const store = new Store(recovery);
+    store.save(file);
+    work(store, "Draft");
+    store.close();
+    rmSync(file);
+    const relaunched = new Store(recovery);
+    expect(relaunched.filePath).toBe(file);
+    expect(relaunched.saveError).toContain("moved, renamed or deleted");
+    work(relaunched, "Draft, touched");
+    expect(existsSync(file)).toBe(false);
+    relaunched.fresh();
+    expect(backupNames(path.join(directory, "video-3"))).toEqual([
+      "Draft, touched",
+    ]);
+  });
+
+  it("keeps a backup on New when the open project's file was deleted, even before another edit", () => {
+    const directory = folder();
+    const file = path.join(directory, "Launch.cutline");
+    const store = new Store(session(directory, "main"));
+    store.save(file);
+    work(store, "Launch");
+    rmSync(file);
+    expect(store.hasUnsavedWork()).toBe(true);
+    store.fresh();
+    expect(backupNames(path.join(directory, "main"))).toEqual(["Launch"]);
+    expect(existsSync(file)).toBe(false);
+  });
+
+  it("lets an agent save only to a new path once the open file was moved or changed", async () => {
+    const directory = folder();
+    const file = path.join(directory, "Launch.cutline");
+    const store = new Store(session(directory, "main"));
+    store.save(file);
+    work(store, "Launch");
+    const jobs = new Jobs(() => {});
+    const call = createAgentIO({
+      store,
+      media: new Media(
+        path.join(directory, "cache"),
+        { ffmpeg: "", ffprobe: "", whisper: "", model: "" },
+        jobs,
+      ),
+      jobs,
+      directory,
+      preview: async () => ({}),
+      status: () => ({}),
+    });
+    const guard = () => ({
+      projectId: store.project.id,
+      revision: store.project.revision,
+    });
+    renameSync(file, path.join(directory, "Launch FINAL.cutline"));
+    await expect(call("cutline_save_project", guard())).rejects.toThrow(
+      /moved, renamed or deleted.*new path/,
+    );
+    expect(existsSync(file)).toBe(false);
+    const elsewhere = path.join(directory, "Launch copy.cutline");
+    await call("cutline_save_project", { ...guard(), path: elsewhere });
+    expect(store.filePath).toBe(elsewhere);
   });
 });
 
@@ -880,6 +1108,31 @@ describe("long edits keep their finished work when other edits land meanwhile", 
     expect(captionsOf(f.store.project)).toHaveLength(0);
   });
 
+  it("never lands in a Finder duplicate or a backup of the project, which keep its ID", async () => {
+    const f = editFixture();
+    const directory = folder();
+    const file = path.join(directory, "Reel.cutline");
+    f.store.save(file);
+    const copy = path.join(directory, "Reel copy.cutline");
+    writeFileSync(copy, readFileSync(file, "utf8"));
+    const captions = generateCaptions(f.deps, f.args());
+    f.store.load(copy);
+    expect(f.store.project.id).toBe(
+      JSON.parse(readFileSync(file, "utf8")).project.id,
+    );
+    f.transcribed.resolve(spoken);
+    await expect(captions).rejects.toThrow("Another project");
+    expect(captionsOf(f.store.project)).toHaveLength(0);
+    // The same for pauses and a backup opened while they were being found.
+    const pauses = removeLongPauses(f.deps, f.args());
+    f.store.restore(copy);
+    f.found.resolve([{ start: 5, end: 9 }]);
+    await expect(pauses).rejects.toThrow("Another project");
+    expect(
+      f.store.project.clips.filter((c) => c.kind === "video"),
+    ).toHaveLength(1);
+  });
+
   it("removes pauses after an unrelated edit made while finding them", async () => {
     const f = editFixture();
     const pending = removeLongPauses(f.deps, f.args());
@@ -1178,5 +1431,21 @@ describe("media cache upkeep", () => {
       "thumb.jpg",
       "used-proxy.mp4",
     ]);
+  });
+
+  it("counts partial backwards copies against the cap too", async () => {
+    const directory = folder();
+    const { media, cache } = mediaFor(directory);
+    mkdirSync(cache);
+    const copy = (name: string, hoursAgo: number) => {
+      writeFileSync(path.join(cache, name), "x".repeat(100));
+      const when = new Date(Date.now() - hoursAgo * 3600_000);
+      utimesSync(path.join(cache, name), when, when);
+    };
+    copy("a-reversed-120-300.mp4", 30);
+    copy("b-reversed-0ms-12500ms.m4a", 20);
+    copy("c-proxy.mp4", 1);
+    expect(await media.cleanCache(Date.now() - 60_000, [], 100)).toBe(2);
+    expect(cached(cache)).toEqual(["c-proxy.mp4"]);
   });
 });

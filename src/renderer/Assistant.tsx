@@ -333,13 +333,16 @@ export function Assistant({
             setStatus,
             p,
             e.status === "interrupted"
-              ? "Stopped · completed edits kept"
+              ? "Stopped"
               : `Connected to ${label}`,
           );
           setFor(setBusy, p, false);
           if (p === providerRef.current) setActivity("");
           if (e.status === "interrupted")
-            addTo(p, { role: "note", text: "Stopped. Edits already made are kept." });
+            addTo(p, {
+              role: "note",
+              text: "Stopped. Changes made before you pressed Stop are kept.",
+            });
           else if (e.error) addTo(p, { role: "error", text: e.error, retry: lastAsk.current[p] });
         }
         if (e.type === "error") {

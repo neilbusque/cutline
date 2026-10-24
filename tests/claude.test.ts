@@ -353,3 +353,118 @@ it("uses the newest Claude Code installed, which knows the newest models", async
   );
 });
 
+it("waits through a long Cutline tool, then times out only on Claude's own silence", async () => {
+  vi.useFakeTimers();
+  try {
+    const c = make({ watchdogMs: 1000 });
+    const seen = events(c);
+    control.onUser = (child) => {
+      child.emitLine({ type: "system", subtype: "init", mcp_servers: [] });
+      child.emitLine({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              id: "tool-1",
+              name: "mcp__cutline__cutline_transcribe",
+            },
+          ],
+        },
+      });
+    };
+    await c.send("Transcribe my interview", "p1");
+    await vi.advanceTimersByTimeAsync(1);
+    // A long transcription runs while Claude waits on it, saying nothing.
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(control.children[0].killed).toBe(false);
+    expect(c.busy).toBe(true);
+    control.children[0].emitLine({
+      type: "user",
+      message: { content: [{ type: "tool_result", tool_use_id: "tool-1" }] },
+    });
+    await vi.advanceTimersByTimeAsync(1001);
+    expect(control.children[0].killed).toBe(true);
+    expect(seen.at(-1)).toMatchObject({ type: "error" });
+    expect(seen.at(-1).message).toContain("stopped responding");
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("stop also stops the Cutline work of the turn, and the next turn starts fresh", async () => {
+  const c = make();
+  control.onUser = () => {};
+  await c.send("Remove the pauses", "p1");
+  const turn = c.turnSignal;
+  expect(turn.aborted).toBe(false);
+  await c.stop();
+  expect(turn.aborted).toBe(true);
+  await tick();
+  await tick();
+  control.onUser = replyWithTool;
+  await c.send("Try again", "p1");
+  expect(c.turnSignal.aborted).toBe(false);
+});
+
+it("watches for silence again once Claude streams after its tools, even without a tool result", async () => {
+  vi.useFakeTimers();
+  try {
+    const c = make({ watchdogMs: 1000 });
+    const seen = events(c);
+    control.onUser = (child) => {
+      child.emitLine({ type: "system", subtype: "init", mcp_servers: [] });
+      child.emitLine({
+        type: "assistant",
+        message: {
+          content: [
+            {
+              type: "tool_use",
+              id: "tool-2",
+              name: "mcp__cutline__cutline_edit",
+            },
+          ],
+        },
+      });
+      child.emitLine({
+        type: "stream_event",
+        event: { type: "message_start" },
+      });
+    };
+    await c.send("Trim the intro", "p1");
+    await vi.advanceTimersByTimeAsync(1001);
+    expect(seen.at(-1)).toMatchObject({ type: "error" });
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("keeps waiting through a tool after the message that called it ends", async () => {
+  vi.useFakeTimers();
+  try {
+    const c = make({ watchdogMs: 1000 });
+    control.onUser = (child) => {
+      child.emitLine({ type: "system", subtype: "init", mcp_servers: [] });
+      // The real stream: the tool_use block arrives, then its message ends.
+      child.emitLine({
+        type: "assistant",
+        message: {
+          content: [
+            { type: "tool_use", id: "tool-3", name: "mcp__cutline__cutline_transcribe" },
+          ],
+        },
+      });
+      child.emitLine({
+        type: "stream_event",
+        event: { type: "message_delta", delta: { stop_reason: "tool_use" } },
+      });
+      child.emitLine({ type: "stream_event", event: { type: "message_stop" } });
+    };
+    await c.send("Transcribe my interview", "p1");
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(control.children[0].killed).toBe(false);
+    expect(c.busy).toBe(true);
+  } finally {
+    vi.useRealTimers();
+  }
+});

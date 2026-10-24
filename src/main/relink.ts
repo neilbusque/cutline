@@ -21,9 +21,13 @@ const sameLength = (a: number, b: number, fps: number) =>
  */
 export function relinkedAsset(old: Asset, replacement: Asset, fps: number) {
   const same = sameLength(old.duration, replacement.duration, fps);
+  // Preview and backwards copies were made from the old file.
   const {
     proxy: _proxy,
     thumbnail: _thumbnail,
+    reversed: _reversed,
+    reversedPart: _reversedPart,
+    reversedSpan: _reversedSpan,
     waveform: _waveform,
     words,
     rhythm,
@@ -56,6 +60,7 @@ export async function relinkMedia(
   chosen: string,
 ) {
   const start = store.project;
+  const opening = store.openSession;
   const old = start.assets.find((a) => a.id === assetId);
   if (!old) throw Error("Asset missing");
   const probe = await media.probe(chosen);
@@ -80,7 +85,7 @@ export async function relinkMedia(
       moved.set(other.id, { ...found, path: candidate });
   }
   const now = store.project;
-  if (now.id !== start.id)
+  if (store.openSession !== opening)
     throw Error(
       "Another project was opened while relinking. Open this project again and retry.",
     );

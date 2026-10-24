@@ -2,6 +2,7 @@ import {
   chmodSync,
   existsSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -59,9 +60,9 @@ import {
   previewFrames,
   previewSize,
   renderPreview,
-  renderStills,
   SHEET_MAX_SIDE,
   sheetLayout,
+  StillWorker,
 } from "../src/main/agent-preview";
 import {
   CUTLINE_CLOSED,
@@ -853,9 +854,10 @@ describe("media import reports each failed file and keeps the rest", () => {
 });
 
 describe("long work answers before client timeouts", () => {
-  const jobsMap = () => {
-    const jobs = new Map<string, Job>();
-    jobs.set("export-1", {
+  /** Jobs with an export of the person's already running. */
+  const jobsWithExport = () => {
+    const jobs = new Jobs(() => {});
+    jobs.jobs.set("export-1", {
       id: "export-1",
       kind: "export",
       state: "running",
@@ -863,23 +865,24 @@ describe("long work answers before client timeouts", () => {
       message: "Exporting",
       output: "/Users/someone/out.mp4",
     });
-    return { jobs };
+    return jobs;
   };
+  const states = (jobs: Jobs) =>
+    Object.fromEntries([...jobs.jobs.values()].map((j) => [j.kind, j.state]));
 
   it("returns quick results directly and slow ones as a job to wait on", async () => {
-    const tasks = new AgentTasks(jobsMap(), 40, 10);
+    const tasks = new AgentTasks(jobsWithExport(), 40, 10);
     expect(
-      await tasks.run("cutline_transcribe", Promise.resolve({ captions: 3 })),
+      await tasks.run("cutline_transcribe", async () => ({ captions: 3 })),
     ).toEqual({ captions: 3 });
     await expect(
-      tasks.run(
-        "cutline_transcribe",
-        Promise.reject(Error("Select a media clip")),
-      ),
+      tasks.run("cutline_transcribe", async () => {
+        throw Error("Select a media clip");
+      }),
     ).rejects.toThrow("Select a media clip");
     let finish!: (value: unknown) => void;
     const slow = new Promise((resolve) => (finish = resolve));
-    const pending = (await tasks.run("cutline_transcribe", slow)) as any;
+    const pending = (await tasks.run("cutline_transcribe", () => slow)) as any;
     expect(pending).toMatchObject({ state: "running" });
     expect(pending.message).toContain(`"id": "${pending.jobId}"`);
     setTimeout(() => finish({ captions: 120, revision: 9 }), 60);
@@ -894,7 +897,10 @@ describe("long work answers before client timeouts", () => {
     });
     let fail!: (error: Error) => void;
     const failing = new Promise((_, reject) => (fail = reject));
-    const failed = (await tasks.run("cutline_remove_pauses", failing)) as any;
+    const failed = (await tasks.run(
+      "cutline_remove_pauses",
+      () => failing,
+    )) as any;
     fail(Error("Project changed. Inspect the project and retry."));
     const [error] = (await tasks.list({
       id: failed.jobId,
@@ -906,8 +912,23 @@ describe("long work answers before client timeouts", () => {
     });
   });
 
+  it("waits as long as the caller allows before answering with a job", async () => {
+    const tasks = new AgentTasks(jobsWithExport(), 20, 5);
+    const slow = () =>
+      new Promise((resolve) => setTimeout(() => resolve("transcribed"), 80));
+    expect(await tasks.run("cutline_transcribe", slow)).toMatchObject({
+      state: "running",
+    });
+    // The built-in assistants allow minutes instead of polling.
+    expect(
+      await tasks.run("cutline_transcribe", slow, undefined, {
+        deadlineMs: 1000,
+      }),
+    ).toBe("transcribed");
+  });
+
   it("lists recent jobs without output paths and rejects unknown IDs", async () => {
-    const tasks = new AgentTasks(jobsMap(), 40, 10);
+    const tasks = new AgentTasks(jobsWithExport(), 40, 10);
     const list = (await tasks.list({})) as any[];
     expect(list[0]).toMatchObject({ id: "export-1", state: "running" });
     expect(list[0]).not.toHaveProperty("output");
@@ -917,48 +938,155 @@ describe("long work answers before client timeouts", () => {
     await expect(tasks.list({ id: "missing" })).rejects.toThrow(/missing/);
   });
 
-  it("cancelling a task ID stops the jobs its tool started, never an export", async () => {
-    const { jobs } = jobsMap();
-    const cancelled: string[] = [];
-    const manager = {
-      jobs,
-      cancel: (id: string) => {
-        cancelled.push(id);
-        jobs.get(id)!.state = "cancelled";
-      },
-    };
-    const tasks = new AgentTasks(manager, 40, 10);
-    const earlier = new Set(jobs.keys());
-    let fail: (error: Error) => void = () => {};
-    const work = new Promise((_, reject) => (fail = reject));
-    jobs.set("captions-1", {
-      id: "captions-1",
-      kind: "captions",
-      state: "running",
-      progress: 0.2,
-      message: "Transcribing",
-    });
-    const pending = (await tasks.run(
-      "cutline_transcribe",
-      work,
-      undefined,
-      earlier,
-    )) as { id: string };
-    jobs.set("render-2", {
-      id: "render-2",
-      kind: "export",
-      state: "running",
-      progress: 0,
-      message: "Exporting",
-    });
+  it("cancelling a task stops only the work its own tool started", async () => {
+    const jobs = jobsWithExport();
+    const tasks = new AgentTasks(jobs, 40, 10);
+    // The person imports footage meanwhile; it belongs to no agent call.
+    let imported!: () => void;
+    const importing = jobs.run(
+      "import",
+      "Importing interview.mp4",
+      () => new Promise<void>((resolve) => (imported = resolve)),
+    );
+    let transcribed!: () => void;
+    const pending = (await tasks.run("cutline_transcribe", async () => {
+      await jobs.run(
+        "transcribe",
+        "Transcribing",
+        () => new Promise<void>((resolve) => (transcribed = resolve)),
+      );
+      // Work the tool would start after the cancel never starts.
+      await jobs.run("analyze", "Finding pauses", async () => {});
+      return { captions: 1 };
+    })) as { id: string };
     expect(tasks.cancel(pending.id)).toMatchObject({ state: "cancelled" });
-    expect(cancelled).toEqual(["captions-1"]);
-    fail(Error("Cancelled"));
+    expect(states(jobs)).toMatchObject({
+      export: "running",
+      import: "running",
+      transcribe: "cancelled",
+    });
+    transcribed();
+    imported();
+    await importing;
     await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(states(jobs)).toMatchObject({ export: "running", import: "done" });
+    expect(states(jobs)).not.toHaveProperty("analyze");
     expect(await tasks.list({ id: pending.id })).toMatchObject([
       { state: "cancelled" },
     ]);
+    // cutline_jobs reports the task, not the call's own job.
+    expect(
+      ((await tasks.list({})) as any[]).some((job) => job.kind === "agent"),
+    ).toBe(false);
     expect(tasks.cancel("export-1")).toBeNull();
+  });
+
+  it("Stop before the answer cancels the tool's work, never an export", async () => {
+    const jobs = jobsWithExport();
+    const tasks = new AgentTasks(jobs, 1000, 10);
+    const caller = new AbortController();
+    let signal: AbortSignal | undefined;
+    const call = tasks.run(
+      "cutline_graphic",
+      async (stop) => {
+        signal = stop;
+        await jobs.run(
+          "drawing",
+          "Drawing",
+          () =>
+            new Promise((_, reject) =>
+              stop.addEventListener("abort", () => reject(Error("Cancelled"))),
+            ),
+        );
+      },
+      undefined,
+      { signal: caller.signal },
+    );
+    caller.abort();
+    await expect(call).rejects.toThrow("Cancelled");
+    expect(signal?.aborted).toBe(true);
+    expect(states(jobs)).toMatchObject({
+      drawing: "cancelled",
+      export: "running",
+    });
+  });
+
+  it("keeps a task going once its call has answered, even when that request then closes", async () => {
+    const tasks = new AgentTasks(jobsWithExport(), 20, 5);
+    const caller = new AbortController();
+    let finish!: (value: unknown) => void;
+    const pending = (await tasks.run(
+      "cutline_transcribe",
+      () => new Promise((resolve) => (finish = resolve)),
+      undefined,
+      { signal: caller.signal },
+    )) as any;
+    caller.abort();
+    finish({ captions: 2 });
+    const [done] = (await tasks.list({
+      id: pending.id,
+      waitSeconds: 1,
+    })) as any[];
+    expect(done).toMatchObject({ state: "done", result: { captions: 2 } });
+  });
+
+  it("never lands an edit from a cancelled call, and never marks it done", async () => {
+    const directory = temporary("cutline-cancelled-edit-");
+    const store = new Store(path.join(directory, "recovery.cutline"));
+    const jobs = new Jobs(() => {});
+    store.beforeCommit = () => jobs.assertActive();
+    const tasks = new AgentTasks(jobs, 20, 5);
+    let finish!: () => void;
+    const pending = (await tasks.run("cutline_remove_pauses", async () => {
+      // A slow step that is not a job of its own, such as a download.
+      await new Promise<void>((resolve) => (finish = resolve));
+      store.commit({ ...store.project, name: "Pauses removed" }, "Cut");
+      return { removed: true };
+    })) as any;
+    tasks.cancel(pending.id);
+    finish();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(store.project.name).not.toBe("Pauses removed");
+    expect(store.past).toHaveLength(0);
+    expect(await tasks.list({ id: pending.id })).toMatchObject([
+      { state: "cancelled" },
+    ]);
+    // Edits outside any agent call are never refused.
+    store.commit({ ...store.project, name: "Edited by hand" }, "Rename");
+    expect(store.project.name).toBe("Edited by hand");
+  });
+
+  it("passes a client's cancel through MCP to the tool call", async () => {
+    let seen: AbortSignal | undefined;
+    const server = createMcpServer(
+      async () => cutlineTools,
+      async (_name, _args, signal) => {
+        seen = signal;
+        await new Promise((resolve) =>
+          signal?.addEventListener("abort", resolve),
+        );
+        return {};
+      },
+    );
+    const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
+    await server.connect(serverSide);
+    const client = new Client({ name: "test", version: "1.0" });
+    await client.connect(clientSide);
+    try {
+      const stop = new AbortController();
+      const call = client.callTool(
+        { name: "cutline_transcribe", arguments: {} },
+        undefined,
+        { signal: stop.signal },
+      );
+      await vi.waitFor(() => expect(seen).toBeDefined());
+      expect(seen!.aborted).toBe(false);
+      stop.abort();
+      await expect(call).rejects.toThrow();
+      await vi.waitFor(() => expect(seen!.aborted).toBe(true));
+    } finally {
+      await client.close();
+    }
   });
 });
 
@@ -1147,37 +1275,64 @@ describe("previews render frames like the export and can come as a contact sheet
     expect(one.info.layout).toBe("single");
   });
 
-  it("runs the still renderer in a worker and stops a stuck one", async () => {
+  it("keeps one preview worker between previews, replaces a stuck one and closes it when idle", async () => {
     const directory = temporary("cutline-still-worker-");
     const worker = path.join(directory, "worker.cjs");
     writeFileSync(
       worker,
-      `process.once("message", (m) => {
-        const fs = require("node:fs"), path = require("node:path");
-        if (m.frames[0] === 13) { process.send({ type: "error", message: "Composition failed" }, () => process.exit(0)); return; }
-        if (m.frames[0] === 14) { setInterval(() => {}, 1000); return; }
-        const files = m.frames.map((frame, index) => { const file = path.join(m.outputDirectory, "frame-" + index + ".jpg"); fs.writeFileSync(file, String(frame * m.scale)); return file; });
-        process.send({ type: "done", files }, () => process.exit(0));
+      `const fs = require("node:fs"), path = require("node:path");
+      process.on("disconnect", () => process.exit(0));
+      process.on("message", (m) => {
+        if (m.frames[0] === 13) return process.send({ type: "error", id: m.id, message: "Composition failed" });
+        if (m.frames[0] === 14) return;
+        const files = m.frames.map((frame, index) => { const file = path.join(m.outputDirectory, "frame-" + index + ".jpg"); fs.writeFileSync(file, frame * m.scale + " " + process.pid); return file; });
+        process.send({ type: "done", id: m.id, files });
       });`,
     );
-    const options = {
+    let exited = 0;
+    const stills = new StillWorker({
       workerPath: worker,
+      timeoutMs: 1500,
+      idleMs: 300,
+      exited: () => exited++,
+    });
+    const options = {
       serveUrl: "unused",
       browserExecutable: "unused",
       inputProps: {},
       scale: 0.5,
       directory,
     };
-    expect(await renderStills({ ...options, frames: [10, 20] })).toEqual([
+    // Each frame file names the worker that rendered it.
+    const preview = async (frames: number[]) => {
+      const files = await stills.render({ ...options, frames });
+      return { files, pid: readFileSync(files[0], "utf8").split(" ")[1] };
+    };
+    const first = await preview([10, 20]);
+    expect(first.files).toEqual([
       path.join(directory, "frame-0.jpg"),
       path.join(directory, "frame-1.jpg"),
     ]);
-    await expect(renderStills({ ...options, frames: [13] })).rejects.toThrow(
+    // The next preview reuses the same worker instead of starting one.
+    const second = await preview([30]);
+    expect(second.pid).toBe(first.pid);
+    expect(readFileSync(second.files[0], "utf8")).toBe(`15 ${first.pid}`);
+    await expect(stills.render({ ...options, frames: [13] })).rejects.toThrow(
       "Composition failed",
     );
-    await expect(
-      renderStills({ ...options, frames: [14], timeoutMs: 300 }),
-    ).rejects.toThrow(/took too long/);
+    await expect(stills.render({ ...options, frames: [14] })).rejects.toThrow(
+      /took too long/,
+    );
+    await vi.waitFor(() => expect(exited).toBe(1));
+    // A stuck worker is replaced by a new one.
+    const third = await preview([40]);
+    expect(third.pid).not.toBe(first.pid);
+    // A quiet worker closes, and the next preview starts a new one.
+    await vi.waitFor(() => expect(exited).toBe(2), { timeout: 3000 });
+    const fourth = await preview([50]);
+    expect(fourth.pid).not.toBe(third.pid);
+    stills.close();
+    await vi.waitFor(() => expect(exited).toBe(3), { timeout: 3000 });
   });
 });
 
@@ -1311,6 +1466,30 @@ describe("the launcher works and explains itself when Cutline is closed", () => 
       server.closeAllConnections();
       await new Promise((resolve) => server.close(resolve));
     }
+  });
+
+  it("fails startup cleanly when the connection can't be written", async () => {
+    const directory = temporary("cutline-bridge-start-");
+    const store = new Store(path.join(directory, "recovery.cutline"));
+    const close = vi.spyOn(http.Server.prototype, "close");
+    await expect(
+      startBridge(
+        store,
+        path.join(directory, "missing", "connection.json"),
+        async () => null,
+        [],
+      ),
+    ).rejects.toThrow(/ENOENT/);
+    // Its listener is closed, not left running without a window.
+    expect(close).toHaveBeenCalledTimes(1);
+    close.mockRestore();
+    const bridge = await startBridge(
+      store,
+      path.join(directory, "connection.json"),
+      async () => null,
+      [],
+    );
+    bridge.close();
   });
 
   it("leaves a newer Cutline's connection file in place", async () => {

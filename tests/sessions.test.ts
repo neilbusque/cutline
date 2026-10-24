@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  chmodSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -171,6 +172,26 @@ describe("Cutline session profiles", () => {
     restarted.updateProject(null);
     expect(restarted.current().projectId).toBeUndefined();
     expect(first.current().projectId).toBe("project-a");
+  });
+
+  it("keeps starting and editing when its session list can't be written", () => {
+    const directory = root();
+    const session = manager(directory);
+    const report = vi.spyOn(console, "error").mockImplementation(() => {});
+    // A full disk or a folder Cutline can't write to.
+    chmodSync(directory, 0o500);
+    try {
+      expect(session.register("Main session").name).toBe("Main session");
+      expect(() =>
+        session.updateProject({ id: "project-a", name: "Reel" }),
+      ).not.toThrow();
+      expect(session.current().projectName).toBe("Reel");
+      expect(() => session.close()).not.toThrow();
+    } finally {
+      chmodSync(directory, 0o700);
+    }
+    // Reported once, not on every edit.
+    expect(report).toHaveBeenCalledTimes(1);
   });
 
   it("does not report a crashed or PID-reused session as running and ignores broken metadata", async () => {

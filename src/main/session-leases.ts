@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -9,6 +10,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 
 function alive(pid: number) {
@@ -19,13 +21,72 @@ function alive(pid: number) {
     return (error as NodeJS.ErrnoException).code === "EPERM";
   }
 }
+/** When a running process started, from ps; undefined when it can't be read. */
+export function processStart(pid: number) {
+  try {
+    const started = Date.parse(
+      execFileSync("/bin/ps", ["-o", "lstart=", "-p", String(pid)], {
+        encoding: "utf8",
+        env: { ...process.env, LC_ALL: "C" },
+        timeout: 2000,
+      }).trim(),
+    );
+    return Number.isFinite(started) ? started : undefined;
+  } catch {
+    return undefined;
+  }
+}
+/** ps gives start times to the second; the owner records its own a little late. */
+const startSlack = 3000;
 
 /** Process-owned leases shared by independent editor processes. */
 export class SessionLeases {
+  /** When this process started, written into its leases. */
+  private started = Date.now() - process.uptime() * 1000;
+  /** Start times read from ps, briefly reused while a slot is polled. */
+  private starts = new Map<number, { started?: number; until: number }>();
   constructor(
     readonly directory: string,
     readonly sessionName: string,
+    private options: {
+      processStart?: (pid: number) => number | undefined;
+      bootTime?: () => number;
+    } = {},
   ) {}
+  /**
+   * Whether a lease's owner has exited. After a crash or a restart its PID can
+   * belong to another program, so a live PID also has to have started when
+   * the owner did, and before the lease was written.
+   */
+  private ownerGone(
+    owner: { pid: number; started?: unknown },
+    ownerFile: string,
+  ) {
+    if (!alive(owner.pid)) return true;
+    let written: number;
+    try {
+      written = statSync(ownerFile).mtimeMs;
+    } catch {
+      return false;
+    }
+    // Written before this Mac last started up: that process is long gone.
+    const boot = this.options.bootTime?.() ?? Date.now() - os.uptime() * 1000;
+    if (written < boot - 60_000) return true;
+    let known = this.starts.get(owner.pid);
+    if (!known || known.until < Date.now()) {
+      known = {
+        started: (this.options.processStart ?? processStart)(owner.pid),
+        until: Date.now() + 30_000,
+      };
+      this.starts.set(owner.pid, known);
+    }
+    const started = known.started;
+    if (started === undefined) return false;
+    if (typeof owner.started === "number")
+      return Math.abs(started - owner.started) > startSlack;
+    // Leases from older versions record no start time.
+    return started > written + startSlack;
+  }
   tryAcquire(key: string): (() => void) | null {
     mkdirSync(this.directory, { recursive: true });
     const folder = path.join(
@@ -41,11 +102,15 @@ export class SessionLeases {
         if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
         try {
           const owner = JSON.parse(readFileSync(ownerFile, "utf8"));
-          if (!Number.isInteger(owner.pid) || alive(owner.pid)) return null;
+          if (!Number.isInteger(owner.pid) || !this.ownerGone(owner, ownerFile))
+            return null;
           // Only one contender can reclaim a dead owner's directory.
           mkdirSync(path.join(folder, "reaping"));
           const current = JSON.parse(readFileSync(ownerFile, "utf8"));
-          if (current.token !== owner.token || alive(current.pid)) {
+          if (
+            current.token !== owner.token ||
+            !this.ownerGone(current, ownerFile)
+          ) {
             rmSync(path.join(folder, "reaping"), {
               recursive: true,
               force: true,
@@ -80,6 +145,7 @@ export class SessionLeases {
           ownerFile + ".tmp",
           JSON.stringify({
             pid: process.pid,
+            started: Math.round(this.started),
             token,
             sessionName: this.sessionName,
           }),

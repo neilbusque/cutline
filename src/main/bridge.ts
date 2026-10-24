@@ -17,10 +17,15 @@ import { type Tool } from "@modelcontextprotocol/sdk/types.js";
 export async function startBridge(
   store: Store,
   connectionFile: string | null,
-  call: (name: string, args: any) => Promise<unknown>,
+  /** signal aborts when the caller goes away before the answer. */
+  call: (name: string, args: any, signal?: AbortSignal) => Promise<unknown>,
   toolList: any[],
   options: {
-    localCall?: (name: string, args: any) => Promise<unknown>;
+    localCall?: (
+      name: string,
+      args: any,
+      signal?: AbortSignal,
+    ) => Promise<unknown>;
     localTools?: any[];
   } = {},
 ) {
@@ -83,7 +88,9 @@ export async function startBridge(
               ? asset?.proxy
               : parts[3] === "reversed"
                 ? asset?.reversed
-                : asset?.path;
+                : parts[3] === "reversed-part"
+                  ? asset?.reversedPart
+                  : asset?.path;
         if (!file || !existsSync(file)) {
           res.writeHead(404);
           res.end("Media is missing. Relink the source.");
@@ -135,8 +142,15 @@ export async function startBridge(
           if (body.length > 2_000_000) throw Error("Request too large");
         }
         const { name, args } = JSON.parse(body);
+        // A caller that goes away before the answer stops its work.
+        const gone = new AbortController();
+        res.on("close", () => {
+          if (!res.writableEnded) gone.abort();
+        });
         const value =
-          name === "tools.list" ? toolList : await call(name, args ?? {});
+          name === "tools.list"
+            ? toolList
+            : await call(name, args ?? {}, gone.signal);
         res.setHeader("Content-Type", "application/json");
         res.end(JSON.stringify({ result: value }));
         return;
@@ -149,23 +163,34 @@ export async function startBridge(
       res.end(JSON.stringify({ error: (e as Error).message }));
     }
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
   const address = server.address() as any;
   const base = `http://127.0.0.1:${address.port}/${token}`;
   if (connectionFile)
-    writeFileSync(
-      connectionFile,
-      JSON.stringify({
-        base,
-        mcpUrl: `${base}/mcp`,
-        pid: process.pid,
-        version: CUTLINE_VERSION,
-        protocols: ["stdio", "streamable-http"],
-      }),
-      {
-        mode: 0o600,
-      },
-    );
+    try {
+      writeFileSync(
+        connectionFile,
+        JSON.stringify({
+          base,
+          mcpUrl: `${base}/mcp`,
+          pid: process.pid,
+          version: CUTLINE_VERSION,
+          protocols: ["stdio", "streamable-http"],
+        }),
+        {
+          mode: 0o600,
+        },
+      );
+    } catch (error) {
+      server.close();
+      throw error;
+    }
   return {
     base,
     mcpUrl: `${base}/mcp`,

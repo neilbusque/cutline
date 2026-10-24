@@ -1,4 +1,8 @@
-import { browserRelativePath } from "../../scripts/browser-config.mjs";
+import {
+  browserDirectory,
+  browserRelativePath,
+} from "../../scripts/browser-config.mjs";
+import { sweepOrphanedBrowsers } from "./browser-sweep";
 import { ReelOptionsSchema } from "../shared/reel";
 import { buildAutoReel, AutoReelOptionsSchema } from "./auto-reel";
 import { Speech } from "./tts";
@@ -38,6 +42,7 @@ import {
   writeFileSync,
   copyFileSync,
   renameSync,
+  rmSync,
   unlinkSync,
   statSync,
 } from "node:fs";
@@ -96,6 +101,8 @@ import {
   renderSvg,
 } from "./vector-studio";
 import { capturePage } from "./page-capture";
+import { keepEditorAlive } from "./editor-window";
+import { workAtRisk } from "./quit-guard";
 import { withoutBackdrop } from "../shared/vector-generation";
 import {
   generateGraphic,
@@ -104,19 +111,20 @@ import {
   type GraphicResult,
 } from "../shared/graphics";
 import { HiggsfieldPictures } from "./higgsfield-pictures";
-import { AgentTasks } from "./agent-tasks";
+import { AgentTasks, ASSISTANT_DEADLINE_MS } from "./agent-tasks";
 import {
   previewContent,
   previewFrames,
   renderPreview,
-  renderStills,
   samplesFrames,
+  StillWorker,
   timecode,
 } from "./agent-preview";
 import { StockLibrary, stockUrl } from "./stock";
 import { Codex } from "./codex";
 import { ClaudeAssistant, findClaude, type ClaudeModel } from "./claude";
 import { TransactionSchema } from "../shared/commands";
+import { reversedPartHolds, reversedRequest } from "../shared/timeline";
 import { srtCaptionClips, toSrt } from "../shared/subtitles";
 import {
   publicProject,
@@ -243,6 +251,8 @@ const previewRequests = new Map<
 let renderChild: ReturnType<typeof fork> | undefined;
 /** True while an export makes reversed copies, before its render starts. */
 let exportPreparing = false;
+/** Files a running export writes beside its output, removed if Cutline quits. */
+const exportPartials = new Set<string>();
 const root = path.join(__dirname, "../..");
 // Running from source keeps its own recovery file and agent connection per
 // checkout, so it never autosaves over, or takes the agents of, the
@@ -258,7 +268,22 @@ const defaultData =
       ));
 const sessionContext = resolveSessionContext(defaultData);
 const data = sessionContext.dataDir;
-mkdirSync(data, { recursive: true });
+/** A problem found before the app was ready, shown once it is. */
+let startupError: unknown;
+try {
+  mkdirSync(data, { recursive: true });
+} catch (error) {
+  startupError = error;
+}
+/** Why Cutline couldn't start, in words for the person. */
+function startupProblem(error: unknown) {
+  const code = (error as NodeJS.ErrnoException)?.code;
+  if (code === "ENOSPC")
+    return "The disk is full. Free up some space, then open Cutline again.";
+  if (code === "EACCES" || code === "EPERM" || code === "EROFS")
+    return `Cutline isn't allowed to write to its data folder:\n${data}\n\nCheck that folder's permissions, then open Cutline again.`;
+  return `${(error as Error)?.message || String(error)}\n\nOpen Cutline again to retry.`;
+}
 const sessions = new SessionManager({
   context: sessionContext,
   executable: process.execPath,
@@ -312,6 +337,12 @@ app.on("second-instance", (_event, argv, workingDirectory) => {
 const vendor = app.isPackaged
   ? path.join(process.resourcesPath, "vendor")
   : path.join(root, "vendor");
+/** Chrome left running by a worker that died is stopped shortly after. */
+const sweepBrowsersSoon = () =>
+  setTimeout(
+    () => void sweepOrphanedBrowsers(path.join(vendor, browserDirectory)),
+    2000,
+  ).unref();
 const bin = {
   ffmpeg: path.join(root, "node_modules/@ffmpeg-installer/darwin-arm64/ffmpeg"),
   ffprobe: path.join(
@@ -351,15 +382,20 @@ function pauses(args: any) {
  * make any that are missing first, on their own copy of the project.
  */
 async function prepareReversed(project: Project, job?: Job) {
-  const wanted = new Set(
-    project.clips.filter((c) => c.reverse && c.assetId).map((c) => c.assetId),
-  );
   for (const asset of project.assets) {
-    if (!wanted.has(asset.id)) continue;
+    const request = reversedRequest(project, asset);
+    if (!request) continue;
     if (asset.reversed && existsSync(asset.reversed)) continue;
+    if (
+      asset.reversedPart &&
+      existsSync(asset.reversedPart) &&
+      reversedPartHolds(project, asset)
+    )
+      continue;
     if (job)
       jobs.update(job, { message: `Reversing ${asset.name} for export` });
-    asset.reversed = await media.reversedCopy(asset);
+    // Only the part the reversed clips play.
+    Object.assign(asset, await media.reversedPart(asset, request));
   }
   if (job) jobs.update(job, { message: "Rendering from original media" });
 }
@@ -395,12 +431,22 @@ async function exportVideo(output?: string) {
   const releaseOutput = leases.claimFile(output);
   const job = jobs.create("export", "Waiting for an export slot");
   const temporary = output + "." + job.id + ".partial.mp4";
+  const partials = [
+    temporary,
+    temporary + ".audio.wav",
+    temporary + ".video.mp4",
+  ];
+  for (const file of partials) exportPartials.add(file);
+  const forgetPartials = () => {
+    for (const file of partials) exportPartials.delete(file);
+  };
   const chromium = path.join(vendor, browserRelativePath);
   if (!existsSync(chromium)) {
     jobs.update(job, {
       state: "error",
       message: "Export browser is missing. Rebuild the app bundle.",
     });
+    forgetPartials();
     releaseOutput();
     throw Error(job.message);
   }
@@ -482,6 +528,7 @@ async function exportVideo(output?: string) {
         exportBridge?.close();
         release();
         renderChild = undefined;
+        sweepBrowsersSoon();
         jobs.processes.delete(job.id);
         jobs.cancellers.delete(job.id);
         if (job.state === "running")
@@ -489,12 +536,8 @@ async function exportVideo(output?: string) {
             state: "error",
             message: stderr || "Export stopped unexpectedly",
           });
-        for (const file of [
-          temporary,
-          temporary + ".audio.wav",
-          temporary + ".video.mp4",
-        ])
-          if (existsSync(file)) unlinkSync(file);
+        for (const file of partials) if (existsSync(file)) unlinkSync(file);
+        forgetPartials();
       });
       child.send({
         serveUrl: path.join(root, "dist/composition"),
@@ -511,10 +554,39 @@ async function exportVideo(output?: string) {
         exportPreparing = false;
         exportBridge?.close();
         release();
+        forgetPartials();
       }
     }
   })();
   return job;
+}
+/** Set once the person chose to quit, or nothing would be lost. */
+let quitting = false;
+let askingToQuit = false;
+/** Asks before quitting throws away an export or other running work. */
+async function confirmQuit() {
+  if (askingToQuit) return;
+  const risk = jobs
+    ? workAtRisk(jobs.jobs.values(), !!renderChild || exportPreparing)
+    : undefined;
+  if (risk && !process.env.CUTLINE_QA) {
+    askingToQuit = true;
+    try {
+      const { response } = await messageBox({
+        type: "warning",
+        message: risk.question,
+        detail: "Quitting stops it.",
+        buttons: [risk.keep, "Stop and quit"],
+        defaultId: 0,
+        cancelId: 0,
+      });
+      if (response !== 1) return;
+    } finally {
+      askingToQuit = false;
+    }
+  }
+  quitting = true;
+  app.quit();
 }
 const tools = cutlineTools;
 const externalTools = sessionTools(cutlineTools);
@@ -522,11 +594,11 @@ const sessionRouter = createSessionRouter({
   currentId: sessionContext.id,
   list: () => sessions.list(),
   connectionFor: (id) => sessions.connectionFor(id),
-  localCall: toolCall,
+  localCall: (name, args, signal) => toolCall(name, args, { signal }),
   create: (name) => sessions.create(name),
   open: (id) => sessions.open(id),
 });
-async function externalCall(name: string, args: any) {
+async function externalCall(name: string, args: any, signal?: AbortSignal) {
   if (name === "session.focus") {
     if (win && !win.isDestroyed()) {
       if (win.isMinimized()) win.restore();
@@ -535,7 +607,7 @@ async function externalCall(name: string, args: any) {
     }
     return { focused: true };
   }
-  return sessionRouter.call(name, args);
+  return sessionRouter.call(name, args, signal);
 }
 function copySessionPrompt() {
   const current = sessions.current();
@@ -550,9 +622,20 @@ let storyVoice: StoryProduction;
 let storyBatch: StoryBatchProduction;
 /** Tools whose work can outlast a client's request timeout; see AgentTasks. */
 const longTools = longRunningTools;
-async function toolCall(name: string, args: any) {
+/**
+ * signal: the caller went away, as when Stop is pressed in the assistant.
+ * deadlineMs: how long the caller waits before a long tool answers with a
+ * job ID (45 seconds unless given).
+ */
+async function toolCall(
+  name: string,
+  args: any,
+  options: { signal?: AbortSignal; deadlineMs?: number } = {},
+) {
   if (!tools.some((tool) => tool.name === name))
     throw Error("Unknown editing tool");
+  if (options.signal?.aborted)
+    throw Error("This edit was stopped, so the tool did not run.");
   lastAgentCall = { tool: name, at: new Date().toISOString() };
   // Errors carry what the agent needs to recover: readable validation
   // messages and, for stale revisions, the revision to retry with.
@@ -564,16 +647,23 @@ async function toolCall(name: string, args: any) {
       store.past,
     );
   try {
-    const earlier = new Set(jobs.jobs.keys());
-    const work = runTool(name, args ?? {});
     return longTools.has(name)
-      ? await agentTasks.run(name, work, describe, earlier)
-      : await work;
+      ? await agentTasks.run(
+          name,
+          (signal) => runTool(name, args ?? {}, signal),
+          describe,
+          options,
+        )
+      : await runTool(name, args ?? {});
   } catch (error) {
     throw Error(describe(error));
   }
 }
-async function runTool(name: string, args: any): Promise<unknown> {
+async function runTool(
+  name: string,
+  args: any,
+  signal?: AbortSignal,
+): Promise<unknown> {
   if (musicTools.some((tool) => tool.name === name)) {
     const result: any = await musicControl(name, args);
     // A sync plan holds a command per clip; keep the reply short.
@@ -594,7 +684,7 @@ async function runTool(name: string, args: any): Promise<unknown> {
   if (agentIoTools.some((tool) => tool.name === name))
     return agentIO(name, args);
   if (agentMediaTools.some((tool) => tool.name === name))
-    return agentMedia(name, args);
+    return agentMedia(name, args, signal);
   switch (name) {
     case "cutline_explainer": {
       assertRevision(args);
@@ -781,11 +871,19 @@ async function editorPreview(args: any) {
 const previewBundle = path.join(root, "dist/composition");
 const previewBrowser = path.join(vendor, browserRelativePath);
 const stillWorker = path.join(__dirname, "still-worker.cjs");
+const stills = new StillWorker({
+  workerPath: stillWorker,
+  exited: sweepBrowsersSoon,
+});
 let previewQueue: Promise<unknown> = Promise.resolve();
 /** Renders frames like the export does, one preview at a time. */
 function renderOffscreen(project: Project, frames: number[], args: any) {
   const run = async () => {
     const frozen = structuredClone(project);
+    // Stills use the lighter preview copies where they exist, so a long
+    // 4K source is not read in full for a contact sheet.
+    for (const asset of frozen.assets)
+      if (asset.proxy && !existsSync(asset.proxy)) delete asset.proxy;
     await prepareReversed(frozen);
     const media = await startBridge(
       { project: frozen } as Store,
@@ -801,14 +899,14 @@ function renderOffscreen(project: Project, frames: number[], args: any) {
         layout: args.layout,
         ffmpeg: bin.ffmpeg,
         render: (list, scale, directory) =>
-          renderStills({
-            workerPath: stillWorker,
+          stills.render({
             serveUrl: previewBundle,
             browserExecutable: previewBrowser,
             inputProps: {
               project: frozen,
               mediaBase: media.base,
               preview: false,
+              proxies: true,
             },
             frames: list,
             scale,
@@ -980,10 +1078,13 @@ function messageBox(options: Electron.MessageBoxOptions) {
     ? dialog.showMessageBox(win, options)
     : dialog.showMessageBox(options);
 }
-/** Saves to the project file, or asks where when there is none or it can't be written. */
+/**
+ * Saves to the project file, or asks where when there is none, it can't be
+ * written, or it was moved or changed outside this session.
+ */
 async function saveProject(chooseFile = false) {
   let file = store.filePath;
-  if (!file || chooseFile || store.saveError) {
+  if (!file || chooseFile || store.saveError || store.fileProblem()) {
     const options: Electron.SaveDialogOptions = {
       defaultPath: store.project.name + ".cutline",
       filters: [{ name: "Cutline project", extensions: ["cutline"] }],
@@ -1003,7 +1104,7 @@ async function askToSave(name: string): Promise<UnsavedChoice> {
   const { response } = await messageBox({
     type: "warning",
     message: `Save “${name}” first?`,
-    detail: `${store.saveError ? "Cutline couldn't save it to its file." : "It hasn't been saved to a file yet."} If you don't save it, a dated copy is kept in File > Open backup.`,
+    detail: `${store.filePath ? "Cutline couldn't save it to its file." : "It hasn't been saved to a file yet."} If you don't save it, a dated copy is kept in File > Open backup.`,
     buttons: ["Save…", "Don't save", "Cancel"],
     defaultId: 0,
     cancelId: 2,
@@ -1286,11 +1387,11 @@ function register() {
     "tts.status": () => speech.status(),
     "tts.setup": () => speech.setup(),
     "tts.generate": async (args) => {
-      const projectId = store.project.id;
+      const opening = store.openSession;
       return jobs.run("voiceover", "Creating your narration", async (job) => {
         const check = () => {
           if (job.state === "cancelled") throw Error("Narration cancelled");
-          if (store.project.id !== projectId)
+          if (store.openSession !== opening)
             throw Error(
               "The project changed while generating narration. Your edit was kept; the audio remains in Cutline's local speech folder.",
             );
@@ -1415,8 +1516,9 @@ function register() {
         throw Error("Project changed. Import into the current project.");
       const existing = store.project.assets.find((a) => a.id === id);
       if (existing) return existing;
+      const opening = store.openSession;
       const asset = await generation.importAsset(id);
-      if (store.project.id !== projectId)
+      if (store.openSession !== opening)
         throw Error(
           "Project changed during import. Your generated file is saved; import it into the project you want.",
         );
@@ -1451,13 +1553,13 @@ function register() {
         },
       ),
     "stock.download": async (args) => {
-      const projectId = store.project.id;
+      const opening = store.openSession;
       const asset = await stock.download(
         z.number().int().positive().parse(args.id),
         z.enum(["commons", "pexels"]).parse(args.provider ?? "commons"),
         z.enum(["video", "image"]).parse(args.kind ?? "video"),
       );
-      if (store.project.id !== projectId)
+      if (store.openSession !== opening)
         throw Error(
           "Project changed while downloading. The file remains in your local stock folder.",
         );
@@ -1502,7 +1604,7 @@ function register() {
     state: () => ({
       snapshot: store.snapshot(),
       mediaBase: base,
-      jobs: [...jobs.jobs.values()],
+      jobs: [...jobs.jobs.values()].filter((job) => job.kind !== "agent"),
       settings: {
         transcriptionReady: existsSync(bin.whisper) && existsSync(bin.model),
         mcpScript: path.join(__dirname, "mcp.cjs"),
@@ -1744,19 +1846,19 @@ function register() {
         if (d.canceled) return;
         files = d.filePaths;
       }
-      const projectId = store.project.id;
+      const opening = store.openSession;
       const failures: string[] = [];
       for (const file of files) {
         try {
           const asset = await media.import(file);
-          if (projectId !== store.project.id)
+          if (store.openSession !== opening)
             throw Error("Project changed during import");
           store.commit(
             { ...store.project, assets: [...store.project.assets, asset] },
             "Import media",
           );
         } catch (error) {
-          if (projectId !== store.project.id) throw error;
+          if (store.openSession !== opening) throw error;
           failures.push(`${path.basename(file)}: ${(error as Error).message}`);
         }
       }
@@ -1895,6 +1997,9 @@ function register() {
 }
 app.whenReady().then(async () => {
   if (!primary) return;
+  if (startupError) throw startupError;
+  // Chrome left running by workers of an earlier run that crashed.
+  void sweepOrphanedBrowsers(path.join(vendor, browserDirectory));
   sessions.register();
   store = new Store(path.join(data, "recovery.cutline"), (file) =>
     leases.claimFile(file),
@@ -1909,7 +2014,13 @@ app.whenReady().then(async () => {
   if (pendingProject) await openFromFinder(pendingProject);
   // Startup opens happen before the change listener below is attached.
   sessions.updateProject(store.project);
-  jobs = new Jobs((j) => send("job", j));
+  // An agent call's own job only groups the work it starts; the editor
+  // shows that work.
+  jobs = new Jobs((j) => {
+    if (j.kind !== "agent") send("job", j);
+  });
+  // A cancelled agent call never lands an edit, whatever it was waiting on.
+  store.beforeCommit = () => jobs.assertActive();
   media = new Media(path.join(data, "media-cache"), bin, jobs);
   // Older versions left raw audio dumps behind (about 115 MB per hour of media),
   // and preview copies of old imports pile up: keep the cache under its cap,
@@ -1917,7 +2028,7 @@ app.whenReady().then(async () => {
   void media.cleanCache(
     Date.now(),
     store.project.assets.flatMap((asset) =>
-      [asset.proxy, asset.reversed, asset.thumbnail].filter(
+      [asset.proxy, asset.reversed, asset.reversedPart, asset.thumbnail].filter(
         (file): file is string => typeof file === "string",
       ),
     ),
@@ -1952,7 +2063,6 @@ app.whenReady().then(async () => {
     () => generationCredentials.getKey(),
   );
   generation.start();
-  app.on("before-quit", () => generation.stop());
   pictures = new HiggsfieldPictures(
     path.join(data, "generated-media", "pictures"),
     () => generationCredentials.getKey(),
@@ -2003,7 +2113,7 @@ app.whenReady().then(async () => {
       drawings.set(key, drawn);
       return drawn;
     },
-    graphic: (input) => makeGraphic(input),
+    graphic: (input, signal) => makeGraphic(input, { signal }),
     references: {
       logo: (query) => references.logo(query),
       inLibrary: (name) => references.inLibrary(name),
@@ -2020,10 +2130,23 @@ app.whenReady().then(async () => {
     path.join(data, "connection.json"),
     externalCall,
     externalTools,
-    { localCall: toolCall, localTools: tools },
+    {
+      // The built-in Claude waits for long tools instead of polling, and
+      // its Stop ends the turn's work even while the request stays open.
+      localCall: (name, args, signal) => {
+        const turn = claude?.turnSignal;
+        return toolCall(name, args, {
+          signal: turn && signal ? AbortSignal.any([signal, turn]) : (turn ?? signal),
+          deadlineMs: ASSISTANT_DEADLINE_MS,
+        });
+      },
+      localTools: tools,
+    },
   );
   base = bridge.base;
-  codex = new Codex(path.join(data, "assistant"), tools, toolCall);
+  codex = new Codex(path.join(data, "assistant"), tools, (name, args, signal) =>
+    toolCall(name, args, { signal, deadlineMs: ASSISTANT_DEADLINE_MS }),
+  );
   codex.on("event", (e) => send("assistant", { ...e, provider: "codex" }));
   loadAssistantSettings();
   claude = new ClaudeAssistant(
@@ -2076,6 +2199,29 @@ app.whenReady().then(async () => {
       nodeIntegration: false,
       sandbox: true,
     },
+  });
+  // A crashed or hung editor page comes back; the project lives here.
+  const editorWindow = keepEditorAlive(win, {
+    pending: previewRequests,
+    askReload: async () =>
+      !process.env.CUTLINE_QA &&
+      (
+        await messageBox({
+          type: "warning",
+          message: "The editor isn't responding",
+          detail:
+            "Your project is safe. Reload the editor, or wait for it to catch up.",
+          buttons: ["Reload editor", "Wait"],
+          defaultId: 1,
+          cancelId: 1,
+        })
+      ).response === 0,
+  });
+  // Closing the window quits Cutline; an export or other work asks first.
+  win.on("close", (event) => {
+    if (quitting) return;
+    event.preventDefault();
+    void confirmQuit();
   });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (e, url) => {
@@ -2187,6 +2333,11 @@ app.whenReady().then(async () => {
       {
         label: "View",
         submenu: [
+          {
+            label: "Reload editor",
+            accelerator: "CmdOrCtrl+R",
+            click: () => editorWindow.reload(),
+          },
           { role: "togglefullscreen" },
           ...(process.env.CUTLINE_DEV_URL
             ? [{ role: "toggleDevTools" as const }]
@@ -2198,18 +2349,37 @@ app.whenReady().then(async () => {
   if (process.env.CUTLINE_DEV_URL)
     await win.loadURL(process.env.CUTLINE_DEV_URL);
   else await win.loadFile(path.join(root, "dist/ui/index.html"));
-  // Startup problems, such as an unreadable autosave that was set aside.
+  // Startup problems, such as an unreadable autosave that was set aside or a
+  // project file that changed while this session was closed.
   if (store.notices.length && !process.env.CUTLINE_QA)
     void messageBox({
       type: "warning",
-      message: "Cutline couldn't open your last autosave",
+      message: "About your last autosave",
       detail: store.notices.join("\n\n"),
     });
   // Edits from last time that never reached the project file.
   if (store.saveError) void warnSaveFailed(store.saveError);
+}).catch((error) => {
+  // Without a window there is nothing to click and no way back: say why,
+  // then quit, so opening Cutline again starts afresh.
+  dialog.showErrorBox("Cutline couldn't start", startupProblem(error));
+  app.exit(1);
+});
+// Clicking the Dock icon brings the editor back.
+app.on("activate", () => {
+  if (win && !win.isDestroyed()) {
+    win.show();
+    win.focus();
+  }
 });
 app.on("window-all-closed", () => app.quit());
-app.on("before-quit", () => {
+app.on("before-quit", (event) => {
+  if (!quitting) {
+    event.preventDefault();
+    void confirmQuit();
+    return;
+  }
+  generation?.stop();
   // Undo history is written in the background; finish it before quitting.
   store?.close();
   sessions.close();
@@ -2220,6 +2390,9 @@ app.on("before-quit", () => {
       process.kill(-renderChild.pid, "SIGTERM");
     } catch {}
   }
+  stills.close();
   bridge?.close();
   for (const child of jobs?.processes.values() ?? []) child.kill();
+  // A stopped export leaves no half-written files beside its output.
+  for (const file of exportPartials) rmSync(file, { force: true });
 });

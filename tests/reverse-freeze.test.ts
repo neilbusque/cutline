@@ -20,6 +20,9 @@ import { applyCommands, removePauses } from "../src/shared/commands";
 import {
   audioWaveformPath,
   playsForward,
+  reversedPartCovers,
+  reversedPartHolds,
+  reversedRequest,
   sourceSecondsAt,
   trimClip,
 } from "../src/shared/timeline";
@@ -31,6 +34,7 @@ import { musicBindings, musicResponse } from "../src/shared/music-reactive";
 import { clipMedia } from "../src/composition/Video";
 import { Jobs, Media, reverseChunks } from "../src/main/media";
 import { Store } from "../src/main/store";
+import { relinkedAsset } from "../src/main/relink";
 import { appOpenEnv } from "../src/main/mcp-launcher";
 import { clipNote } from "../src/renderer/labels";
 
@@ -305,16 +309,18 @@ describe("composition", () => {
   const p = fixture();
   const asset = p.assets[0];
   it("plays the original or preview copy forward", () => {
-    expect(clipMedia(only(p), asset, "http://bridge", false)).toEqual({
+    expect(clipMedia(only(p), asset, "http://bridge", false, p.fps)).toEqual({
       src: "http://bridge/media/shot/original",
       pending: false,
+      offset: 0,
     });
   });
   it("plays the reversed copy once it exists", () => {
     const c = only(reversed(p));
-    expect(clipMedia(c, asset, "http://bridge", true)).toEqual({
+    expect(clipMedia(c, asset, "http://bridge", true, p.fps)).toEqual({
       src: "http://bridge/media/shot/reversed",
       pending: true,
+      offset: 0,
     });
     expect(
       clipMedia(
@@ -322,8 +328,148 @@ describe("composition", () => {
         { ...asset, reversed: "/cache/r.mp4" },
         "http://bridge",
         false,
+        p.fps,
       ),
-    ).toEqual({ src: "http://bridge/media/shot/reversed", pending: false });
+    ).toEqual({
+      src: "http://bridge/media/shot/reversed",
+      pending: false,
+      offset: 0,
+    });
+  });
+});
+
+describe("partial reversed copies", () => {
+  it("asks for only the part reversed clips play, with room for trims", () => {
+    const p = reversed(fixture());
+    // Source seconds 3 to 5 played backwards are 5 to 7 seconds before the end.
+    expect(reversedRequest(p, p.assets[0])).toEqual({ from: 3, to: 9 });
+    expect(reversedRequest(fixture(), p.assets[0])).toBeUndefined();
+    // A second reversed clip of the same media widens the one part.
+    const two = tx(p, [
+      {
+        type: "clip.add",
+        clip: {
+          ...only(p),
+          id: "early",
+          start: 10 * p.fps,
+          duration: p.fps,
+          sourceIn: 0.5,
+        },
+      },
+    ]);
+    expect(reversedRequest(two, two.assets[0])).toEqual({ from: 0, to: 9 });
+  });
+
+  it("plays a part that holds the clip, from where the part starts", () => {
+    const p = reversed(fixture());
+    const c = only(p);
+    const asset = {
+      ...p.assets[0],
+      reversedPart: "/cache/part.mp4",
+      reversedSpan: { from: 3, to: 9 },
+    };
+    expect(clipMedia(c, asset, "http://bridge", false, p.fps)).toEqual({
+      src: "http://bridge/media/shot/reversed-part",
+      pending: false,
+      offset: 3,
+    });
+    expect(reversedPartHolds(p, asset)).toBe(true);
+    // A part that misses the clip falls back to a whole copy, or waits.
+    const short = { ...asset, reversedSpan: { from: 5.5, to: 9 } };
+    expect(reversedPartHolds(p, short)).toBe(false);
+    expect(clipMedia(c, short, "http://bridge", false, p.fps)).toEqual({
+      src: "http://bridge/media/shot/reversed",
+      pending: true,
+      offset: 0,
+    });
+    expect(
+      clipMedia(
+        c,
+        { ...short, reversed: "/cache/whole.mp4" },
+        "http://bridge",
+        false,
+        p.fps,
+      ).pending,
+    ).toBe(false);
+    // A frame to spare at each edge, except where the part reaches the media's ends.
+    const edge = { from: 5, to: 6.99 };
+    expect(
+      reversedPartCovers(
+        { ...asset, reversedSpan: { from: 5, to: 7 } },
+        edge,
+        30,
+      ),
+    ).toBe(false);
+    expect(
+      reversedPartCovers(
+        { ...asset, reversedSpan: { from: 0, to: 10 } },
+        edge,
+        30,
+      ),
+    ).toBe(true);
+    expect(
+      reversedPartCovers(
+        { ...asset, reversedSpan: { from: 4, to: 10 } },
+        { from: 8, to: 10 },
+        30,
+      ),
+    ).toBe(true);
+    expect(
+      reversedPartCovers({ ...asset, reversedPart: undefined }, edge, 30),
+    ).toBe(false);
+  });
+
+  it("the store keeps a part with its span, and drops both once the file is gone", () => {
+    const directory = folder();
+    const source = path.join(directory, "shot.mp4");
+    const copy = path.join(directory, "shot-reversed-90-210.mp4");
+    writeFileSync(source, "video");
+    writeFileSync(copy, "part of the video backwards");
+    const store = new Store(path.join(directory, "recovery.cutline"));
+    const p = reversed(fixture());
+    p.id = store.project.id;
+    p.revision = store.project.revision;
+    p.assets[0].path = source;
+    store.commit(p, "Add shot");
+    store.setPreview(
+      "shot",
+      { reversedPart: copy, reversedSpan: { from: 3, to: 7 } },
+      source,
+    );
+    expect(store.project.assets[0]).toMatchObject({
+      reversedPart: copy,
+      reversedSpan: { from: 3, to: 7 },
+    });
+    expect(store.project.assets[0].reversed).toBeUndefined();
+    unlinkSync(copy);
+    store.setPreview("shot", {}, source);
+    expect(store.project.assets[0].reversedPart).toBeUndefined();
+    expect(store.project.assets[0].reversedSpan).toBeUndefined();
+  });
+
+  it("drops backwards copies made from the old file when media is relinked", () => {
+    const old = {
+      ...fixture().assets[0],
+      reversed: "/cache/shot-reversed.mp4",
+      reversedPart: "/cache/shot-reversed-30-90.mp4",
+      reversedSpan: { from: 1, to: 3 },
+    };
+    const { asset } = relinkedAsset(
+      old,
+      { ...fixture().assets[0], path: "/Volumes/Drive/shot.mp4" },
+      30,
+    );
+    expect(asset.path).toBe("/Volumes/Drive/shot.mp4");
+    expect(asset).not.toHaveProperty("reversed");
+    expect(asset).not.toHaveProperty("reversedPart");
+    expect(asset).not.toHaveProperty("reversedSpan");
+  });
+
+  it("never sends partial copies to assistants", () => {
+    const p = fixture();
+    p.assets[0].reversedPart = "/cache/shot-reversed-1-2.mp4";
+    p.assets[0].reversedSpan = { from: 1, to: 2 };
+    expect(JSON.stringify(publicProject(p))).not.toMatch(/reversed/);
   });
 });
 
@@ -523,5 +669,84 @@ describe.runIf(hasTools)("reversing real media with the bundled ffmpeg", () => {
     );
     // Asking again reuses the finished copy.
     expect(await media.reversedCopy(asset)).toBe(out);
+  }, 60_000);
+
+  it("reverses only the part reversed clips play, frame for frame like the whole copy", async () => {
+    const directory = folder();
+    const file = path.join(directory, "count.mp4");
+    // Two seconds of a moving test pattern; the tone sounds only in the first half second.
+    execFileSync(ffmpeg, [
+      "-hide_banner",
+      "-v",
+      "error",
+      "-y",
+      "-f",
+      "lavfi",
+      "-i",
+      "testsrc2=size=160x120:rate=24:duration=2",
+      "-f",
+      "lavfi",
+      "-i",
+      "sine=frequency=440:duration=2",
+      "-filter_complex",
+      "[1:a]volume='if(lt(t,0.5),1,0)':eval=frame[a]",
+      "-map",
+      "0:v",
+      "-map",
+      "[a]",
+      "-c:v",
+      "libx264",
+      "-pix_fmt",
+      "yuv420p",
+      "-c:a",
+      "aac",
+      file,
+    ]);
+    const jobs = new Jobs(() => {});
+    const media = new Media(
+      path.join(directory, "cache"),
+      { ffmpeg, ffprobe, whisper: "", model: "" },
+      jobs,
+    );
+    const asset = await media.import(file);
+    const whole = grey(await media.reversedCopy(asset));
+    // Half a second to 1.2 seconds before the end: backwards frames 12 to 28.
+    const middle = await media.reversedPart(asset, { from: 0.5, to: 1.2 });
+    expect(middle.reversedSpan).toEqual({ from: 12 / 24, to: 29 / 24 });
+    const frames = grey(middle.reversedPart);
+    expect(frames.length).toBe(17);
+    for (let i = 0; i < frames.length; i++)
+      expect(difference(frames[i], whole[12 + i])).toBeLessThan(6);
+    // A part that reaches the start of the media holds its sound backwards too.
+    const last = await media.reversedPart(asset, { from: 1.2, to: 2 });
+    expect(last.reversedSpan.from).toBe(28 / 24);
+    expect(last.reversedSpan.to).toBeGreaterThanOrEqual(asset.duration);
+    expect(grey(last.reversedPart).length).toBe(20);
+    expect(meanVolume(last.reversedPart, 0.45, 0.3)).toBeGreaterThan(
+      meanVolume(last.reversedPart, 0, 0.25) + 20,
+    );
+    // Asking again reuses the part.
+    expect(
+      (await media.reversedPart(asset, { from: 0.5, to: 1.2 })).reversedPart,
+    ).toBe(middle.reversedPart);
+    // The editor's background work makes a part, never a whole copy.
+    const p = newProject();
+    p.assets = [asset];
+    p.clips = [
+      {
+        ...makeClip(p, "video", "video", 0, asset),
+        id: "back",
+        duration: 6,
+        sourceIn: 0.3,
+        reverse: true,
+      },
+    ];
+    const ready: any[] = [];
+    media.on("preview", (event) => ready.push(event));
+    media.ensureReversed(validateProject(p));
+    await media.previewsIdle();
+    expect(ready).toHaveLength(1);
+    expect(ready[0].reversedPart).toMatch(/-reversed-\d+-\d+\.mp4$/);
+    expect(ready[0].reversed).toBeUndefined();
   }, 60_000);
 });

@@ -24,6 +24,8 @@ export class Codex extends EventEmitter {
   private toolResults = new Map<string, Promise<any>>();
   /** Cutline tools still working for Codex; Codex is waiting on us, not stalled. */
   private toolsRunning = new Set<string>();
+  /** Aborted by Stop, so Cutline's own work for this turn stops too. */
+  private turnStop?: AbortController;
   private state = {
     status: "disconnected",
     busy: false,
@@ -57,7 +59,11 @@ export class Codex extends EventEmitter {
   constructor(
     readonly cwd: string,
     readonly tools: any[],
-    readonly call: (name: string, args: any) => Promise<unknown>,
+    readonly call: (
+      name: string,
+      args: any,
+      signal?: AbortSignal,
+    ) => Promise<unknown>,
   ) {
     super();
     mkdirSync(cwd, { recursive: true });
@@ -226,8 +232,9 @@ export class Codex extends EventEmitter {
             throw Error(
               "Too many tool calls in one edit. Start a new request.",
             );
+          const signal = this.turnStop?.signal;
           work = Promise.resolve().then(() =>
-            this.call(m.params.tool, m.params.arguments),
+            this.call(m.params.tool, m.params.arguments, signal),
           );
           this.toolResults.set(key, work);
         }
@@ -334,6 +341,7 @@ export class Codex extends EventEmitter {
     this.busy = true;
     this.emitState({ type: "started" });
     this.stopping = false;
+    this.turnStop = new AbortController();
     this.toolResults.clear();
     try {
       const account = await this.connect();
@@ -375,6 +383,7 @@ export class Codex extends EventEmitter {
   }
   async stop() {
     this.stopping = true;
+    this.turnStop?.abort();
     if (this.thread && this.turn)
       await this.request("turn/interrupt", {
         threadId: this.thread,

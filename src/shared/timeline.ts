@@ -1,4 +1,10 @@
-import { ClipSchema, type Clip, type Project, type Track } from "./model";
+import {
+  ClipSchema,
+  type Asset,
+  type Clip,
+  type Project,
+  type Track,
+} from "./model";
 
 const clipFields = new Set(Object.keys(ClipSchema.shape));
 
@@ -34,6 +40,73 @@ export function sourceSecondsAt(p: Project, clip: Clip, frame: number) {
   if (!clip.reverse) return along;
   const asset = p.assets.find((a) => a.id === clip.assetId);
   return asset ? Math.max(0, asset.duration - along) : along;
+}
+
+/**
+ * The stretch of a reversed copy a reversed clip plays, in seconds counted
+ * from the end of the media, as its sourceIn is.
+ */
+export function reversedRange(
+  clip: Pick<Clip, "sourceIn" | "duration" | "speed" | "freeze">,
+  fps: number,
+) {
+  const length = clip.freeze ? 0 : (clip.duration / fps) * clip.speed;
+  return { from: clip.sourceIn, to: clip.sourceIn + length };
+}
+
+/**
+ * Whether an asset's partial reversed copy holds a stretch, with a frame to
+ * spare at each edge so rounding never reads past it. A part that reaches the
+ * end or the start of the media holds everything beyond that edge.
+ */
+export function reversedPartCovers(
+  asset: Pick<Asset, "reversedPart" | "reversedSpan" | "duration">,
+  range: { from: number; to: number },
+  fps: number,
+) {
+  const span = asset.reversedPart ? asset.reversedSpan : undefined;
+  if (!span) return false;
+  const spare = 1 / fps;
+  return (
+    (span.from <= 0 || range.from >= span.from + spare) &&
+    (span.to >= asset.duration || range.to + spare <= span.to)
+  );
+}
+
+/**
+ * The part of an asset's backwards copy its reversed clips play, with two
+ * seconds of room on each side and rounded out to whole seconds, so trims
+ * and small moves reuse the same copy. Undefined when no clip is reversed.
+ */
+export function reversedRequest(
+  project: Pick<Project, "clips" | "fps">,
+  asset: Pick<Asset, "id" | "duration">,
+) {
+  const ranges = project.clips
+    .filter((clip) => clip.reverse && clip.assetId === asset.id)
+    .map((clip) => reversedRange(clip, project.fps));
+  if (!ranges.length) return undefined;
+  const from = Math.max(
+    0,
+    Math.floor(Math.min(...ranges.map((range) => range.from)) - 2),
+  );
+  const to = Math.min(
+    Math.ceil(asset.duration),
+    Math.ceil(Math.max(...ranges.map((range) => range.to)) + 2),
+  );
+  return { from, to: Math.max(from, to) };
+}
+
+/** Whether an asset's partial backwards copy holds every reversed clip of it. */
+export function reversedPartHolds(
+  project: Pick<Project, "clips" | "fps">,
+  asset: Pick<Asset, "id" | "reversedPart" | "reversedSpan" | "duration">,
+) {
+  return project.clips
+    .filter((clip) => clip.reverse && clip.assetId === asset.id)
+    .every((clip) =>
+      reversedPartCovers(asset, reversedRange(clip, project.fps), project.fps),
+    );
 }
 
 /** The sourceIn that shows the same footage played the other way. */

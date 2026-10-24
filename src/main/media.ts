@@ -20,6 +20,7 @@ import {
   type Word,
   type Job,
 } from "../shared/model";
+import { reversedPartHolds, reversedRequest } from "../shared/timeline";
 
 export type ExecOptions = {
   /** Receives raw output as it arrives instead of collecting it as text. */
@@ -49,7 +50,10 @@ export class Jobs {
     Object.assign(j, patch);
     // Progress arrives many times a second and the editor redraws for each
     // message, so only a whole-percent step or a real change is sent.
-    if (`${j.state}|${j.message}|${j.output}|${Math.round(j.progress * 100)}` !== shown)
+    if (
+      `${j.state}|${j.message}|${j.output}|${Math.round(j.progress * 100)}` !==
+      shown
+    )
       this.changed(j);
   }
   cancel(id: string) {
@@ -82,6 +86,14 @@ export class Jobs {
   /** Runs fn outside any running job, so work it starts is not tied to that job. */
   detached<T>(fn: () => T): T {
     return this.scope.exit(fn);
+  }
+  /**
+   * Throws when the job this code runs under, or one it runs within, was
+   * cancelled, so a cancelled agent tool never commits its edit.
+   */
+  assertActive() {
+    for (let id = this.scope.getStore(); id; id = this.parents.get(id))
+      if (this.jobs.get(id)?.state === "cancelled") throw Error("Cancelled");
   }
   exec(
     bin: string,
@@ -170,6 +182,8 @@ export type PreviewReady = {
   proxy?: string;
   thumbnail?: string;
   reversed?: string;
+  reversedPart?: string;
+  reversedSpan?: { from: number; to: number };
 };
 
 /** Memory one reversing pass may hold: ffmpeg's reverse keeps every frame of a pass. */
@@ -270,12 +284,16 @@ export class Media extends EventEmitter {
     const copies: { file: string; size: number; time: number }[] = [];
     const kept = new Set(keep.map((file) => path.resolve(file)));
     for (const name of names) {
-      if (!/-(proxy|reversed)\.(mp4|m4a)$/i.test(name)) continue;
+      if (!/-(proxy|reversed(-[\dms-]+)?)\.(mp4|m4a)$/i.test(name)) continue;
       const file = path.join(this.cache, name);
       try {
         const info = await stat(file);
         if (info.isFile() && !kept.has(path.resolve(file)))
-          copies.push({ file, size: info.size, time: Math.max(info.atimeMs, info.mtimeMs) });
+          copies.push({
+            file,
+            size: info.size,
+            time: Math.max(info.atimeMs, info.mtimeMs),
+          });
       } catch {
         /* Already gone. */
       }
@@ -641,18 +659,24 @@ export class Media extends EventEmitter {
     }
   }
   /**
-   * Makes the reversed copies that reversed clips play, one at a time in the
-   * background, and emits "preview" with each. A failed copy is not retried
-   * this session; export tries again and reports why.
+   * Makes the backwards copies that reversed clips play, one at a time in the
+   * background, and emits "preview" with each: only the part of the media the
+   * reversed clips use, with some room for trims. A failed copy is not
+   * retried this session; export tries again and reports why.
    */
   ensureReversed(project: Project) {
-    const wanted = new Set(
-      project.clips.filter((c) => c.reverse && c.assetId).map((c) => c.assetId),
-    );
     for (const asset of project.assets) {
-      if (!wanted.has(asset.id) || asset.kind === "image") continue;
+      if (asset.kind === "image") continue;
+      const request = reversedRequest(project, asset);
+      if (!request) continue;
       if (asset.reversed && existsSync(asset.reversed)) continue;
-      const key = `${asset.id}\n${asset.path}\nreversed`;
+      if (
+        asset.reversedPart &&
+        existsSync(asset.reversedPart) &&
+        reversedPartHolds(project, asset)
+      )
+        continue;
+      const key = `${asset.id}\n${asset.path}\nreversed\n${request.from}-${request.to}`;
       if (this.previewWork.has(key) || this.previewTried.has(key)) continue;
       if (!existsSync(asset.path)) continue;
       this.previewWork.add(key);
@@ -660,11 +684,11 @@ export class Media extends EventEmitter {
       this.jobs.detached(() => {
         this.previewQueue = this.previewQueue
           .then(async () => {
-            const reversed = await this.reversedCopy(work);
+            const part = await this.reversedPart(work, request);
             this.emit("preview", {
               assetId: work.id,
               path: work.path,
-              reversed,
+              ...part,
             } satisfies PreviewReady);
           })
           .catch(() => {
@@ -689,14 +713,134 @@ export class Media extends EventEmitter {
     const running = this.reversing.get(file);
     if (running) return running;
     const work = this.jobs
-      .run("preview", `Reversing ${asset.name}`, (j) =>
-        this.reverse(asset, file, options.budget ?? reverseBudget, j),
+      .run("preview", `Reversing ${asset.name}`, async (j) =>
+        this.reverse(asset, file, options.budget ?? reverseBudget, j, {
+          ...(await this.reverseInfo(asset, j)),
+        }),
       )
       .finally(() => this.reversing.delete(file));
     this.reversing.set(file, work);
     return work;
   }
-  private async reverse(asset: Asset, file: string, budget: number, j: Job) {
+  /**
+   * A backwards copy of only part of the media, so a two-second reversed
+   * moment of a long recording is not the whole recording's work. request is
+   * in seconds before the media's end, as a reversed clip's sourceIn is; the
+   * copy is cut on whole frames, and a part that reaches the media's start
+   * holds all of it from there.
+   */
+  async reversedPart(
+    asset: Asset,
+    request: { from: number; to: number },
+    options: { budget?: number } = {},
+  ): Promise<{
+    reversedPart: string;
+    reversedSpan: { from: number; to: number };
+  }> {
+    const info = await this.reverseInfo(asset);
+    let from: number, to: number, name: string;
+    if (info.v) {
+      const first = Math.min(
+        info.frames - 1,
+        Math.max(0, Math.floor(request.from * info.fps)),
+      );
+      const last = Math.min(
+        info.frames,
+        Math.max(first + 1, Math.ceil(request.to * info.fps)),
+      );
+      [from, to, name] = [
+        first / info.fps,
+        last / info.fps,
+        `${first}-${last}`,
+      ];
+    } else {
+      from = Math.max(0, Math.floor(request.from));
+      to = Math.min(info.length, Math.max(from + 1, Math.ceil(request.to)));
+      name = `${Math.round(from * 1000)}ms-${Math.round(to * 1000)}ms`;
+    }
+    const reachesStart = to >= info.length - 1e-6;
+    const reversedSpan = {
+      from,
+      to: reachesStart ? Math.max(to, asset.duration) : to,
+    };
+    const file = this.previewFile(
+      asset.path,
+      `-reversed-${name}${asset.kind === "audio" ? ".m4a" : ".mp4"}`,
+    );
+    if (!made(file)) {
+      let running = this.reversing.get(file);
+      if (!running) {
+        running = this.jobs
+          .run("preview", `Reversing part of ${asset.name}`, (j) =>
+            this.reverse(asset, file, options.budget ?? reverseBudget, j, {
+              ...info,
+              window: { from, to },
+            }),
+          )
+          .finally(() => this.reversing.delete(file));
+        this.reversing.set(file, running);
+      }
+      await running;
+    }
+    return { reversedPart: file, reversedSpan };
+  }
+  /** The picture stream, frame rate and frame count reversing works from. */
+  private async reverseInfo(asset: Asset, j?: Job) {
+    let info: any;
+    try {
+      const { stdout } = await this.jobs.exec(
+        this.bin.ffprobe,
+        [
+          "-v",
+          "error",
+          "-show_streams",
+          "-show_format",
+          "-of",
+          "json",
+          asset.path,
+        ],
+        j,
+      );
+      info = JSON.parse(stdout);
+    } catch (error) {
+      if (j?.state === "cancelled") throw error;
+      throw Error(
+        `Couldn't reverse ${asset.name}: ${(error as Error).message.split("\n")[0]}`,
+      );
+    }
+    const streams: any[] = Array.isArray(info.streams) ? info.streams : [];
+    const v =
+      asset.kind === "video"
+        ? streams.find(
+            (s) =>
+              s.codec_type === "video" && s.disposition?.attached_pic !== 1,
+          )
+        : undefined;
+    const hasAudio = streams.some((s) => s.codec_type === "audio");
+    if (!v) return { v, hasAudio, fps: 0, frames: 0, length: asset.duration };
+    const fps = rate(v.avg_frame_rate) || rate(v.r_frame_rate) || 30;
+    const seconds = Number(
+      v.duration || info.format?.duration || asset.duration,
+    );
+    const frames = Math.max(
+      1,
+      Number(v.nb_frames) || Math.round(seconds * fps),
+    );
+    return { v, hasAudio, fps, frames, length: frames / fps };
+  }
+  /**
+   * Writes the backwards copy, or with window only the part of it from
+   * window.from to window.to seconds (whole frames for video).
+   */
+  private async reverse(
+    asset: Asset,
+    file: string,
+    budget: number,
+    j: Job,
+    info: Awaited<ReturnType<Media["reverseInfo"]>> & {
+      window?: { from: number; to: number };
+    },
+  ) {
     await mkdir(this.cache, { recursive: true });
     const stem = `${file}.${uid()}`;
     const parts: string[] = [];
@@ -712,52 +856,33 @@ export class Media extends EventEmitter {
         j,
       );
     try {
-      const { stdout } = await this.jobs.exec(
-        this.bin.ffprobe,
-        [
-          "-v",
-          "error",
-          "-show_streams",
-          "-show_format",
-          "-of",
-          "json",
-          asset.path,
-        ],
-        j,
-      );
-      const info = JSON.parse(stdout);
-      const streams: any[] = Array.isArray(info.streams) ? info.streams : [];
-      const v =
-        asset.kind === "video"
-          ? streams.find(
-              (s) =>
-                s.codec_type === "video" && s.disposition?.attached_pic !== 1,
-            )
-          : undefined;
-      const hasAudio = streams.some((s) => s.codec_type === "audio");
+      const { v, hasAudio, fps, frames, window } = info;
       let video: string | undefined, length: number;
+      // Where in the source the sound starts: backwards time t of the copy
+      // is source time from + length - t.
+      let soundFrom = 0;
       if (v) {
-        const fps = rate(v.avg_frame_rate) || rate(v.r_frame_rate) || 30;
-        const seconds = Number(
-          v.duration || info.format?.duration || asset.duration,
-        );
-        const frames = Math.max(
-          1,
-          Number(v.nb_frames) || Math.round(seconds * fps),
-        );
-        length = frames / fps;
+        // Backwards frames [first, last) are source frames frames - last
+        // up to frames - first.
+        const first = window ? Math.round(window.from * fps) : 0;
+        const last = window ? Math.round(window.to * fps) : frames;
+        const sourceFirst = frames - last;
+        const count = last - first;
+        length = count / fps;
+        soundFrom = sourceFirst / fps;
         // Decoded frames, at up to four bytes a pixel; 1080p when unknown.
         const frameBytes = (v.width || 1920) * (v.height || 1080) * 4;
-        const chunks = reverseChunks(frames, frameBytes, budget);
+        const chunks = reverseChunks(count, frameBytes, budget);
         const pieces: string[] = [];
         for (const [index, chunk] of chunks.entries()) {
           const piece = part(`v${index}`);
+          const at = sourceFirst + chunk.start;
           // Read only this piece: from a quarter frame early, so rounding
           // never skips its first frame, to just past its last. trim ends the
           // stream there, so reverse holds this piece and nothing more.
           await ffmpeg([
             "-ss",
-            String(Math.max(0, (chunk.start - 0.25) / fps)),
+            String(Math.max(0, (at - 0.25) / fps)),
             "-t",
             String((chunk.count + 0.5) / fps),
             "-i",
@@ -806,12 +931,16 @@ export class Media extends EventEmitter {
           "mp4",
           video,
         ]);
+      } else if (window) {
+        length = window.to - window.from;
+        soundFrom = Math.max(0, info.length - window.to);
       } else length = asset.duration;
       let sound: string | undefined;
       if (hasAudio) {
         sound = part("audio");
         // Padded or trimmed to the picture, so the reversed sound starts in step.
         await ffmpeg([
+          ...(window ? ["-ss", String(soundFrom)] : []),
           "-i",
           asset.path,
           "-map",

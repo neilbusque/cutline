@@ -231,3 +231,37 @@ it("keeps waiting while a long Cutline tool runs, then times out only on Codex i
   expect(child.killed).toBe(true);
   expect(c.status().message).toContain("stopped responding");
 });
+it("stop also stops the Cutline work the turn started", async () => {
+  let signal: AbortSignal | undefined;
+  const call = vi.fn((_name: string, _args: unknown, stop?: AbortSignal) => {
+    signal = stop;
+    return new Promise(() => {});
+  }) as any;
+  const c = make(call);
+  await c.send("Remove the long pauses", "p1");
+  const child = control.children[0];
+  child.notify({
+    id: 72,
+    method: "item/tool/call",
+    params: { tool: "edit", arguments: {} },
+  });
+  await tick();
+  expect(call).toHaveBeenCalledTimes(1);
+  expect(signal?.aborted).toBe(false);
+  await c.stop();
+  expect(signal?.aborted).toBe(true);
+  // The next turn's work gets a fresh signal.
+  child.notify({
+    method: "turn/completed",
+    params: { turn: { id: (c as any).turn, status: "interrupted" } },
+  });
+  await tick();
+  await c.send("Try again", "p1");
+  child.notify({
+    id: 73,
+    method: "item/tool/call",
+    params: { tool: "edit", arguments: {} },
+  });
+  await tick();
+  expect(signal?.aborted).toBe(false);
+});

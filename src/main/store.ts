@@ -56,6 +56,14 @@ class HistoryEntry {
     return { label: this.label, project: this.project };
   }
 }
+/** Copies of an asset's media made on this Mac for playback. */
+type PreviewFiles = {
+  proxy?: string;
+  thumbnail?: string;
+  reversed?: string;
+  reversedPart?: string;
+  reversedSpan?: { from: number; to: number };
+};
 type History = { past: HistoryEntry[]; future: HistoryEntry[] };
 /** Steps nearest the current version that stay unpacked, in each direction. */
 const unpackedSteps = 8;
@@ -72,11 +80,42 @@ function historyBytes(header: string, past: Buffer[], future: Buffer[]) {
   ]);
 }
 export type StoreSnapshot = Snapshot & { saveError: string | null };
+/** Identifies one version of a file on disk. */
+type FileStamp = { size: number; mtimeMs: number; ino: number };
 
 const historyLimit = 60;
 const keptBackups = 20;
 const keptHistories = 40;
 let temporaryFiles = 0;
+const stampOf = (file: string): FileStamp => {
+  const info = statSync(file);
+  return { size: info.size, mtimeMs: info.mtimeMs, ino: info.ino };
+};
+const isStamp = (value: any): value is FileStamp =>
+  !!value &&
+  Number.isFinite(value.size) &&
+  Number.isFinite(value.mtimeMs) &&
+  Number.isFinite(value.ino);
+const sameStamp = (a: FileStamp, b: FileStamp) =>
+  a.size === b.size && a.mtimeMs === b.mtimeMs && a.ino === b.ino;
+/** A project as its file records it: no revision and no preview copies, which only this Mac has. */
+const content = (project: Project) =>
+  JSON.stringify({
+    ...project,
+    revision: 0,
+    assets: project.assets.map(
+      ({
+        proxy: _proxy,
+        thumbnail: _thumbnail,
+        reversed: _reversed,
+        ...asset
+      }) => asset,
+    ),
+  });
+const moved = "it was moved, renamed or deleted outside Cutline";
+const changedElsewhere = "it was changed outside this session";
+const safeInRecovery =
+  "Your work is safe in Cutline's recovery copy. Press Save to choose a new location.";
 const reason = (error: unknown) =>
   (error as NodeJS.ErrnoException)?.code === "ENOENT"
     ? "the folder is missing"
@@ -140,6 +179,12 @@ export class Store extends EventEmitter {
   /** Identifies this opening, even if the same project file is opened again. */
   openSession: string = randomUUID();
   filePath: string | null = null;
+  /**
+   * The project file as this store last wrote or read it. Autosave never
+   * writes over a file that no longer matches, so a file that was renamed,
+   * deleted or changed by something else is never recreated or overwritten.
+   */
+  private fileStamp: FileStamp | null = null;
   past: HistoryEntry[] = [];
   future: HistoryEntry[] = [];
   /** Why the latest autosave failed. The editor keeps working either way. */
@@ -148,6 +193,8 @@ export class Store extends EventEmitter {
   notices: string[] = [];
   /** How long to wait after the last edit before writing undo history. */
   historyDelay = 1500;
+  /** Runs before every edit; throws to refuse it, as for cancelled work. */
+  beforeCommit?: () => void;
   readonly backupDirectory: string;
   readonly historyDirectory: string;
   private revision = 0;
@@ -158,10 +205,7 @@ export class Store extends EventEmitter {
   private historyGeneration = 0;
   private checked = new WeakSet<object>();
   private releaseFile?: () => void;
-  private previews = new Map<
-    string,
-    { path: string; proxy?: string; thumbnail?: string; reversed?: string }
-  >();
+  private previews = new Map<string, PreviewFiles & { path: string }>();
   constructor(
     readonly recovery: string,
     private claimFile?: (file: string) => () => void,
@@ -209,6 +253,7 @@ export class Store extends EventEmitter {
    * check costs about 40 ms of main-process time per edit.
    */
   commit(next: Project, label: string, options: { validated?: boolean } = {}) {
+    this.beforeCommit?.();
     const validated = options.validated ? next : validateProject(next);
     const entry = new HistoryEntry(label, this.project);
     this.checked.add(entry);
@@ -261,13 +306,38 @@ export class Store extends EventEmitter {
     this.past = [];
     this.future = [];
     this.filePath = null;
+    this.fileStamp = null;
     this.setSaveError(null);
     this.notify();
     return this.snapshot();
   }
-  /** Whether replacing the open project would lose work that exists only in recovery. */
+  /**
+   * Whether replacing the open project would lose work that exists only in
+   * recovery: it has no file, its file can't be written, or its file was
+   * moved, deleted or changed outside this session.
+   */
   hasUnsavedWork() {
-    return (!this.filePath || !!this.saveError) && !isBlank(this.project);
+    return (
+      (!this.filePath || !!this.saveError || !!this.fileProblem()) &&
+      !isBlank(this.project)
+    );
+  }
+  /**
+   * Why autosave must leave the project file alone, or null when it still
+   * holds what this store last wrote or read.
+   */
+  fileProblem(): string | null {
+    if (!this.filePath || this.filePath === this.recovery) return null;
+    let now: FileStamp;
+    try {
+      now = stampOf(this.filePath);
+    } catch (error) {
+      // Other errors are reported by the write itself.
+      return (error as NodeJS.ErrnoException).code === "ENOENT" ? moved : null;
+    }
+    return this.fileStamp && sameStamp(this.fileStamp, now)
+      ? null
+      : changedElsewhere;
   }
   /** Writes a complete copy, undo history included, to file. */
   persist(file: string) {
@@ -283,9 +353,11 @@ export class Store extends EventEmitter {
   save(file: string) {
     const project = JSON.stringify(this.project);
     const release = this.claimTarget(file);
+    let stamp: FileStamp;
     try {
       mkdirSync(path.dirname(file), { recursive: true });
       writeWhole(file, this.projectDocument(project, file));
+      stamp = stampOf(file);
     } catch (error) {
       release?.();
       throw error;
@@ -297,6 +369,7 @@ export class Store extends EventEmitter {
     const previousHistory = this.historyFile();
     const unsaved = !this.filePath;
     this.filePath = file;
+    this.fileStamp = stamp;
     this.setSaveError(null);
     this.writeRecovery(project);
     if (this.historyFile() !== previousHistory) {
@@ -316,11 +389,17 @@ export class Store extends EventEmitter {
   restore(file: string) {
     return this.load(file, false, { unsaved: true });
   }
-  load(file: string, recover = false, options: { unsaved?: boolean } = {}) {
+  load(
+    file: string,
+    recover = false,
+    options: { unsaved?: boolean } = {},
+  ): StoreSnapshot {
     const openingLease =
       !recover && !options.unsaved ? this.claimTarget(file) : undefined;
     let accepted = false;
     try {
+      // Stamped before reading, so a write that lands meanwhile counts as a change.
+      let fileStamp = recover || options.unsaved ? null : stampOf(file);
       const raw = JSON.parse(readFileSync(file, "utf8"));
       const project = validateProject(raw.project ?? raw);
       let filePath = options.unsaved
@@ -340,6 +419,33 @@ export class Store extends EventEmitter {
       const history = legacy
         ? inline
         : this.readHistory(project.id, filePath, raw.session, raw.revision);
+      // Edits that never reached the project file before Cutline closed still
+      // exist only in recovery, so New and Open must keep asking about them.
+      let saveError =
+        recover && typeof raw.saveError === "string" ? raw.saveError : null;
+      if (recover && filePath) {
+        // The file may have been moved, or changed by another session,
+        // Dropbox or Time Machine, while this session was closed.
+        const found = this.recoveredFile(filePath, raw, project);
+        if (found.state === "same") fileStamp = found.stamp;
+        else if (found.state === "missing") {
+          // Never recreated; autosave resumes only if it comes back unchanged.
+          fileStamp = isStamp(raw.fileStamp) ? raw.fileStamp : null;
+          saveError ??= `Couldn't save to ${filePath} because ${moved}. ${safeInRecovery}`;
+        } else {
+          const opened =
+            found.state === "newer" && saveError === null
+              ? this.openNewer(filePath, project, history)
+              : null;
+          if (opened) return opened;
+          // Both copies may hold work, or the file can't be read: leave it
+          // as it is and keep this session's copy apart.
+          this.notices.push(
+            `“${path.basename(filePath, path.extname(filePath))}” was changed outside this session, so Cutline left it as it is and kept this session's copy as a separate project.`,
+          );
+          filePath = null;
+        }
+      }
       if (!recover) {
         this.relocate(project, history, raw.media, path.dirname(file));
         this.keepUnsaved();
@@ -365,13 +471,8 @@ export class Store extends EventEmitter {
       this.past = history.past;
       this.future = history.future;
       this.filePath = filePath;
-      // Edits that never reached the project file before Cutline closed still
-      // exist only in recovery, so New and Open must keep asking about them.
-      this.setSaveError(
-        recover && filePath && typeof raw.saveError === "string"
-          ? raw.saveError
-          : null,
-      );
+      this.fileStamp = filePath ? fileStamp : null;
+      this.setSaveError(filePath ? saveError : null);
       // Older files carry their undo history inline; move it to the history file.
       if (legacy) this.scheduleHistory();
       if (!recover) {
@@ -392,6 +493,95 @@ export class Store extends EventEmitter {
     )
       return undefined;
     return this.claimFile?.(file);
+  }
+  /**
+   * Whether a relaunch may keep autosaving to the recovered project's file.
+   * Recovery is written just before each autosave of the file, so an
+   * untouched file has either the stamp recovery recorded or the session and
+   * revision recovery describes. A file with the same content also counts.
+   */
+  private recoveredFile(
+    file: string,
+    raw: any,
+    project: Project,
+  ):
+    | { state: "same"; stamp: FileStamp }
+    | { state: "missing" | "newer" | "unreadable" } {
+    let stamp: FileStamp;
+    try {
+      stamp = stampOf(file);
+    } catch (error) {
+      return {
+        state:
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+            ? "missing"
+            : "unreadable",
+      };
+    }
+    if (isStamp(raw.fileStamp) && sameStamp(raw.fileStamp, stamp))
+      return { state: "same", stamp };
+    let theirs: any;
+    try {
+      theirs = JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      return { state: "unreadable" };
+    }
+    if (
+      typeof raw.session === "string" &&
+      theirs?.session === raw.session &&
+      theirs?.revision === raw.revision
+    )
+      return { state: "same", stamp };
+    try {
+      if (
+        content(validateProject(theirs?.project ?? theirs)) === content(project)
+      )
+        return { state: "same", stamp };
+    } catch {
+      return { state: "unreadable" };
+    }
+    return { state: "newer" };
+  }
+  /**
+   * The recovered project's file was changed elsewhere while this session was
+   * closed, and this session has nothing the file lacks: keep this session's
+   * copy as a dated backup and open the file. Returns null, changing nothing,
+   * when no backup can be kept.
+   */
+  private openNewer(
+    file: string,
+    project: Project,
+    history: History,
+  ): StoreSnapshot | null {
+    const name = `“${path.basename(file, path.extname(file))}”`;
+    try {
+      this.keepCopy(
+        JSON.stringify({
+          project,
+          past: history.past,
+          future: history.future,
+          filePath: null,
+        }),
+        project.name,
+      );
+    } catch {
+      return null;
+    }
+    try {
+      const opened = this.load(file);
+      this.notices.push(
+        `${name} was changed outside this session while Cutline was closed, so Cutline opened the newer file. This session's earlier copy is in File > Open backup.`,
+      );
+      return opened;
+    } catch {
+      // Open in another session, most likely. Start blank rather than
+      // keeping a second copy of the same project.
+      this.writeRecovery(JSON.stringify(this.project));
+      this.notices.push(
+        `${name} was changed outside this session and couldn't be opened here, so Cutline started a new project. This session's earlier copy is in File > Open backup.`,
+      );
+      return this.snapshot();
+    }
   }
   close() {
     this.flush();
@@ -423,11 +613,7 @@ export class Store extends EventEmitter {
    * including when the asset is out of the project for now (after an Undo):
    * pass its source path for that.
    */
-  setPreview(
-    assetId: string,
-    files: { proxy?: string; thumbnail?: string; reversed?: string },
-    sourcePath?: string,
-  ) {
+  setPreview(assetId: string, files: PreviewFiles, sourcePath?: string) {
     const asset = this.project.assets.find((a) => a.id === assetId);
     const source = sourcePath ?? asset?.path;
     if (!source) return false;
@@ -438,6 +624,9 @@ export class Store extends EventEmitter {
       ...(files.proxy ? { proxy: files.proxy } : {}),
       ...(files.thumbnail ? { thumbnail: files.thumbnail } : {}),
       ...(files.reversed ? { reversed: files.reversed } : {}),
+      ...(files.reversedPart && files.reversedSpan
+        ? { reversedPart: files.reversedPart, reversedSpan: files.reversedSpan }
+        : {}),
     });
     const next = this.adopt(this.project);
     if (next !== this.project) {
@@ -462,13 +651,21 @@ export class Store extends EventEmitter {
       let proxy = current?.proxy ?? asset.proxy,
         thumbnail = current?.thumbnail ?? asset.thumbnail,
         reversed = current?.reversed ?? asset.reversed;
+      // A partial copy and the part it holds travel together.
+      let part = current?.reversedPart
+        ? { file: current.reversedPart, span: current.reversedSpan }
+        : { file: asset.reversedPart, span: asset.reversedSpan };
       if (proxy && !existsSync(proxy)) proxy = undefined;
       if (thumbnail && !existsSync(thumbnail)) thumbnail = undefined;
       if (reversed && !existsSync(reversed)) reversed = undefined;
+      if (!part.file || !part.span || !existsSync(part.file))
+        part = { file: undefined, span: undefined };
       if (
         proxy === asset.proxy &&
         thumbnail === asset.thumbnail &&
-        reversed === asset.reversed
+        reversed === asset.reversed &&
+        part.file === asset.reversedPart &&
+        part.span === asset.reversedSpan
       )
         return asset;
       changed = true;
@@ -476,6 +673,8 @@ export class Store extends EventEmitter {
         proxy: _proxy,
         thumbnail: _thumbnail,
         reversed: _reversed,
+        reversedPart: _reversedPart,
+        reversedSpan: _reversedSpan,
         ...rest
       } = asset;
       return {
@@ -483,6 +682,9 @@ export class Store extends EventEmitter {
         ...(proxy ? { proxy } : {}),
         ...(thumbnail ? { thumbnail } : {}),
         ...(reversed ? { reversed } : {}),
+        ...(part.file && part.span
+          ? { reversedPart: part.file, reversedSpan: part.span }
+          : {}),
       };
     });
     return changed ? { ...project, assets } : project;
@@ -510,7 +712,7 @@ export class Store extends EventEmitter {
       mkdirSync(path.dirname(this.recovery), { recursive: true });
       writeWhole(
         this.recovery,
-        `{"project":${project},"filePath":${JSON.stringify(this.filePath)},"saveError":${JSON.stringify(this.saveError)},"session":${JSON.stringify(this.session)},"revision":${this.project.revision}}`,
+        `{"project":${project},"filePath":${JSON.stringify(this.filePath)},"fileStamp":${JSON.stringify(this.fileStamp)},"saveError":${JSON.stringify(this.saveError)},"session":${JSON.stringify(this.session)},"revision":${this.project.revision}}`,
       );
       return null;
     } catch (error) {
@@ -524,12 +726,16 @@ export class Store extends EventEmitter {
     let saveError: string | null = null;
     if (this.filePath && this.filePath !== this.recovery) {
       try {
-        // Never recreate a folder that was moved, renamed or ejected.
+        // Never recreate a folder or a file that was moved, renamed, deleted
+        // or ejected, and never write over a file something else changed.
         if (!existsSync(path.dirname(this.filePath)))
           throw Object.assign(Error("missing folder"), { code: "ENOENT" });
+        const problem = this.fileProblem();
+        if (problem) throw Error(problem);
         writeWhole(this.filePath, this.projectDocument(project, this.filePath));
+        this.fileStamp = stampOf(this.filePath);
       } catch (error) {
-        saveError = `Couldn't save to ${this.filePath} because ${reason(error)}. ${recoveryError ? "Save the project somewhere else now to keep your work." : "Your work is safe in Cutline's recovery copy. Press Save to choose a new location."}`;
+        saveError = `Couldn't save to ${this.filePath} because ${reason(error)}. ${recoveryError ? "Save the project somewhere else now to keep your work." : safeInRecovery}`;
       }
     } else if (recoveryError)
       saveError = `Couldn't autosave this project because ${recoveryError}. Save it to a file to keep your work.`;
@@ -682,20 +888,24 @@ export class Store extends EventEmitter {
   private keepUnsaved() {
     if (!this.hasUnsavedWork()) return null;
     try {
-      mkdirSync(this.backupDirectory, { recursive: true });
-      const base = `${timestamp()} ${fileName(this.project.name)}`;
-      let file = path.join(this.backupDirectory, `${base}.cutline`);
-      for (let n = 2; existsSync(file); n++)
-        file = path.join(this.backupDirectory, `${base} ${n}.cutline`);
-      writeWhole(file, this.fullDocument());
-      this.prune(this.backupDirectory, ".cutline", keptBackups);
-      this.emit("backup", { file, name: this.project.name });
-      return file;
+      return this.keepCopy(this.fullDocument(), this.project.name);
     } catch (error) {
       throw Error(
         `Couldn't keep a backup of “${this.project.name}”, so it was not replaced. Save it first. (${reason(error)})`,
       );
     }
+  }
+  /** Writes a dated backup that File > Open backup lists. Throws when it can't. */
+  private keepCopy(document: string, name: string) {
+    mkdirSync(this.backupDirectory, { recursive: true });
+    const base = `${timestamp()} ${fileName(name)}`;
+    let file = path.join(this.backupDirectory, `${base}.cutline`);
+    for (let n = 2; existsSync(file); n++)
+      file = path.join(this.backupDirectory, `${base} ${n}.cutline`);
+    writeWhole(file, document);
+    this.prune(this.backupDirectory, ".cutline", keptBackups);
+    this.emit("backup", { file, name });
+    return file;
   }
   private setAside(file: string) {
     try {

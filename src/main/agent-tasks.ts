@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { uid, type Job } from "../shared/model";
+import type { Jobs } from "./media";
 
 export const JobsArgsSchema = z.strictObject({
   id: z.string().min(1).max(200).optional(),
@@ -14,40 +15,74 @@ export type PendingTask = {
   state: "running";
   message: string;
 };
+/**
+ * How long Cutline's own assistants wait for a long tool. Claude Code allows
+ * 10 minutes per tool call here and Codex has no limit, so they wait for the
+ * result instead of polling cutline_jobs every 30 seconds.
+ */
+export const ASSISTANT_DEADLINE_MS = 540_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * Long agent tools (transcription, pause removal, reels, music analysis,
- * imports with proxies) answer within the deadline. Work that takes longer
- * keeps running and becomes a task that cutline_jobs reports, so clients with
- * a 60-second request timeout (Claude Desktop) never lose the result.
+ * imports with proxies) answer within the caller's deadline: 45 seconds for
+ * clients with a 60-second request timeout (Claude Desktop), longer for
+ * Cutline's own assistants. Work that takes longer keeps running and becomes
+ * a task that cutline_jobs reports, so no client loses the result.
+ *
+ * Each call runs under a job of its own, and the jobs its tool starts are its
+ * children. Cancelling the task, or the caller going away before the
+ * deadline (Stop in the assistant), cancels those children and nothing else:
+ * never the person's own imports, previews or exports. No job and no edit can
+ * start under a cancelled call.
  */
 export class AgentTasks {
   private tasks = new Map<string, Task>();
-  /** Job IDs that already existed when each task's tool started. */
-  private earlier = new Map<string, Set<string>>();
+  /** The job each task's work runs under. */
+  private jobIds = new Map<string, string>();
   constructor(
-    private jobs: { jobs: Map<string, Job>; cancel?: (id: string) => void },
+    private jobs: Pick<Jobs, "jobs" | "run" | "cancel" | "cancellers">,
     private deadlineMs = 45_000,
     private pollMs = 250,
   ) {}
 
   async run<T>(
     tool: string,
-    work: Promise<T>,
+    start: (signal: AbortSignal) => Promise<T>,
     describe: (error: unknown) => string = (error) => (error as Error).message,
-    earlier = new Set(this.jobs.jobs.keys()),
+    options: { signal?: AbortSignal; deadlineMs?: number } = {},
   ): Promise<T | PendingTask> {
+    const stop = new AbortController();
+    let jobId = "";
+    const work = this.jobs.run("agent", `Running ${tool}`, (job) => {
+      jobId = job.id;
+      // Work that takes a signal, such as drawings, stops with the job.
+      this.jobs.cancellers.set(job.id, () => stop.abort());
+      return start(stop.signal);
+    });
+    work.catch(() => {});
+    const cancel = () => this.jobs.cancel(jobId);
+    if (options.signal?.aborted) cancel();
+    else options.signal?.addEventListener("abort", cancel, { once: true });
     let timer: NodeJS.Timeout | undefined;
     const deadline = new Promise<"deadline">((resolve) => {
-      timer = setTimeout(() => resolve("deadline"), this.deadlineMs);
+      timer = setTimeout(
+        () => resolve("deadline"),
+        options.deadlineMs ?? this.deadlineMs,
+      );
     });
-    const outcome = await Promise.race([
-      work.then((value) => ({ value })),
-      deadline,
-    ]).finally(() => clearTimeout(timer));
-    if (outcome !== "deadline") return outcome.value;
+    try {
+      const outcome = await Promise.race([
+        work.then((value) => ({ value })),
+        deadline,
+      ]);
+      if (outcome !== "deadline") return outcome.value;
+    } finally {
+      clearTimeout(timer);
+      // From here on the work belongs to its task, not to the call.
+      options.signal?.removeEventListener("abort", cancel);
+    }
     const task: Task = {
       id: uid(),
       kind: tool,
@@ -56,22 +91,22 @@ export class AgentTasks {
       message: `Running ${tool}`,
     };
     this.tasks.set(task.id, task);
-    this.earlier.set(task.id, earlier);
-    work
-      .then(
-        (value) =>
+    this.jobIds.set(task.id, jobId);
+    work.then(
+      (value) => {
+        if (task.state === "running")
           Object.assign(task, {
             state: "done",
             progress: 1,
             message: "Complete",
             result: value,
-          }),
-        (error: unknown) => {
-          if (task.state !== "cancelled")
-            Object.assign(task, { state: "error", message: describe(error) });
-        },
-      )
-      .finally(() => this.earlier.delete(task.id));
+          });
+      },
+      (error: unknown) => {
+        if (task.state === "running")
+          Object.assign(task, { state: "error", message: describe(error) });
+      },
+    );
     return {
       id: task.id,
       jobId: task.id,
@@ -81,31 +116,25 @@ export class AgentTasks {
   }
 
   /**
-   * cutline_cancel_job for a task ID: stops the processing jobs its tool
-   * started (never an export). Returns null when the ID is not a task.
+   * cutline_cancel_job for a task ID: stops the work its tool started, never
+   * an export or anything else. Returns null when the ID is not a task.
    */
   cancel(id: unknown) {
     const task = typeof id === "string" ? this.tasks.get(id) : undefined;
     if (!task) return null;
     if (task.state === "running") {
-      const earlier = this.earlier.get(task.id) ?? new Set();
-      for (const job of [...this.jobs.jobs.values()])
-        if (
-          job.state === "running" &&
-          job.kind !== "export" &&
-          !earlier.has(job.id)
-        )
-          this.jobs.cancel?.(job.id);
       Object.assign(task, { state: "cancelled", message: "Cancelled" });
+      this.jobs.cancel(this.jobIds.get(task.id) ?? "");
     }
     const { result: _result, ...visible } = task;
     return visible;
   }
 
   private entries() {
-    const jobs = [...this.jobs.jobs.values()].map(
-      ({ output: _output, ...job }) => job as Task,
-    );
+    // A call's own job is reported as its task.
+    const jobs = [...this.jobs.jobs.values()]
+      .filter((job) => job.kind !== "agent")
+      .map(({ output: _output, ...job }) => job as Task);
     return [...jobs, ...this.tasks.values()];
   }
 
