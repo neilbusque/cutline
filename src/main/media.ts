@@ -473,7 +473,7 @@ export class Media extends EventEmitter {
     if (!a.hasAudio) throw Error("This media has no audio");
     if (!existsSync(this.bin.whisper) || !existsSync(this.bin.model))
       throw Error(
-        "Local speech model is missing. Open Settings to install it.",
+        "Speech tools are missing from this install. Reinstall Cutline to transcribe.",
       );
     // A retry after an interrupted edit reuses the finished transcript.
     const key = this.fileKey(a.path);

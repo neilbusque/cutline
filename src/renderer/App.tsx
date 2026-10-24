@@ -1936,7 +1936,7 @@ export function App() {
             <p>
               {settings?.transcriptionReady
                 ? "Whisper base multilingual model is installed. Speech stays on this Mac."
-                : "Speech tools are missing from this bundle. Run the documented vendor setup and rebuild."}
+                : "Speech tools are missing from this install. Reinstall Cutline to transcribe."}
             </p>
             <HiggsfieldSettings report={report} />
             <AgentConnections

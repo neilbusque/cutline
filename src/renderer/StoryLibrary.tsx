@@ -2287,7 +2287,7 @@ export function StoryLibrary({
             Review captions
           </button>
           <p>
-            Play it back, refine the edit, then use Export video in the top bar.
+            Play it back, refine the edit, then Export in the top bar.
           </p>
         </div>
       )}

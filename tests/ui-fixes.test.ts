@@ -638,3 +638,37 @@ describe("left tabs", () => {
     expect(new Set(icons).size).toBe(libraryTabs.length);
   });
 });
+
+describe("copy points at things that exist", () => {
+  it("never sends Neil to a Settings install button", async () => {
+    const folder = mkdtempSync(path.join(os.tmpdir(), "cutline-ui-speech-"));
+    try {
+      const media = new Media(
+        path.join(folder, "cache"),
+        {
+          ffmpeg: "",
+          ffprobe: "",
+          whisper: path.join(folder, "missing-whisper"),
+          model: path.join(folder, "missing-model"),
+        },
+        new Jobs(() => {}),
+      );
+      await expect(
+        media.transcribe(
+          AssetSchema.parse({
+            id: "talk",
+            name: "Talk",
+            kind: "audio",
+            path: path.join(folder, "talk.wav"),
+            duration: 3,
+            hasAudio: true,
+          }),
+        ),
+      ).rejects.toThrow(
+        "Speech tools are missing from this install. Reinstall Cutline to transcribe.",
+      );
+    } finally {
+      rmSync(folder, { recursive: true, force: true });
+    }
+  });
+});
