@@ -1907,8 +1907,17 @@ app.whenReady().then(async () => {
   sessions.updateProject(store.project);
   jobs = new Jobs((j) => send("job", j));
   media = new Media(path.join(data, "media-cache"), bin, jobs);
-  // Older versions left raw audio dumps behind (about 115 MB per hour of media).
-  void media.cleanCache(Date.now());
+  // Older versions left raw audio dumps behind (about 115 MB per hour of media),
+  // and preview copies of old imports pile up: keep the cache under its cap,
+  // never touching what the open project uses.
+  void media.cleanCache(
+    Date.now(),
+    store.project.assets.flatMap((asset) =>
+      [asset.proxy, asset.reversed, asset.thumbnail].filter(
+        (file): file is string => typeof file === "string",
+      ),
+    ),
+  );
   musicControl = createMusicControl({ store, media, jobs, directory: data });
   speech = new Speech({
     directory: path.join(data, "speech"),

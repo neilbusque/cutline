@@ -1115,4 +1115,32 @@ describe("media cache upkeep", () => {
     expect(removed).toBe(5);
     expect(cached(cache).sort()).toEqual(["d4-proxy.mp4", "e5.jpg", "g7.wav"]);
   });
+
+  it("keeps preview copies under the cap, oldest first, never the open project's", async () => {
+    const directory = folder();
+    const { media, cache } = mediaFor(directory);
+    mkdirSync(cache);
+    const copy = (name: string, hoursAgo: number) => {
+      writeFileSync(path.join(cache, name), "x".repeat(100));
+      const when = new Date(Date.now() - hoursAgo * 3600_000);
+      utimesSync(path.join(cache, name), when, when);
+    };
+    copy("old-proxy.mp4", 30);
+    copy("used-proxy.mp4", 20);
+    copy("mid-reversed.mp4", 10);
+    copy("new-proxy.mp4", 1);
+    copy("thumb.jpg", 40);
+    const removed = await media.cleanCache(
+      Date.now() - 60_000,
+      [path.join(cache, "used-proxy.mp4")],
+      200,
+    );
+    expect(removed).toBe(1);
+    expect(cached(cache).sort()).toEqual([
+      "mid-reversed.mp4",
+      "new-proxy.mp4",
+      "thumb.jpg",
+      "used-proxy.mp4",
+    ]);
+  });
 });

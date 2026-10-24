@@ -202,6 +202,8 @@ const waveformRate = 8000,
   keptTranscripts = 20;
 const proxyScale =
   "scale='min(1280,iw)':'min(720,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2";
+/** Preview and reversed copies kept on disk before the oldest are removed. */
+const MEDIA_CACHE_CAP = 8 * 1024 ** 3;
 const removeQuietly = (files: string[]) =>
   Promise.all(files.map((file) => unlink(file).catch(() => {})));
 /** A finished, non-empty file. */
@@ -248,7 +250,11 @@ export class Media extends EventEmitter {
    * unfinished preview copies. Only files from before `since` are touched,
    * and thumbnails and finished previews stay, because projects use them.
    */
-  async cleanCache(since = Date.now()) {
+  async cleanCache(
+    since = Date.now(),
+    keep: string[] = [],
+    cap = MEDIA_CACHE_CAP,
+  ) {
     let names: string[];
     try {
       names = await readdir(this.cache);
@@ -256,6 +262,33 @@ export class Media extends EventEmitter {
       return 0;
     }
     let removed = 0;
+    // Preview and reversed copies of everything ever imported add up to
+    // gigabytes. Past the cap the oldest ones the open project does not use
+    // are deleted; a project that needs one again rebuilds it.
+    const copies: { file: string; size: number; time: number }[] = [];
+    const kept = new Set(keep.map((file) => path.resolve(file)));
+    for (const name of names) {
+      if (!/-(proxy|reversed)\.(mp4|m4a)$/i.test(name)) continue;
+      const file = path.join(this.cache, name);
+      try {
+        const info = await stat(file);
+        if (info.isFile() && !kept.has(path.resolve(file)))
+          copies.push({ file, size: info.size, time: Math.max(info.atimeMs, info.mtimeMs) });
+      } catch {
+        /* Already gone. */
+      }
+    }
+    let total = copies.reduce((sum, copy) => sum + copy.size, 0);
+    for (const copy of copies.sort((a, b) => a.time - b.time)) {
+      if (total <= cap) break;
+      try {
+        await unlink(copy.file);
+        total -= copy.size;
+        removed++;
+      } catch {
+        /* In use or gone: leave it. */
+      }
+    }
     for (const name of names) {
       const temporary =
         /\.(f32|wav|part|part\.jpg)$/i.test(name) ||
