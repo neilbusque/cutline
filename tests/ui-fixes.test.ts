@@ -718,3 +718,38 @@ describe("a failed logo search is not a missing logo", () => {
     expect(emptyLogoSearch("gamma.app", true)).toBe("site");
   });
 });
+
+describe("job progress lives in a store the status bar follows", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.resetModules();
+  });
+
+  it("shows the running job first, then how the last one ended", async () => {
+    vi.resetModules();
+    vi.stubGlobal("window", { cutline: {} });
+    const { JobStatus } = await import("../src/renderer/App");
+    const jobs = createValueStore<any[]>([
+      { id: "p", kind: "preview", state: "running", progress: 0.2, message: "Preview copy" },
+      { id: "e", kind: "export", state: "running", progress: 0.5, message: "Exporting 50%" },
+    ]);
+    const line = () =>
+      renderToStaticMarkup(
+        React.createElement(JobStatus, {
+          jobs,
+          run: async () => undefined,
+          report: () => {},
+        }),
+      );
+    expect(line()).toContain("Exporting 50%");
+    expect(line()).toContain("Cancel");
+    jobs.set([
+      { id: "e", kind: "export", state: "done", progress: 1, message: "Done", output: "/x.mp4" },
+    ]);
+    expect(line()).toContain("Export complete");
+    jobs.set([
+      { id: "t", kind: "transcribe", state: "error", progress: 0, message: "Failed" },
+    ]);
+    expect(line()).toContain("Job failed");
+  });
+});
