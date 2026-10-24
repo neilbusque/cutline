@@ -1,5 +1,21 @@
 import React from "react";
 
+/**
+ * A failure as Neil should read it: without Electron's "Error invoking remote
+ * method" prefix, and without telling him to refresh or inspect the project,
+ * which only an agent can do.
+ */
+export function errorText(error: unknown) {
+  const message = (error instanceof Error ? error.message : String(error))
+    .replace(/^Error invoking remote method '[^']+': /u, "")
+    .replace(/^[A-Za-z]*Error: /u, "");
+  return /^Project changed\. (?:Refresh|Inspect) the project and retry/u.test(
+    message,
+  )
+    ? "Cutline changed while you were editing. Try again."
+    : message;
+}
+
 export function IconButton({
   title,
   onClick,

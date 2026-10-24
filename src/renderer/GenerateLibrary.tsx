@@ -15,6 +15,7 @@ import {
 import type { Asset } from "../shared/model";
 import type { GenerationInput, GenerationJob } from "../shared/generation";
 import { ReferenceImages, type ReferenceImage } from "./ReferenceImages";
+import { errorText } from "./controls";
 import "./generation.css";
 
 type Model = GenerationInput["model"];
@@ -41,8 +42,6 @@ const statuses: Record<GenerationJob["status"], string> = {
 };
 const pending = (job: GenerationJob) =>
   ["submitting", "queued", "in_progress"].includes(job.status);
-const errorText = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
 const ratioFor = (aspectRatio: string) =>
   ["16:9", "9:16", "1:1"].includes(aspectRatio) ? aspectRatio : "16:9";
 

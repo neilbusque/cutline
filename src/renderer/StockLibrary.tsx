@@ -21,6 +21,7 @@ import type {
   StockQuota,
 } from "../shared/stock";
 import type { Asset } from "../shared/model";
+import { errorText } from "./controls";
 
 type Filters = {
   provider: StockProvider;
@@ -69,7 +70,7 @@ export function StockLibrary({
         if (mounted.current) setSettings(value);
       })
       .catch((error) => {
-        if (mounted.current) setMessage((error as Error).message);
+        if (mounted.current) setMessage(errorText(error));
       });
     return () => {
       mounted.current = false;
@@ -120,7 +121,7 @@ export function StockLibrary({
         );
     } catch (error) {
       if (request.current === id && mounted.current)
-        setMessage((error as Error).message);
+        setMessage(errorText(error));
     } finally {
       if (request.current === id && mounted.current) setBusy(false);
     }
@@ -154,7 +155,7 @@ export function StockLibrary({
       setMessage("Pexels connected. Search photos and videos above.");
       if (searched && filters.provider === "pexels") void search(searched);
     } catch (error) {
-      setMessage((error as Error).message);
+      setMessage(errorText(error));
     } finally {
       setKey("");
       setConfiguring(false);
@@ -178,7 +179,7 @@ export function StockLibrary({
       setFilters({ ...filters, provider: "commons" });
       setSearched("");
     } catch (error) {
-      setMessage((error as Error).message);
+      setMessage(errorText(error));
     } finally {
       setConfiguring(false);
     }
@@ -203,8 +204,7 @@ export function StockLibrary({
             : "Downloaded to your media library.",
         );
     } catch (error) {
-      report(error);
-      if (mounted.current) setMessage((error as Error).message);
+      if (mounted.current) setMessage(errorText(error));
     } finally {
       if (mounted.current) setDownloading(undefined);
     }

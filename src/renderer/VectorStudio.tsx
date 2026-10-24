@@ -10,6 +10,7 @@ import { vectorStyles, type VectorStyle } from "../shared/vector-generation";
 import { placePicture, type GraphicResult } from "../shared/graphics";
 import { plural } from "../shared/plural";
 import { GENERATION_SETTINGS_EVENT } from "./HiggsfieldSettings";
+import { errorText } from "./controls";
 import type { Playhead } from "./playhead";
 
 type Generated = GraphicResult & { assetId?: string };
@@ -142,15 +143,7 @@ export function VectorStudio({
     };
   }, [query]);
 
-  const fail = (failure: unknown) =>
-    onError(
-      failure instanceof Error
-        ? failure.message.replace(
-            /^Error invoking remote method '[^']+': (Error: )?/u,
-            "",
-          )
-        : String(failure),
-    );
+  const fail = (failure: unknown) => onError(errorText(failure));
 
   const generate = async (route: "auto" | "vector" | "picture" = "auto") => {
     if (generating || prompt.trim().length < 2) return;

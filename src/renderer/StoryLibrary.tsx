@@ -50,6 +50,7 @@ import {
   explainerInputFromStory,
   refreshExplainerInput,
 } from "./ExplainerStory";
+import { errorText } from "./controls";
 import "./story.css";
 
 type Props = {
@@ -109,8 +110,6 @@ const templates: { id: Template; name: string; script: string }[] = [
       "Your next idea deserves more than a blank timeline.\n\nPlan the story, find the right shots, and give every scene a voice.\n\nBring it all together. Make something worth watching.",
   },
 ];
-const describeError = (error: unknown) =>
-  error instanceof Error ? error.message : String(error);
 const storyOf = (project: Project) =>
   project.story ?? StoryPlanSchema.parse({});
 const serialized = (story: StoryPlan) => JSON.stringify(story);
@@ -310,11 +309,11 @@ export function StoryLibrary({
       if (voice.status === "fulfilled") {
         setVoiceStatus(voice.value);
         setVoiceCheckError("");
-      } else setVoiceCheckError(describeError(voice.reason));
+      } else setVoiceCheckError(errorText(voice.reason));
       if (connection.status === "fulfilled") {
         setConfigured(connection.value.configured);
         setGenerationCheckError("");
-      } else setGenerationCheckError(describeError(connection.reason));
+      } else setGenerationCheckError(errorText(connection.reason));
       if (history.status === "fulfilled") setGenerations(history.value);
     });
     return () => {
@@ -371,7 +370,7 @@ export function StoryLibrary({
             }
           } catch (failure) {
             if (!canceled && state.current.project.id === projectId)
-              setPollError(describeError(failure));
+              setPollError(errorText(failure));
           } finally {
             pollLock.current = false;
           }
@@ -449,7 +448,7 @@ export function StoryLibrary({
         "Your script is split into scenes. Refine each visual before generating.",
       );
     } catch (failure) {
-      setError(describeError(failure));
+      setError(errorText(failure));
     }
   }
   function applyProductRecipe(style: "launch" | "walkthrough" | "type-led") {
@@ -493,7 +492,7 @@ export function StoryLibrary({
         "Outline ready. Review the scenes, then create your explainer with local narration and captions.",
       );
     } catch (failure) {
-      setError(describeError(failure));
+      setError(errorText(failure));
     }
   }
   async function run(name: string, operation: () => Promise<void>) {
@@ -513,10 +512,7 @@ export function StoryLibrary({
         epoch.current === requestEpoch &&
         state.current.project.id === projectId
       ) {
-        const message = describeError(failure);
-        const cancellationMessage = message
-          .replace(/^Error invoking remote method ['"][^'"]+['"]:\s*/u, "")
-          .replace(/^Error:\s*/u, "");
+        const message = errorText(failure);
         const cancelled =
           name === "produce" &&
           (jobsRef.current.some(
@@ -526,17 +522,14 @@ export function StoryLibrary({
               !earlierJobs.has(job.id),
           ) ||
             /^(?:Story (?:production|narration) )?cancelled(?:\.|$)/iu.test(
-              cancellationMessage,
+              message,
             ));
         if (cancelled) {
           setError("");
           setNotice(
             "Explainer cancelled. Finished narration is kept for your next attempt.",
           );
-        } else {
-          setError(message);
-          report(failure);
-        }
+        } else setError(message);
       }
     } finally {
       if (mounted.current && epoch.current === requestEpoch) {
@@ -647,7 +640,7 @@ export function StoryLibrary({
       const updated = withReferences(editor.draft, [id], sceneId);
       change(() => updated);
     } catch (failure) {
-      setError(describeError(failure));
+      setError(errorText(failure));
     }
   }
   function editReferences(ids: string[], sceneId?: string) {
@@ -690,7 +683,7 @@ export function StoryLibrary({
         if (importedIds.length)
           updated = withReferences(editor.draft, importedIds, sceneId);
       } catch (failure) {
-        limitError = describeError(failure);
+        limitError = errorText(failure);
       }
       setEditor((previous) => ({
         ...previous,

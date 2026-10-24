@@ -6,6 +6,7 @@ import {
   type Block,
   type Inline,
 } from "../shared/chat-markdown";
+import { errorText } from "./controls";
 import "./assistant.css";
 type Provider = "claude" | "codex";
 type Message = {
@@ -15,10 +16,6 @@ type Message = {
   retry?: string;
 };
 const names: Record<Provider, string> = { claude: "Claude", codex: "Codex" };
-const errorText = (error: unknown) =>
-  error instanceof Error
-    ? error.message.replace(/^Error invoking remote method '[^']+': (Error: )?/u, "")
-    : String(error);
 const styleShort = (style: string, name: string) =>
   `Make my speaker video on the timeline into a ${name}-inspired Short with cutline_style_reel style ${style}. Transcribe first if there are no captions. Read the transcript with timings, plan the beats by the style's rules (real logos and pages for every product, site or repo I name, short lines only from my actual words), build it, then preview the opening, several beats and the ending and fix what looks wrong. Keep my voice.`;
 /**

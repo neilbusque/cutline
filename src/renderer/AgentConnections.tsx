@@ -17,6 +17,7 @@ import {
   type AgentBridgeStatus,
 } from "../shared/agent-connections";
 import "./agent-connections.css";
+import { errorText } from "./controls";
 
 const providers = [
   ["cutline", "In Cutline"],
@@ -76,7 +77,7 @@ export function AgentConnections({
         if (live) setStatus(value);
       })
       .catch((e: unknown) => {
-        if (live) setError(e instanceof Error ? e.message : String(e));
+        if (live) setError(errorText(e));
       });
     void window.cutline
       .invoke("codex.status")
@@ -139,11 +140,10 @@ export function AgentConnections({
       setNotice("Copied to clipboard");
       setError("");
       copyTimer.current = setTimeout(() => setCopied(""), 2200);
-    } catch (error) {
+    } catch {
       setError(
         "Could not copy. Select the configuration and copy it manually.",
       );
-      report(error);
     }
   };
   const action = async (
@@ -206,8 +206,7 @@ export function AgentConnections({
         setNotice("ChatGPT sign-in opened in your browser");
       }
     } catch (error) {
-      setError(error instanceof Error ? error.message : String(error));
-      report(error);
+      setError(errorText(error));
     } finally {
       setBusy(undefined);
     }

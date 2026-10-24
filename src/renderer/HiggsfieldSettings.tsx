@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { ExternalLink, KeyRound, LoaderCircle } from "lucide-react";
+import { errorText } from "./controls";
 import "./agent-connections.css";
 
 type GenerationSettings = {
@@ -7,10 +8,6 @@ type GenerationSettings = {
   secureStorageAvailable: boolean | null;
   storageError?: string;
 };
-const errorText = (error: unknown) =>
-  error instanceof Error
-    ? error.message.replace(/^Error invoking remote method '[^']+': /, "")
-    : String(error);
 /** The Generate panel listens for this to refresh its connection state. */
 export const GENERATION_SETTINGS_EVENT = "cutline:generation-settings";
 

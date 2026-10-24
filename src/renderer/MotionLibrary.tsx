@@ -29,6 +29,7 @@ import { MotionTile } from "./MotionTile";
 import { parseEditableSvg } from "../shared/vector-path";
 import { createVectorScene } from "../shared/vector-scenes";
 import { VectorStudio } from "./VectorStudio";
+import { errorText } from "./controls";
 import type { Playhead } from "./playhead";
 import {
   createMotionSequence,
@@ -252,7 +253,7 @@ export function MotionLibrary({
         setSequencePlaying(false);
       }
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
+      setError(errorText(failure));
     } finally {
       setBusy(false);
     }
@@ -280,7 +281,7 @@ export function MotionLibrary({
           select(created.clip.id);
       }
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
+      setError(errorText(failure));
     } finally {
       setBusy(false);
     }
@@ -301,7 +302,7 @@ export function MotionLibrary({
       if (await edit(`Add ${created.motion.name}`, created.commands))
         select(created.clip.id);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
+      setError(errorText(failure));
     } finally {
       setBusy(false);
     }

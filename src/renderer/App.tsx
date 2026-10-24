@@ -42,7 +42,7 @@ import { CaptionLibrary } from "./CaptionLibrary";
 import { Assistant } from "./Assistant";
 import { AgentConnections } from "./AgentConnections";
 import { Sessions } from "./Sessions";
-import { IconButton, keepFocusInside } from "./controls";
+import { errorText, IconButton, keepFocusInside } from "./controls";
 import { Projects } from "./Projects";
 import {
   createEditQueue,
@@ -357,7 +357,7 @@ export function App() {
   }, [p?.id]);
   const clip = p?.clips.find((c) => c.id === selected);
   const report = useCallback((e: unknown) => {
-    setError(e instanceof Error ? e.message : String(e));
+    setError(errorText(e));
   }, []);
   const run = useCallback(
     async (name: string, args?: unknown) => {

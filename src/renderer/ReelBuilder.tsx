@@ -16,6 +16,7 @@ import type { Clip, Project } from "../shared/model";
 import { captionStyles } from "../shared/caption-styles";
 import { reelFormats, type ReelFormat } from "../shared/reel-formats";
 import { allocateReelFrames } from "../shared/reel";
+import { errorText } from "./controls";
 
 type BeatDraft = {
   id: string;
@@ -321,9 +322,7 @@ export function ReelBuilder({
       }
     } catch (e) {
       if (projectIdRef.current !== projectId) return;
-      const message = e instanceof Error ? e.message : String(e);
-      setFailure(message);
-      report(e);
+      setFailure(errorText(e));
     } finally {
       setBusy(false);
     }

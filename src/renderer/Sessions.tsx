@@ -10,7 +10,7 @@ import {
   PanelsTopLeft,
   X,
 } from "lucide-react";
-import { keepFocusInside } from "./controls";
+import { errorText, keepFocusInside } from "./controls";
 import "./sessions.css";
 
 type Session = {
@@ -52,7 +52,7 @@ export function Sessions() {
       }
     } catch (error) {
       if (live.current && version === request.current)
-        setError(error instanceof Error ? error.message : String(error));
+        setError(errorText(error));
     } finally {
       if (live.current && version === request.current) setLoading(false);
     }
@@ -108,7 +108,7 @@ export function Sessions() {
       }
     } catch (error) {
       if (live.current)
-        setError(error instanceof Error ? error.message : String(error));
+        setError(errorText(error));
     } finally {
       inFlight.current = false;
       if (live.current) setBusy("");

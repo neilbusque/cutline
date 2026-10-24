@@ -15,6 +15,7 @@ import {
 import type { Job, Project } from "../shared/model";
 import { captionStyles } from "../shared/caption-styles";
 import { reelFormats, type ReelFormat } from "../shared/reel-formats";
+import { errorText } from "./controls";
 import "./auto-reel.css";
 
 type Result = {
@@ -106,8 +107,7 @@ export function AutoReel({
         onCreated(res.startFrame);
       }
     } catch (e) {
-      setFailure(e instanceof Error ? e.message : String(e));
-      report(e);
+      setFailure(errorText(e));
     } finally {
       setBusy(false);
     }
