@@ -524,17 +524,14 @@ try {
     .click();
   const beforeBadImport = snapshot(await state());
   for (const [name, svg] of [
-    [
-      "script",
-      '<svg viewBox="0 0 100 100"><script>alert(1)</script><path d="M0 0 L10 10"/></svg>',
-    ],
+    ["script", '<svg viewBox="0 0 100 100"><script>alert(1)</script></svg>'],
     [
       "reference",
       '<svg viewBox="0 0 100 100"><image href="https://example.com/logo.png" width="100" height="100"/></svg>',
     ],
     [
-      "event",
-      '<svg viewBox="0 0 100 100"><path d="M0 0 L10 10" onclick="alert(1)"/></svg>',
+      "html",
+      '<svg viewBox="0 0 100 100"><foreignObject width="100" height="100"><div>x</div></foreignObject></svg>',
     ],
   ]) {
     const file = path.join(work, `${name}.svg`);
@@ -574,6 +571,23 @@ try {
   );
   assert(badEdit);
   assert.deepEqual(snapshot(await state()), beforeBadImport);
+  // Since 0.30 scripts and event handlers are stripped and the shapes import;
+  // none of that markup may reach the project.
+  const beforeStripped = snapshot(await state());
+  const strippedFile = path.join(work, "stripped.svg");
+  await writeFile(
+    strippedFile,
+    '<svg viewBox="0 0 100 100"><script>alert(1)</script><path d="M0 0 L10 10 L0 10Z" onclick="alert(1)"/></svg>',
+  );
+  const stripped = await call("cutline_vector_import", {
+    ...guard(await state()),
+    path: strippedFile,
+    startFrame: 900,
+  });
+  assert.equal(stripped.vectorLayers, 1);
+  assert(!/alert|onclick|script/u.test(JSON.stringify(await state())));
+  await call("cutline_undo", guard(await state()));
+  assert.deepEqual(snapshot(await state()).clips, beforeStripped.clips);
   assert(
     !JSON.stringify(await call("cutline_inspect")).includes(safeFile),
     "Imported source path is not exposed or required",
