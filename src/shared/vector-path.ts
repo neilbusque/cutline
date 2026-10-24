@@ -54,6 +54,64 @@ export type ParsedEditableSvg = {
   /** What the importer left out or approximated, in plain words. */
   warnings?: string[];
 };
+/**
+ * Imported layers as one SVG, drawn the way Cutline's composition draws them
+ * (fill or gradient, outline, transform, opacity), for checks and previews
+ * outside the editor. An optional background fills the art board.
+ */
+export function editableSvgMarkup(parsed: ParsedEditableSvg, background?: string) {
+  const [x, y, w, h] = parsed.viewBox;
+  const defs: string[] = [];
+  const paths = parsed.layers.map((layer, index) => {
+    let fill = layer.background === "transparent" ? "none" : layer.background;
+    const g = layer.vectorGradient;
+    if (g && fill !== "none") {
+      const attrs = [
+        `id="g${index}"`,
+        `gradientUnits="${g.units}"`,
+        `spreadMethod="${g.spread}"`,
+        g.transform ? `gradientTransform="matrix(${g.transform.join(" ")})"` : "",
+        ...(g.type === "linear"
+          ? (["x1", "y1", "x2", "y2"] as const)
+          : (["cx", "cy", "r", "fx", "fy"] as const)
+        ).map((key) => (g[key] === undefined ? "" : `${key}="${g[key]}"`)),
+      ].filter(Boolean);
+      const stops = g.stops
+        .map(
+          (stop) =>
+            `<stop offset="${stop.offset}" stop-color="${stop.color}" stop-opacity="${stop.opacity}"/>`,
+        )
+        .join("");
+      const tag = g.type === "linear" ? "linearGradient" : "radialGradient";
+      defs.push(`<${tag} ${attrs.join(" ")}>${stops}</${tag}>`);
+      fill = `url(#g${index})`;
+    }
+    return `<path d="${layer.vectorPath}" fill="${fill}" fill-opacity="${layer.fillOpacity}" fill-rule="${layer.vectorFillRule}" stroke="${layer.stroke === "transparent" ? "none" : layer.stroke}" stroke-width="${layer.strokeWidth}" stroke-linecap="${layer.vectorLineCap}" stroke-linejoin="${layer.vectorLineJoin}" opacity="${layer.opacity}"${layer.vectorTransform ? ` transform="matrix(${layer.vectorTransform.join(" ")})"` : ""}/>`;
+  });
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x} ${y} ${w} ${h}" width="${w}" height="${h}">`,
+    background
+      ? `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${background}"/>`
+      : "",
+    defs.length ? `<defs>${defs.join("")}</defs>` : "",
+    ...paths,
+    "</svg>",
+  ].join("");
+}
+
+/** The root element's art board moved to a new viewBox, everything inside kept. */
+export function withViewBox(svg: string, viewBox: VectorViewBox) {
+  const root = /<svg\b[^>]*>/u.exec(svg);
+  if (!root) return svg;
+  const box = viewBox.map((n) => Math.round(n * 100) / 100);
+  let tag = root[0].replace(/\s(viewBox|width|height)\s*=\s*("[^"]*"|'[^']*')/giu, "");
+  tag = tag.replace(
+    /^<svg\b/u,
+    `<svg viewBox="${box.join(" ")}" width="${box[2]}" height="${box[3]}"`,
+  );
+  return svg.slice(0, root.index) + tag + svg.slice(root.index + root[0].length);
+}
+
 /** Paths and layers an imported vector may use. */
 export const MAX_VECTOR_PATH_LENGTH = 65536;
 export const MAX_VECTOR_LAYERS = 64;

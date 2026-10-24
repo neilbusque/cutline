@@ -85,7 +85,12 @@ import {
 import { readTranscript, searchTranscript } from "../shared/transcript";
 import { cutlineTools, longRunningTools } from "./agent-tools";
 import { agentMediaTools, createAgentMedia } from "./agent-media";
-import { assistantAsker, References, renderSvg } from "./vector-studio";
+import {
+  assistantAsker,
+  fitSvg,
+  References,
+  renderSvg,
+} from "./vector-studio";
 import { capturePage } from "./page-capture";
 import { withoutBackdrop } from "../shared/vector-generation";
 import {
@@ -197,22 +202,34 @@ async function makeGraphic(
   const connected = (await generationCredentials.status()).configured;
   const allowed =
     connected && (graphicsSettings.pictures || input.route === "picture");
-  return generateGraphic(input, {
+  const made = await generateGraphic(input, {
     ask: assistantAsker(input.provider, {
       workDir: path.join(data, "assistant", "vectors"),
       signal: options.signal,
       claudeModel: assistantSettings.claudeModel,
+      effort: "medium",
     }),
     render: renderSvg,
     picture: allowed
       ? (request) => pictures.generate(request, options.signal)
       : undefined,
     pictureUnavailable: connected
-      ? "Detailed pictures are off. Turn them on in Settings > Higgsfield to make this as a picture."
+      ? "Detailed pictures are off. Turn on Detailed graphics as pictures in Settings to make it as a picture."
       : "This one is detailed. Connect Higgsfield in Settings to make it as a picture.",
     onStep: options.onStep,
   });
+  // Every drawing places at the same visual size, centered on what is drawn.
+  const fit = (svg: string) => fitSvg(svg).catch(() => svg);
+  if (made.kind === "vector") return { ...made, svg: await fit(made.svg) };
+  return made.drawing
+    ? { ...made, drawing: { ...made.drawing, svg: await fit(made.drawing.svg) } }
+    : made;
 }
+/**
+ * Drawings made for Shorts, by description and look, so running a Short again
+ * (or after an edit) reuses them instead of drawing or paying again.
+ */
+const drawings = new Map<string, { kind: "svg"; svg: string } | { kind: "image"; file: string }>();
 let musicControl: ReturnType<typeof createMusicControl>;
 let lastAgentCall: { tool: string; at: string } | undefined;
 const previewRequests = new Map<
@@ -1921,20 +1938,26 @@ app.whenReady().then(async () => {
     speech,
     autoEdit: autoEditForAgent,
     relink: (assetId, file) => relinkMedia({ store, media }, assetId, file),
-    draw: async (description, style) => {
-      const made = await makeGraphic(
-        GraphicGenerateSchema.parse({
-          prompt: description,
-          onto: `${style === "locked-split" ? "near-black" : style === "cards" ? "warm off-white" : "soft pastel"} video`,
-          style: style === "cards" ? "glyph" : "flat",
-          provider:
-            assistantSettings.provider === "codex" ? "chatgpt" : "claude",
-          aspect: "square",
-        }),
-      );
-      return made.kind === "vector"
-        ? { kind: "svg", svg: withoutBackdrop(made.svg) }
-        : { kind: "image", file: made.file };
+    draw: async (description, style, signal) => {
+      const input = GraphicGenerateSchema.parse({
+        prompt: description,
+        onto: `${style === "locked-split" ? "near-black" : style === "cards" ? "warm off-white" : "soft pastel"} video`,
+        style: style === "cards" ? "glyph" : "flat",
+        provider: assistantSettings.provider === "codex" ? "chatgpt" : "claude",
+        aspect: "square",
+      });
+      const key = createHash("sha256")
+        .update(JSON.stringify([input, assistantSettings.claudeModel]))
+        .digest("hex");
+      const kept = drawings.get(key);
+      if (kept && (kept.kind === "svg" || existsSync(kept.file))) return kept;
+      const made = await makeGraphic(input, { signal });
+      const drawn =
+        made.kind === "vector"
+          ? { kind: "svg" as const, svg: await fitSvg(withoutBackdrop(made.svg)).catch(() => made.svg) }
+          : { kind: "image" as const, file: made.file };
+      drawings.set(key, drawn);
+      return drawn;
     },
     graphic: (input) => makeGraphic(input),
     references: {

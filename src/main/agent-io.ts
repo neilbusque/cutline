@@ -161,7 +161,7 @@ const destructive = new Set([
 export const agentIoTools = Object.entries(schemas).map(([name, schema]) => ({
   name,
   description: descriptions[name as keyof typeof schemas],
-  inputSchema: readableSchema(schema),
+  inputSchema: readableSchema(schema, true),
   annotations: {
     readOnlyHint: readOnly.has(name),
     destructiveHint: destructive.has(name),

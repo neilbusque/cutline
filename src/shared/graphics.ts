@@ -30,6 +30,8 @@ export type GraphicGenerateInput = z.infer<typeof GraphicGenerateSchema>;
 export type GraphicResult =
   | {
       kind: "vector";
+      /** The review's 1 to 5 score of the drawing, when it gave one. */
+      score?: number;
       svg: string;
       warnings: string[];
       layers: number;
@@ -51,6 +53,8 @@ export type GraphicResult =
       reason: "asked" | "too-detailed" | "lost-detail" | "unusable";
       /** Higgsfield's estimate for the request, in US dollars. */
       usd?: string;
+      /** The drawing made before the picture, offered as the alternative. */
+      drawing?: { svg: string; layers: number; warnings: string[] };
     };
 
 export type PictureRequest = {
@@ -118,10 +122,32 @@ export function declineRule() {
 export function reviewSystemPrompt() {
   return [
     "You are a demanding art director checking a vector illustration for a video. You see the drawing exactly as it renders, followed by its SVG source.",
-    "Judge it at a glance, the way a viewer sees it for two seconds: does it clearly show the request, are the proportions and placement right, do parts overlap wrongly or float loose, is anything cut off, too small to read, or missing from the request?",
-    "If it is good, reply with exactly <ok/>.",
-    "If it can be fixed, reply with one corrected complete SVG and nothing else, following the same rules as the original (same shapes allowed, at most 40, ids naming parts, back to front, no text).",
+    "Judge it at a glance, the way a viewer sees it for two seconds: does it clearly show the request and the action it names, are the proportions and placement right, do parts float loose or overlap wrongly, is anything cut off, too faint or too small to read, or missing?",
+    "Start your reply with <score>N</score>: 5 when a viewer would recognize the request instantly, 3 when it takes a moment or something is off, 1 when it does not show the request.",
+    "Then, if it is good, write exactly <ok/>.",
+    "Otherwise write one corrected complete SVG fixing every problem you saw, following the same rules as the original (same elements allowed, at most 40 shapes, ids naming parts, back to front, no text, gradients on fills only).",
   ].join("\n");
+}
+
+/** The review's 1 to 5 score, or undefined when it gave none. */
+export function reviewScore(reply: string) {
+  const score = Number(/<score>\s*([1-5])\s*<\/score>/u.exec(reply)?.[1]);
+  return score >= 1 ? score : undefined;
+}
+
+/**
+ * Requests for scenes, realism or texture: a clean vector rarely does them
+ * justice, so a middling drawing of one goes to Higgsfield when allowed.
+ */
+export const sceneRequest =
+  /\b(photo\w*|realistic|realism|detailed|textur\w*|reflections?|skyline|cityscape|landscape|scenery|crowd\w*|portrait|cinematic|3d|lighting|interior)\b/iu;
+
+/** Mostly straight-edged boxes and polygons in quantity: a blocky scene. */
+export function blocky(parsed: ParsedEditableSvg) {
+  const straight = parsed.layers.filter(
+    (layer) => !/[CSQTAcsqta]/u.test(layer.vectorPath),
+  ).length;
+  return parsed.layers.length >= 32 && straight >= parsed.layers.length * 0.7;
 }
 
 export function reviewPrompt(input: VectorGenerateInput, svg: string, canDecline: boolean) {
@@ -222,9 +248,25 @@ export async function generateGraphic(
     palette: input.palette,
     onto: input.onto,
   };
-  const picture = async (reason: Extract<GraphicResult, { kind: "picture" }>["reason"]) => {
+  const picture = async (
+    reason: Extract<GraphicResult, { kind: "picture" }>["reason"],
+    drawing?: { svg: string; parsed: ParsedEditableSvg },
+  ) => {
     deps.onStep?.("picture");
-    return { kind: "picture" as const, reason, ...(await deps.picture!(request)) };
+    return {
+      kind: "picture" as const,
+      reason,
+      ...(await deps.picture!(request)),
+      ...(drawing
+        ? {
+            drawing: {
+              svg: drawing.svg,
+              layers: drawing.parsed.layers.length,
+              warnings: drawing.parsed.warnings ?? [],
+            },
+          }
+        : {}),
+    };
   };
   if (route === "picture") {
     if (!deps.picture)
@@ -246,10 +288,11 @@ export async function generateGraphic(
       return picture("unusable");
     throw error;
   }
-  if (canDecline && lostDetail(drawn.parsed)) return picture("lost-detail");
+  if (canDecline && lostDetail(drawn.parsed)) return picture("lost-detail", drawn);
 
   let { svg, parsed, attempts } = drawn;
   let revised = false;
+  let score: number | undefined;
   if (deps.render) {
     deps.onStep?.("reviewing");
     try {
@@ -259,7 +302,17 @@ export async function generateGraphic(
         await deps.render(svg),
       );
       attempts++;
-      if (canDecline && reply.includes(DECLINE)) return picture("too-detailed");
+      score = reviewScore(reply);
+      const scene = sceneRequest.test(input.prompt);
+      // Claude rarely declines on its own, so its score decides: a weak
+      // drawing, or a middling or blocky one of a scene, becomes a picture.
+      if (
+        canDecline &&
+        (reply.includes(DECLINE) ||
+          (score !== undefined && score <= 2) ||
+          (scene && ((score !== undefined && score <= 3) || blocky(parsed))))
+      )
+        return picture("too-detailed", { svg, parsed });
       if (/<svg[\s>]/u.test(reply)) {
         const fixed = extractSvg(reply);
         const check = parseEditableSvg(fixed);
@@ -275,13 +328,19 @@ export async function generateGraphic(
       // The first drawing already passed the importer: keep it.
     }
   }
-  const detailed = !deps.picture && route === "auto" && lostDetail(parsed);
+  const detailed =
+    !deps.picture &&
+    route === "auto" &&
+    (lostDetail(parsed) ||
+      (score !== undefined && score <= 2) ||
+      (sceneRequest.test(input.prompt) && blocky(parsed)));
   return {
     kind: "vector",
     svg,
     warnings: parsed.warnings ?? [],
     layers: parsed.layers.length,
     attempts,
+    ...(score !== undefined ? { score } : {}),
     ...(revised ? { revised } : {}),
     ...(detailed && deps.pictureUnavailable ? { note: deps.pictureUnavailable } : {}),
   };

@@ -120,6 +120,37 @@ describe("making a graphic", () => {
     ).toMatchObject({ kind: "picture", reason: "unusable" });
   });
 
+  it("lets the review's score send weak drawings and middling scenes to Higgsfield", async () => {
+    const make = vi.fn(async () => picture);
+    const weak = assistant(good, "<score>2</score>\n" + better);
+    expect(
+      await generateGraphic({ prompt: "a cup" }, { ask: weak.ask, render, picture: make }),
+    ).toMatchObject({ kind: "picture", reason: "too-detailed", drawing: { svg: good, layers: 1 } });
+    const scene = assistant(good, "<score>3</score>\n<ok/>");
+    expect(
+      await generateGraphic(
+        { prompt: "a city skyline at sunset with reflections in the river" },
+        { ask: scene.ask, render, picture: make },
+      ),
+    ).toMatchObject({ kind: "picture", reason: "too-detailed" });
+    // A plain subject at 3 is fixed in place, not paid for.
+    const plain = assistant(good, "<score>3</score>\n" + better);
+    expect(
+      await generateGraphic({ prompt: "a cup" }, { ask: plain.ask, render, picture: make }),
+    ).toMatchObject({ kind: "vector", svg: better, score: 3, revised: true });
+    expect(make).toHaveBeenCalledTimes(2);
+  });
+
+  it("notes when a weak drawing could have been a picture", async () => {
+    const { ask } = assistant(good, "<score>2</score><ok/>");
+    expect(
+      await generateGraphic(
+        { prompt: "a cup" },
+        { ask, render, pictureUnavailable: "Connect Higgsfield in Settings." },
+      ),
+    ).toMatchObject({ kind: "vector", score: 2, note: "Connect Higgsfield in Settings." });
+  });
+
   it("goes straight to Higgsfield when a picture is asked for", async () => {
     const { ask } = assistant();
     const made = await generateGraphic(
@@ -197,7 +228,7 @@ describe("placing a picture", () => {
   } as Asset;
 
   it("centers it above the captions on a tall frame, on a Graphics track", () => {
-    const p = { ...newProject(), width: 1080, height: 1920, fps: 30, assets: [asset] };
+    const p = { ...newProject(), width: 1080, height: 1920, fps: 30 as const, assets: [asset] };
     const placed = placePicture(p, 45, asset);
     expect(placed.track.name).toBe("Graphics");
     expect(placed.commands[0]).toMatchObject({ type: "track.add" });

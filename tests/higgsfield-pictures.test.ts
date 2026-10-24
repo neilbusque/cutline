@@ -150,7 +150,7 @@ describe("Higgsfield pictures", () => {
 
   it("keeps an opaque picture when there is no flat backdrop to remove", async () => {
     const noisy = await sharp({
-      create: { width: 64, height: 48, channels: 3, noise: { type: "gaussian", mean: 128, sigma: 60 } },
+      create: { width: 64, height: 48, channels: 3, background: "#000000", noise: { type: "gaussian", mean: 128, sigma: 60 } },
     })
       .png()
       .toBuffer();

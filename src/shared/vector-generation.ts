@@ -68,9 +68,14 @@ export function vectorSystemPrompt() {
     "- No text, image, filter, mask, clipPath, pattern, foreignObject, script, animation or CSS @import. Words are added later as live titles.",
     "- At most 40 shapes. Fewer, cleaner shapes look better and animate better.",
     "- Colors as hex. Transparent background: no full-canvas background rectangle unless the request asks for one.",
+    "- Gradients go on fills only. Every outline is one solid hex color, with no dashes.",
     "Quality:",
-    "- Build on a clear grid, keep the subject centered with about 8% padding, and keep proportions true.",
+    "- Build on a clear grid, keep proportions true, and fill the board: the subject's outer edge 6 to 10% from each side, centered.",
     '- Order shapes back to front in the order they should appear on screen, and give each a short id naming its part (id="cup", id="steam-1").',
+    "- Parts that touch in real life overlap by at least 4 units: no floating handles, horns, hair, limbs, steam or labels.",
+    '- Put a tilted part and everything on it in one <g transform="rotate(angle cx cy)">, so details stay on it.',
+    "- Show the action the request names by overlapping the parts involved: food in the mouth, a hand on the object, a line rising on the chart.",
+    "- Every color needs at least 3:1 contrast against the background it sits on; pale details on a pale board vanish.",
     "- Use cubic curves for organic forms and exact geometry for mechanical ones. No jagged hand-drawn noise.",
     "- Every shape must be visible and meaningful; no hidden or zero-size elements.",
   ].join("\n");
@@ -88,7 +93,7 @@ export function vectorUserPrompt(input: VectorGenerateInput) {
       : "",
     input.onto
       ? `It sits on ${input.onto}: draw no background, tile or frame, and pick colors that stand out on it.`
-      : "",
+      : "It sits on a light neutral board.",
     "Reply with the SVG only.",
   ]
     .filter(Boolean)
@@ -127,22 +132,27 @@ export async function generateVector(
     .join("\n");
   let prompt = vectorUserPrompt(input);
   let problem = "";
+  // A first drawing that imports, even with losses, beats an error when the
+  // repair round goes wrong.
+  let usable: { svg: string; parsed: ParsedEditableSvg; attempts: number } | undefined;
   for (let attempt = 1; attempt <= 2; attempt++) {
     const reply = await ask(system, prompt);
-    if (options.decline && /<too-detailed\s*\/>/u.test(reply) && !/<svg[\s>]/u.test(reply))
+    if (options.decline && /<too-detailed\s*\/>/u.test(reply) && !/<svg[\s>]/u.test(reply)) {
+      if (usable) return usable;
       throw Error("The subject is too detailed for a vector.");
+    }
     let svg = "";
     try {
       svg = extractSvg(reply);
       const parsed = parseEditableSvg(svg);
-      const lost = (parsed.warnings ?? []).filter((w) =>
-        /left out|combined|replaced|Unknown/u.test(w),
-      );
+      const lost = (parsed.warnings ?? []).filter((w) => lossy.test(w));
       if (!lost.length || attempt === 2)
         return { svg, parsed, attempts: attempt };
+      usable = { svg, parsed, attempts: attempt };
       problem = lost.join(" ");
     } catch (error) {
       problem = (error as Error).message;
+      if (usable) return { ...usable, attempts: attempt };
       if (attempt === 2)
         throw Error(`The generated vector could not be used: ${problem}`);
     }
@@ -150,6 +160,9 @@ export async function generateVector(
   }
   throw Error("The generated vector could not be used.");
 }
+
+/** Importer warnings that mean part of the drawing would look different. */
+export const lossy = /left out|combined|replaced|Unknown|Gradient outlines|Dashed/u;
 
 /**
  * Removes a backdrop shape a model draws behind the subject (a rectangle

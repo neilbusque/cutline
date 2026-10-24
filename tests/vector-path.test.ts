@@ -487,3 +487,26 @@ describe("vector model, creation, rendering and structured editing", () => {
     expect(result.references.arc).not.toBe(result.references.pen);
   });
 });
+
+describe("drawing what the importer keeps", () => {
+  it("writes the imported layers back out as one SVG, gradients and transforms included", async () => {
+    const { editableSvgMarkup, withViewBox, parseEditableSvg } = await import(
+      "../src/shared/vector-path"
+    );
+    const parsed = parseEditableSvg(
+      '<svg viewBox="0 0 100 100"><defs><linearGradient id="g"><stop offset="0" stop-color="#f00"/><stop offset="1" stop-color="#00f"/></linearGradient></defs><g transform="translate(10 0)"><rect width="20" height="20" fill="url(#g)"/></g><circle cx="70" cy="70" r="10" fill="none" stroke="#123456" stroke-width="4"/></svg>',
+    );
+    const markup = editableSvgMarkup(parsed, "#ffffff");
+    expect(markup).toContain('viewBox="0 0 100 100"');
+    expect(markup).toContain('<rect x="0" y="0" width="100" height="100" fill="#ffffff"/>');
+    expect(markup).toContain("<linearGradient");
+    expect(markup).toContain('fill="url(#g0)"');
+    expect(markup).toContain('transform="matrix(1 0 0 1 10 0)"');
+    expect(markup).toContain('stroke="#123456" stroke-width="4"');
+    // Round trip: the markup imports to the same layers.
+    expect(parseEditableSvg(markup).layers.length).toBe(parsed.layers.length + 1);
+    const moved = withViewBox('<svg width="100" viewBox="0 0 100 100" height="100"><rect/></svg>', [10, 20, 30.456, 40]);
+    expect(moved).toBe('<svg viewBox="10 20 30.46 40" width="30.46" height="40"><rect/></svg>');
+  });
+});
+

@@ -201,6 +201,8 @@ export type AgentMediaDeps = {
       message: string,
       work: (job: Job) => Promise<T>,
     ) => Promise<T>;
+    update?: (job: Job, patch: Partial<Job>) => void;
+    cancellers?: Map<string, () => void>;
   };
   stock: {
     download: (
@@ -232,6 +234,7 @@ export type AgentMediaDeps = {
   draw?: (
     description: string,
     style: StyleReelStyle,
+    signal?: AbortSignal,
   ) => Promise<{ kind: "svg"; svg: string } | { kind: "image"; file: string }>;
   /** cutline_graphic's work: the same route as Motion > Vectors > Generate. */
   graphic?: (input: GraphicGenerateInput) => Promise<GraphicResult>;
@@ -760,16 +763,37 @@ export function createAgentMedia(deps: AgentMediaDeps) {
       .filter(({ beat }) => beat.kind === "draw" && beat.show);
     if (queue.length && !deps.draw)
       throw Error("Drawing needs Claude or ChatGPT signed in on this Mac.");
-    const lanes: Promise<void>[] = [0, 1, 2].map(() => Promise.resolve());
-    queue.forEach(({ beat, index }, i) => {
-      const lane = i % 3;
-      const job = lanes[lane].then(() => deps.draw!(beat.show!, args.style));
-      drawings.set(index, job);
-      lanes[lane] = job.then(
-        () => {},
-        () => {},
-      );
-    });
+    // One cancellable job for every drawing: cancelling it stops the
+    // assistants and the Short is never laid out.
+    const stop = new AbortController();
+    let drawn = 0;
+    const drawing = queue.length
+      ? deps.jobs.run(
+          "drawing",
+          `Drawing ${queue.length === 1 ? "1 illustration" : `${queue.length} illustrations`}`,
+          async (job) => {
+            deps.jobs.cancellers?.set(job.id, () => stop.abort());
+            const lanes: Promise<void>[] = [0, 1, 2].map(() => Promise.resolve());
+            queue.forEach(({ beat, index }, i) => {
+              const lane = i % 3;
+              const made = lanes[lane].then(() =>
+                deps.draw!(beat.show!, args.style, stop.signal),
+              );
+              drawings.set(index, made);
+              lanes[lane] = made.then(
+                () => {
+                  drawn++;
+                  deps.jobs.update?.(job, { progress: drawn / queue.length });
+                },
+                () => {},
+              );
+            });
+            await Promise.all(lanes);
+            if (stop.signal.aborted) throw Error("Cancelled");
+          },
+        )
+      : Promise.resolve();
+    await drawing;
     for (const [index, beat] of args.beats.entries()) {
       const base = { from: beat.from, to: beat.to, layout: beat.layout };
       const kind =

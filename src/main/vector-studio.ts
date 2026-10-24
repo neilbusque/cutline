@@ -11,7 +11,11 @@ import os from "node:os";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { findClaude } from "./claude";
-import { parseEditableSvg } from "../shared/vector-path";
+import {
+  editableSvgMarkup,
+  parseEditableSvg,
+  withViewBox,
+} from "../shared/vector-path";
 
 /**
  * Vector generation through the assistants already signed in on this Mac, and
@@ -45,6 +49,7 @@ function run(
   options: { cwd: string; timeoutMs: number; signal?: AbortSignal },
 ) {
   return new Promise<string>((resolve, reject) => {
+    if (options.signal?.aborted) return reject(Error("Cancelled"));
     const child = spawn(bin, args, {
       cwd: options.cwd,
       env: cliEnv(),
@@ -74,17 +79,42 @@ function run(
     child.on("close", (code) => {
       clearTimeout(timer);
       options.signal?.removeEventListener("abort", abort);
-      if (code === 0) resolve(out);
-      else
-        reject(
-          Error(
-            err.trim().split("\n").at(-1) ||
+      if (code === 0) return resolve(out);
+      // Claude Code reports most failures as JSON on stdout, not stderr.
+      let reported = "";
+      for (const line of out.trim().split("\n").reverse())
+        try {
+          const parsed = JSON.parse(line);
+          if (typeof parsed?.result === "string") {
+            reported = parsed.result;
+            break;
+          }
+        } catch {
+          /* not a JSON line */
+        }
+      reject(
+        Error(
+          assistantError(
+            reported ||
+              err.trim().split("\n").at(-1) ||
               `The assistant stopped (exit ${code}).`,
           ),
-        );
+        ),
+      );
     });
     child.stdin.end(input);
   });
+}
+
+/** What to do about a failed assistant call, in plain words. */
+export function assistantError(text: string) {
+  if (/does not support this model|or newer is required|out of date/iu.test(text))
+    return "Claude Code is out of date. Run `claude update` in Terminal, then try again.";
+  if (/log ?in|sign in|auth|unauthori[sz]ed/iu.test(text))
+    return "Claude needs you to sign in. Run `claude auth login` in Terminal.";
+  if (/usage limit|limit reached|rate limit|quota/iu.test(text))
+    return "The assistant's usage limit is reached. Try again later or choose the other assistant.";
+  return text;
 }
 
 export function findCodex() {
@@ -109,6 +139,8 @@ export function assistantAsker(
     workDir: string;
     signal?: AbortSignal;
     claudeModel?: "opus" | "sonnet";
+    /** Thinking effort; drawings need medium, not the slow default. */
+    effort?: "low" | "medium" | "high";
   },
 ) {
   mkdirSync(options.workDir, { recursive: true });
@@ -130,6 +162,7 @@ export function assistantAsker(
             : ["--output-format", "json"]),
           "--model",
           options.claudeModel ?? "opus",
+          ...(options.effort ? ["--effort", options.effort] : []),
           "--tools",
           "",
           "--setting-sources",
@@ -175,11 +208,7 @@ export function assistantAsker(
         throw Error("Claude returned an unreadable reply. Try again.");
       }
       if (parsed.is_error || !parsed.result)
-        throw Error(
-          /log ?in|auth/i.test(parsed.result ?? "")
-            ? "Claude needs you to sign in. Run `claude auth login` in Terminal."
-            : (parsed.result ?? "Claude could not answer."),
-        );
+        throw Error(assistantError(parsed.result ?? "Claude could not answer."));
       return parsed.result;
     }
     const bin = findCodex();
@@ -206,6 +235,9 @@ export function assistantAsker(
           'web_search="disabled"',
           "-c",
           "features.shell_tool=false",
+          ...(options.effort
+            ? ["-c", `model_reasoning_effort="${options.effort}"`]
+            : []),
           "-o",
           answer,
           // The prompt comes from stdin; --image takes the values after it.
@@ -226,17 +258,54 @@ export function assistantAsker(
   };
 }
 
+/** Density that rasterizes a board whose longer side is `side` units at `pixels`. */
+const densityFor = (side: number, pixels: number) =>
+  Math.min(2400, Math.max(8, (72 * pixels) / Math.max(1, side)));
+
 /**
- * A drawing as Cutline's vector preview shows it, on the same neutral board,
- * for the assistant to look at its own work.
+ * A drawing exactly as Cutline will draw it (its imported layers, on the
+ * vector preview's neutral board), for the assistant to look at its work.
  */
-export async function renderSvg(svg: string) {
+export async function renderSvg(svg: string, background = "#f4f3ef") {
   const sharp = (await import("sharp")).default;
-  return sharp(Buffer.from(svg), { density: 144 })
+  const parsed = parseEditableSvg(svg);
+  const [, , w, h] = parsed.viewBox;
+  return sharp(Buffer.from(editableSvgMarkup(parsed, background)), {
+    density: densityFor(Math.max(w, h), 768),
+  })
     .resize(768, 768, { fit: "inside" })
-    .flatten({ background: "#f4f3ef" })
     .png()
     .toBuffer();
+}
+
+/**
+ * The drawing's art board shrunk to what is actually drawn plus 8% air, so
+ * every drawing places at the same visual size and stays centered however
+ * much empty board the model left.
+ */
+export async function fitSvg(svg: string): Promise<string> {
+  const sharp = (await import("sharp")).default;
+  const parsed = parseEditableSvg(svg);
+  const [x, y, w, h] = parsed.viewBox;
+  const scale = 512 / Math.max(w, h);
+  const { info } = await sharp(Buffer.from(editableSvgMarkup(parsed)), {
+    density: densityFor(Math.max(w, h), 512),
+  })
+    .trim({ threshold: 1 })
+    .toBuffer({ resolveWithObject: true });
+  const left = -(info.trimOffsetLeft ?? 0) / scale,
+    top = -(info.trimOffsetTop ?? 0) / scale;
+  const width = info.width / scale,
+    height = info.height / scale;
+  // Nothing to gain on a board the drawing already fills.
+  if (width >= w * 0.97 && height >= h * 0.97) return svg;
+  const pad = Math.max(width, height) * 0.08;
+  return withViewBox(svg, [
+    x + left - pad,
+    y + top - pad,
+    width + pad * 2,
+    height + pad * 2,
+  ]);
 }
 
 /* ------------------------------------------------------------------------ */

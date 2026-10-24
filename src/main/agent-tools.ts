@@ -309,6 +309,7 @@ export const cutlineTools: Tool[] = [
           path: z.string().optional(),
         })
         .strict(),
+      true,
     ),
     annotations: edit(false),
   },
