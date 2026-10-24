@@ -1484,6 +1484,32 @@ describe("cutline_voiceover makes local narration and can place it", () => {
     expect(store.project.assets).toEqual([]);
   });
 
+  it("cancelling a page capture closes it instead of only relabelling the job", async () => {
+    const screenshot = vi.fn(
+      (_url: string, options: { signal?: AbortSignal }) =>
+        new Promise<{ file: string; title: string }>((_, reject) =>
+          options.signal?.addEventListener("abort", () =>
+            reject(Error("Cancelled")),
+          ),
+        ),
+    );
+    const { call, guard, jobs, store } = setup({
+      references: { logo: vi.fn(), screenshot },
+    });
+    const before = store.project;
+    const pending = call("cutline_reference", {
+      ...guard(),
+      kind: "screenshot",
+      target: "https://example.com",
+    });
+    await vi.waitFor(() => expect(screenshot).toHaveBeenCalled());
+    const job = [...jobs.jobs.values()].find((j) => j.kind === "reference")!;
+    jobs.cancel(job.id);
+    await expect(pending).rejects.toThrow("Cancelled");
+    expect(job.state).toBe("cancelled");
+    expect(store.project).toBe(before);
+  });
+
   it("never lands stock in a Finder duplicate of the project opened during the download", async () => {
     const { call, guard, store, download, directory } = setup();
     const file = path.join(directory, "Reel.cutline");

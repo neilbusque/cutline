@@ -246,7 +246,11 @@ export type AgentMediaDeps = {
     inLibrary?: (name: string) => Promise<boolean>;
     screenshot: (
       url: string,
-      options: { device: "desktop" | "phone"; selector?: string },
+      options: {
+        device: "desktop" | "phone";
+        selector?: string;
+        signal?: AbortSignal;
+      },
     ) => Promise<{ file: string; title: string }>;
   };
 };
@@ -628,6 +632,20 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     };
   }
 
+  /** A page capture as a job whose Cancel closes the capture window. */
+  const capture = (
+    url: string,
+    options: { device: "desktop" | "phone"; selector?: string },
+  ) =>
+    deps.jobs.run("reference", "Capturing the page", (job) => {
+      const stop = new AbortController();
+      deps.jobs.cancellers?.set(job.id, () => stop.abort());
+      return deps.references!.screenshot(url, {
+        ...options,
+        signal: stop.signal,
+      });
+    });
+
   /** A logo found by name alone may be another company with that name. */
   const nameOnly = (logo: BrandLogo) =>
     logo.matchedBy === "name"
@@ -727,12 +745,10 @@ export function createAgentMedia(deps: AgentMediaDeps) {
         source: logo.source,
       };
     }
-    const shot = await deps.jobs.run("reference", "Capturing the page", () =>
-      deps.references!.screenshot(args.target, {
-        device: args.phone ? "phone" : "desktop",
-        selector: args.selector,
-      }),
-    );
+    const shot = await capture(args.target, {
+      device: args.phone ? "phone" : "desktop",
+      selector: args.selector,
+    });
     stillOpen();
     const asset = await deps.media.import(shot.file);
     stillOpen();
@@ -882,15 +898,10 @@ export function createAgentMedia(deps: AgentMediaDeps) {
               });
             }
           } else {
-            const shot = await deps.jobs.run(
-              "reference",
-              "Capturing the page",
-              () =>
-                deps.references!.screenshot(beat.show!, {
-                  device: "desktop",
-                  selector: beat.selector,
-                }),
-            );
+            const shot = await capture(beat.show!, {
+              device: "desktop",
+              selector: beat.selector,
+            });
             stillOpen();
             const asset = await deps.media.import(shot.file);
             asset.name = shot.title.slice(0, 150);
