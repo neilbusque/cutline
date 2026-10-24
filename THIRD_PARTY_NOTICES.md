@@ -32,6 +32,10 @@ Rendering uses the full Google Chrome for Testing 156.0.8078.47 application, dow
 
 Electron, Chromium, Node.js and their incorporated components retain their own licenses and notices. Electron is MIT licensed; Chromium includes BSD-style licensed code and many separately licensed components. A future binary distribution must preserve and review the terms of the actual included builds. See [Electron's license](https://github.com/electron/electron/blob/main/LICENSE) and [Chromium's license](https://chromium.googlesource.com/chromium/src/+/main/LICENSE). Cutline's source-only release does not include the downloaded browser application.
 
+## Image processing
+
+Cutline uses `sharp` 0.35.5 (Apache-2.0) to render generated vectors for the assistant's own check and to cut generated pictures out of their backdrop. Its prebuilt macOS package includes libvips, which is LGPL-3.0-or-later, plus libvips' own bundled libraries. See [sharp's license](https://github.com/lovell/sharp/blob/main/LICENSE) and [libvips' license](https://github.com/libvips/libvips/blob/master/LICENSE). Transformers.js already depended on the same pinned version.
+
 ## Other packages and media
 
 React, React DOM, Zod, Lucide, the MCP SDK, build tools and test tools retain their package licenses. Exact installed versions are in `package-lock.json`. [Source references](licenses/source-notices.md) identify important upstream sources and the provenance of included notice copies; this is not an exhaustive software bill of materials.
