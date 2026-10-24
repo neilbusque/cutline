@@ -44,6 +44,19 @@ describe("generated vectors", () => {
     expect(prompt).toContain("#112233");
   });
 
+  it("asks for a whole frame with its own background for a Story shot", () => {
+    const prompt = vectorUserPrompt(
+      VectorGenerateSchema.parse({
+        prompt: "a farmer checking crops at sunrise",
+        aspect: "wide",
+        fill: true,
+      }),
+    );
+    expect(prompt).toContain("whole video frame");
+    expect(prompt).toContain("background edge to edge");
+    expect(prompt).not.toContain("light neutral board");
+  });
+
   it("sends the importer's complaint back once and returns the fixed SVG", async () => {
     const prompts: string[] = [];
     const replies = [

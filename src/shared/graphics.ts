@@ -155,6 +155,9 @@ export function reviewPrompt(input: VectorGenerateInput, svg: string, canDecline
   return [
     `The request was: ${input.prompt}`,
     `Style: ${style.brief}`,
+    input.fill
+      ? "It is a whole video frame: its background must still cover the board edge to edge."
+      : "",
     canDecline
       ? `If no vector within 40 shapes could show this well, reply with exactly ${DECLINE}.`
       : "",

@@ -51,6 +51,8 @@ export const VectorGenerateSchema = z.strictObject({
     .optional(),
   /** What the graphic sits on in the video, such as "near-black video". */
   onto: z.string().trim().min(2).max(80).optional(),
+  /** A whole video frame: the drawing paints its own background edge to edge. */
+  fill: z.boolean().optional(),
 });
 export type VectorGenerateInput = z.infer<typeof VectorGenerateSchema>;
 
@@ -91,9 +93,11 @@ export function vectorUserPrompt(input: VectorGenerateInput) {
     input.palette?.length
       ? `Use this palette (add tints or shades of it only): ${input.palette.join(", ")}.`
       : "",
-    input.onto
-      ? `It sits on ${input.onto}: draw no background, tile or frame, and pick colors that stand out on it.`
-      : "It sits on a light neutral board.",
+    input.fill
+      ? "It is a whole video frame: first paint the background edge to edge (sky, wall, floor or a flat color), then the scene. Keep the main subject inside the middle 80%."
+      : input.onto
+        ? `It sits on ${input.onto}: draw no background, tile or frame, and pick colors that stand out on it.`
+        : "It sits on a light neutral board.",
     "Reply with the SVG only.",
   ]
     .filter(Boolean)

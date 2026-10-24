@@ -178,6 +178,19 @@ describe("making a graphic", () => {
     expect(made.kind).toBe("vector");
   });
 
+  it("reviews a whole-frame shot without taking its background away", async () => {
+    const { ask, calls } = assistant(good, "<score>5</score><ok/>");
+    const make = vi.fn(async () => picture);
+    const made = await generateGraphic(
+      { prompt: "a farmer at sunrise", route: "vector", fill: true, aspect: "wide" },
+      { ask, render, picture: make },
+    );
+    expect(made.kind).toBe("vector");
+    expect(make).not.toHaveBeenCalled();
+    expect(calls[0].prompt).toContain("whole video frame");
+    expect(calls[1].prompt).toContain("edge to edge");
+  });
+
   it("stops at once when cancelled", async () => {
     const ask = vi.fn(async () => {
       throw Error("Cancelled");

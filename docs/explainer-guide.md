@@ -33,7 +33,7 @@ Expand **Product film → Brand & colors** to change the shared brand name and p
 
 For Product focus, open **Produce**, select each screen scene, then choose **Import footage or images** and assign the relevant asset under **Use media**. Use your real screenshots or recordings. Cutline adds the frame, copy and motion; it does not generate a working interface or perform the demonstrated actions. Missing screen media blocks creation before narration begins.
 
-For footage scenes, the existing per-scene controls remain available. Optional Higgsfield generation is a separate explicit action that uses the connected provider account. **Create explainer** does not submit paid generation requests.
+For footage scenes, the existing per-scene controls remain available. **Draw this shot** has Claude or ChatGPT (whichever the Assistant uses) draw the whole frame from the shot prompt, or from the scene's title and narration when the prompt is empty. The drawing is added to Media as an image at the project's size and becomes the scene's visual; save the storyline to keep it. It uses your assistant sign-in, not Higgsfield credits. Optional Higgsfield generation is a separate explicit action that uses the connected provider account. **Create explainer** does not submit paid generation requests.
 
 ## Create narration and the timeline
 

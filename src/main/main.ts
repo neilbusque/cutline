@@ -47,7 +47,7 @@ import {
   statSync,
 } from "node:fs";
 import { fork } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { resolveSessionContext, SessionManager } from "./sessions";
 import { createSessionRouter, sessionTools } from "./session-routing";
 import { SessionLeases } from "./session-leases";
@@ -199,6 +199,8 @@ let agentIO: ReturnType<typeof createAgentIO>;
 let agentMedia: ReturnType<typeof createAgentMedia>;
 let references: References;
 let vectorGeneration: AbortController | undefined;
+/** A Story shot being drawn, so Cancel can stop it. */
+let shotDrawing: AbortController | undefined;
 /**
  * A graphic through Cutline's one route: the signed-in Claude or ChatGPT draws
  * a vector and checks its render; a subject too detailed for that becomes a
@@ -209,6 +211,8 @@ async function makeGraphic(
   options: {
     signal?: AbortSignal;
     onStep?: (step: "drawing" | "reviewing" | "picture") => void;
+    /** Shrink the board to what is drawn (not for whole-frame drawings). */
+    fit?: boolean;
   } = {},
 ): Promise<GraphicResult> {
   const connected = (await generationCredentials.status()).configured;
@@ -231,7 +235,8 @@ async function makeGraphic(
     onStep: options.onStep,
   });
   // Every drawing places at the same visual size, centered on what is drawn.
-  const fit = (svg: string) => fitSvg(svg).catch(() => svg);
+  const fit = (svg: string) =>
+    options.fit === false ? Promise.resolve(svg) : fitSvg(svg).catch(() => svg);
   if (made.kind === "vector") return { ...made, svg: await fit(made.svg) };
   return made.drawing
     ? { ...made, drawing: { ...made.drawing, svg: await fit(made.drawing.svg) } }
@@ -1753,6 +1758,56 @@ function register() {
     "graphic.cancel": () => {
       vectorGeneration?.abort();
       vectorGeneration = undefined;
+    },
+    // Story > Produce: Claude or ChatGPT draws a whole frame for a shot,
+    // added to Media as an image. Higgsfield video stays the paid fallback.
+    "story.drawShot": async (args) => {
+      const prompt = z.string().trim().min(2).max(2000).parse(args?.prompt);
+      const p = store.project;
+      const opening = store.openSession;
+      shotDrawing?.abort();
+      const controller = (shotDrawing = new AbortController());
+      try {
+        const made = await makeGraphic(
+          GraphicGenerateSchema.parse({
+            prompt,
+            style: "flat",
+            provider:
+              assistantSettings.provider === "codex" ? "chatgpt" : "claude",
+            aspect:
+              p.width > p.height ? "wide" : p.height > p.width ? "tall" : "square",
+            route: "vector",
+            fill: true,
+          }),
+          { signal: controller.signal, fit: false },
+        );
+        if (made.kind !== "vector") throw Error("The shot could not be drawn.");
+        if (store.openSession !== opening)
+          throw Error("A different project was opened meanwhile. Draw the shot again.");
+        const folder = path.join(data, "generated-media", "drawings");
+        mkdirSync(folder, { recursive: true });
+        const file = path.join(folder, `${randomUUID()}.png`);
+        writeFileSync(
+          file,
+          await renderSvg(made.svg, p.background, Math.max(p.width, p.height)),
+        );
+        const imported = await media.import(file);
+        imported.name = prompt.replace(/\s+/gu, " ").slice(0, 60);
+        store.commit(
+          validateProject({
+            ...store.project,
+            assets: [...store.project.assets, imported],
+          }),
+          "Add drawn shot",
+        );
+        return { assetId: imported.id };
+      } finally {
+        if (shotDrawing === controller) shotDrawing = undefined;
+      }
+    },
+    "story.drawShot.cancel": () => {
+      shotDrawing?.abort();
+      shotDrawing = undefined;
     },
     "graphic.settings": async () => ({
       ...graphicsSettings,

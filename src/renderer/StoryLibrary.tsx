@@ -12,6 +12,7 @@ import {
   ImagePlus,
   LoaderCircle,
   Mic2,
+  PenTool,
   Plus,
   RefreshCw,
   Save,
@@ -166,6 +167,8 @@ export function StoryLibrary({
   const [action, setAction] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  /** The scene whose shot Claude or ChatGPT is drawing. */
+  const [drawingShot, setDrawingShot] = useState("");
   const [result, setResult] = useState<BuildResult>();
   const [voiceStatus, setVoiceStatus] = useState<TtsStatus>();
   const [configured, setConfigured] = useState<boolean>();
@@ -420,6 +423,30 @@ export function StoryLibrary({
     setResult(undefined);
     setNotice("");
     setError("");
+  }
+  /**
+   * Claude or ChatGPT (as chosen in the Assistant) draws the whole shot as an
+   * illustration; it lands in Media and becomes the scene's visual.
+   */
+  async function drawShot(scene: StoryScene) {
+    const prompt = (
+      scene.visualPrompt.trim() ||
+      [scene.title, scene.narration].filter((part) => part.trim()).join(": ")
+    ).slice(0, 2000);
+    if (prompt.trim().length < 2) {
+      setError("Describe the shot first.");
+      return;
+    }
+    setError("");
+    setDrawingShot(scene.id);
+    try {
+      const { assetId } = await api.invoke("story.drawShot", { prompt });
+      updateScene(scene.id, { assetId });
+    } catch (failure) {
+      if (!/cancel|abort/i.test(String(failure))) setError(errorText(failure));
+    } finally {
+      setDrawingShot("");
+    }
   }
   function updateScene(id: string, patch: Partial<StoryScene>) {
     change((draft) => ({
@@ -1634,6 +1661,31 @@ export function StoryLibrary({
               )}
               {sceneNeedsMedia(selected) && (
                 <>
+                  <div className="story-draw-shot">
+                    <button
+                      className="control"
+                      disabled={!!drawingShot}
+                      title="Claude or ChatGPT, as chosen in the Assistant, draws the whole shot from its prompt. The drawing is added to Media."
+                      onClick={() => void drawShot(selected)}
+                    >
+                      {drawingShot === selected.id ? (
+                        <LoaderCircle size={13} className="spin" aria-hidden="true" />
+                      ) : (
+                        <PenTool size={13} aria-hidden="true" />
+                      )}
+                      {drawingShot === selected.id
+                        ? "Drawing this shot…"
+                        : "Draw this shot"}
+                    </button>
+                    {drawingShot === selected.id && (
+                      <button
+                        className="story-inline-action"
+                        onClick={() => void api.invoke("story.drawShot.cancel")}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
                   <label className="story-field">
                     Use media
                     <select

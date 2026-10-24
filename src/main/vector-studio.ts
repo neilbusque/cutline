@@ -267,14 +267,18 @@ const densityFor = (side: number, pixels: number) =>
  * A drawing exactly as Cutline will draw it (its imported layers, on the
  * vector preview's neutral board), for the assistant to look at its work.
  */
-export async function renderSvg(svg: string, background = "#f4f3ef") {
+export async function renderSvg(
+  svg: string,
+  background = "#f4f3ef",
+  size = 768,
+) {
   const sharp = (await import("sharp")).default;
   const parsed = parseEditableSvg(svg);
   const [, , w, h] = parsed.viewBox;
   return sharp(Buffer.from(editableSvgMarkup(parsed, background)), {
-    density: densityFor(Math.max(w, h), 768),
+    density: densityFor(Math.max(w, h), size),
   })
-    .resize(768, 768, { fit: "inside" })
+    .resize(size, size, { fit: "inside" })
     .png()
     .toBuffer();
 }
