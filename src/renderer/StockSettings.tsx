@@ -45,7 +45,9 @@ export function StockSettings({
       // Cleared only once it is saved, so a failed save keeps the pasted key.
       setKey("");
       setNotice(
-        disconnect ? "Pexels key removed from this Mac." : "Pexels is connected.",
+        disconnect
+          ? "Pexels key removed from this Mac."
+          : "Pexels is connected.",
       );
       window.dispatchEvent(new CustomEvent(STOCK_SETTINGS_EVENT));
     } catch (failure) {
@@ -80,7 +82,9 @@ export function StockSettings({
               className="ac-button"
               onClick={() =>
                 void api
-                  .invoke("stock.source", { url: "https://www.pexels.com/api/" })
+                  .invoke("stock.source", {
+                    url: "https://www.pexels.com/api/",
+                  })
                   .catch(report)
               }
             >

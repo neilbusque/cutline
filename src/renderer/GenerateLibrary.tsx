@@ -428,7 +428,9 @@ export function GenerateLibrary({
             maxLength={maxPromptLength}
             required
             disabled={submitting}
-            aria-describedby={promptTooLong ? "generation-prompt-hint" : undefined}
+            aria-describedby={
+              promptTooLong ? "generation-prompt-hint" : undefined
+            }
             aria-invalid={promptTooLong || undefined}
           />
         </label>

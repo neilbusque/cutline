@@ -93,7 +93,9 @@ export function GraphicStudio({
     const refresh = () =>
       window.cutline
         .invoke("graphic.settings")
-        .then((value: { connected: boolean }) => setPictures(!!value?.connected))
+        .then((value: { connected: boolean }) =>
+          setPictures(!!value?.connected),
+        )
         .catch(() => setPictures(false));
     refresh();
     window.addEventListener(GENERATION_SETTINGS_EVENT, refresh);

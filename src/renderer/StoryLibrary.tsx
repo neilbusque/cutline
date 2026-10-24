@@ -2286,9 +2286,7 @@ export function StoryLibrary({
             <Captions size={14} aria-hidden="true" />
             Review captions
           </button>
-          <p>
-            Play it back, refine the edit, then Export in the top bar.
-          </p>
+          <p>Play it back, refine the edit, then Export in the top bar.</p>
         </div>
       )}
     </div>

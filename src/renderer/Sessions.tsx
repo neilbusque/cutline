@@ -107,8 +107,7 @@ export function Sessions() {
         void load();
       }
     } catch (error) {
-      if (live.current)
-        setError(errorText(error));
+      if (live.current) setError(errorText(error));
     } finally {
       inFlight.current = false;
       if (live.current) setBusy("");

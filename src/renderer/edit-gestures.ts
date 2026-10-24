@@ -256,7 +256,8 @@ export function timingCommands(
 export function duplicateCommands(project: Project, clip: Clip) {
   const free = (trackId: string, start: number, end: number) =>
     !project.clips.some(
-      (c) => c.trackId === trackId && c.start < end && c.start + c.duration > start,
+      (c) =>
+        c.trackId === trackId && c.start < end && c.start + c.duration > start,
     );
   const commands: Command[] = [];
   const start = clip.start + clip.duration;

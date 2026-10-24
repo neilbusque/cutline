@@ -143,9 +143,8 @@ describe("keys live in Settings", () => {
   afterEach(() => vi.unstubAllGlobals());
 
   it("puts the Pexels key beside Higgsfield under Pictures and video", async () => {
-    const { HiggsfieldSettings } = await import(
-      "../src/renderer/HiggsfieldSettings"
-    );
+    const { HiggsfieldSettings } =
+      await import("../src/renderer/HiggsfieldSettings");
     const html = renderToStaticMarkup(h(HiggsfieldSettings, { report: noop }));
     expect(html).toContain("Pictures and video");
     expect(html).toContain('aria-label="Higgsfield API key"');
@@ -355,11 +354,12 @@ describe("generated captions follow every trim and timing edit", () => {
 });
 
 describe("keys pressed in a panel act on what is focused there", () => {
-  const at = (tagName: string, inPanel: boolean) => ({
-    tagName,
-    closest: (selector: string) =>
-      inPanel && selector.includes(".right-panel") ? {} : null,
-  }) as unknown as Element;
+  const at = (tagName: string, inPanel: boolean) =>
+    ({
+      tagName,
+      closest: (selector: string) =>
+        inPanel && selector.includes(".right-panel") ? {} : null,
+    }) as unknown as Element;
 
   it("Delete on a path point, key or layer row never reaches the clip", () => {
     for (const key of ["Delete", "Backspace"]) {
@@ -463,7 +463,10 @@ describe("Cmd+D duplicates like the agent", () => {
     return p;
   };
   const run = (p: Project, id: string) => {
-    const made = duplicateCommands(p, p.clips.find((c) => c.id === id)!);
+    const made = duplicateCommands(
+      p,
+      p.clips.find((c) => c.id === id)!,
+    );
     const next = applyCommands(p, {
       projectId: p.id,
       revision: p.revision,
@@ -523,7 +526,9 @@ describe("clicking a clip never nudges it", () => {
 
 describe("Generate subtitles twice runs whisper once", () => {
   it("a second request for the same recording waits for the first", async () => {
-    const folder = mkdtempSync(path.join(os.tmpdir(), "cutline-ui-transcribe-"));
+    const folder = mkdtempSync(
+      path.join(os.tmpdir(), "cutline-ui-transcribe-"),
+    );
     try {
       const whisper = path.join(folder, "whisper"),
         model = path.join(folder, "model.bin"),
@@ -535,7 +540,9 @@ describe("Generate subtitles twice runs whisper once", () => {
         { ffmpeg: "", ffprobe: "", whisper, model },
         jobs,
       );
-      let finish!: (words: { text: string; start: number; end: number }[]) => void;
+      let finish!: (
+        words: { text: string; start: number; end: number }[],
+      ) => void;
       const run = vi
         .spyOn(jobs, "run")
         .mockImplementation(
@@ -592,7 +599,9 @@ describe("Properties shows when subtitles or pauses are running", () => {
         report: noop,
       }),
     );
-    expect(html).toMatch(/<button[^>]*disabled=""[^>]*>Transcribing…<\/button>/);
+    expect(html).toMatch(
+      /<button[^>]*disabled=""[^>]*>Transcribing…<\/button>/,
+    );
     expect(html).toMatch(
       /<button[^>]*disabled=""[^>]*>Finding pauses…<\/button>/,
     );
@@ -675,9 +684,8 @@ describe("copy points at things that exist", () => {
 
 describe("Draw vector starts a drawing", () => {
   it("opens the Path designer empty, with Add points on", async () => {
-    const { VectorEditor, startVectorDrawing } = await import(
-      "../src/renderer/VectorEditor"
-    );
+    const { VectorEditor, startVectorDrawing } =
+      await import("../src/renderer/VectorEditor");
     const { parseEditableSvg } = await import("../src/shared/vector-path");
     const { createVectorScene } = await import("../src/shared/vector-scenes");
     const created = createVectorScene(
@@ -730,8 +738,20 @@ describe("job progress lives in a store the status bar follows", () => {
     vi.stubGlobal("window", { cutline: {} });
     const { JobStatus } = await import("../src/renderer/App");
     const jobs = createValueStore<any[]>([
-      { id: "p", kind: "preview", state: "running", progress: 0.2, message: "Preview copy" },
-      { id: "e", kind: "export", state: "running", progress: 0.5, message: "Exporting 50%" },
+      {
+        id: "p",
+        kind: "preview",
+        state: "running",
+        progress: 0.2,
+        message: "Preview copy",
+      },
+      {
+        id: "e",
+        kind: "export",
+        state: "running",
+        progress: 0.5,
+        message: "Exporting 50%",
+      },
     ]);
     const line = () =>
       renderToStaticMarkup(
@@ -744,11 +764,24 @@ describe("job progress lives in a store the status bar follows", () => {
     expect(line()).toContain("Exporting 50%");
     expect(line()).toContain("Cancel");
     jobs.set([
-      { id: "e", kind: "export", state: "done", progress: 1, message: "Done", output: "/x.mp4" },
+      {
+        id: "e",
+        kind: "export",
+        state: "done",
+        progress: 1,
+        message: "Done",
+        output: "/x.mp4",
+      },
     ]);
     expect(line()).toContain("Export complete");
     jobs.set([
-      { id: "t", kind: "transcribe", state: "error", progress: 0, message: "Failed" },
+      {
+        id: "t",
+        kind: "transcribe",
+        state: "error",
+        progress: 0,
+        message: "Failed",
+      },
     ]);
     expect(line()).toContain("Job failed");
   });

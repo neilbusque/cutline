@@ -127,8 +127,7 @@ export function AudioLibrary({
       setCreatedSignature(signature);
       setPreview(asset.id);
     } catch (error) {
-      if (mounted.current && request.current === id)
-        setError(errorText(error));
+      if (mounted.current && request.current === id) setError(errorText(error));
     } finally {
       if (mounted.current && request.current === id) setOperation(undefined);
     }
@@ -146,8 +145,7 @@ export function AudioLibrary({
         setStatusError("");
       }
     } catch (error) {
-      if (mounted.current && request.current === id)
-        setError(errorText(error));
+      if (mounted.current && request.current === id) setError(errorText(error));
     } finally {
       if (mounted.current && request.current === id) setOperation(undefined);
     }

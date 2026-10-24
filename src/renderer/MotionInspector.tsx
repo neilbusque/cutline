@@ -1532,8 +1532,7 @@ export function MotionInspector({
                 seek(motionKeySeekFrame(layer, clip, k.frame, frame));
               }}
               onKeyDown={(event) => {
-                if (event.key !== "Delete" && event.key !== "Backspace")
-                  return;
+                if (event.key !== "Delete" && event.key !== "Backspace") return;
                 event.preventDefault();
                 event.stopPropagation();
                 removeKey(k.frame);
