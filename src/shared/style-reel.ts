@@ -14,6 +14,7 @@ import {
 } from "./model";
 import { parseEditableSvg } from "./vector-path";
 import { createVectorScene } from "./vector-scenes";
+import { checkFrames } from "./check-frames";
 
 /**
  * Creator-style Shorts laid out from a beat plan: the speaker's framing
@@ -157,60 +158,74 @@ function clipEnd(c: Pick<Clip, "start" | "duration">) {
   return c.start + c.duration;
 }
 
-/** Re-cut one speaker clip at the beat edges and frame each piece. */
+/**
+ * Re-cut one speaker clip at the beat edges exactly as a split does, so its
+ * fades stay on the outer ends, the footage carries on (reversed too), its
+ * keys keep their phase, a crossfade out of it still works and each caption
+ * belongs to the piece it plays over. Then frame each piece for its layout.
+ */
 function reframeSpeaker(
+  p: Project,
   clip: Clip,
   edges: number[],
   layoutAt: (frame: number) => StyleLayout,
   style: StyleReelStyle,
-  p: Project,
+  warnings: string[],
 ): Clip[] {
-  const cuts = [
-    clip.start,
-    ...edges.filter((f) => f > clip.start && f < clipEnd(clip)),
-    clipEnd(clip),
-  ];
-  const pieces: Clip[] = [];
-  for (let i = 0; i < cuts.length - 1; i++) {
-    const start = cuts[i],
-      duration = cuts[i + 1] - start;
-    if (duration < 1) continue;
-    const offset = start - clip.start;
-    const layout = layoutAt(start);
-    const keyframes = clip.keyframes
-      .filter(
-        (key) =>
-          !["x", "y", "scale"].includes(key.property) &&
-          key.frame >= offset &&
-          key.frame < offset + duration,
-      )
-      .map((key) => ({ ...key, frame: key.frame - offset }));
-    // A face punch-in: the head sits about a third down a vertical shot,
-    // so zoom there rather than on the chest.
+  const ids = [clip.id];
+  for (const frame of edges) {
+    const last = p.clips.find((c) => c.id === ids.at(-1))!;
+    if (frame <= last.start || frame >= clipEnd(last)) continue;
+    const before = new Set(p.clips.map((c) => c.id));
+    try {
+      applyCommands(
+        p,
+        {
+          projectId: p.id,
+          revision: p.revision,
+          label: "Reframe speaker",
+          commands: [{ type: "clip.split", id: last.id, frame }],
+        },
+        { clone: false, validate: false },
+      );
+    } catch (error) {
+      if (!/inside a transition/u.test((error as Error).message)) throw error;
+      const warning = `The speaker is not cut at ${(frame / p.fps).toFixed(1)}s, which is inside a crossfade.`;
+      if (!warnings.includes(warning)) warnings.push(warning);
+      continue;
+    }
+    ids.push(
+      p.clips.find((c) => !before.has(c.id) && c.kind === clip.kind)!.id,
+    );
+  }
+  return ids.map((id) => {
+    const piece = p.clips.find((c) => c.id === id)!;
+    const layout = layoutAt(piece.start);
+    // The layout sets the framing. A face punch-in zooms where the head sits,
+    // about a third down a vertical shot, rather than on the chest.
+    const keyframes = piece.keyframes.filter(
+      (key) => !["x", "y", "scale"].includes(key.property),
+    );
     if (layout === "face")
       keyframes.push(
-        { property: "scale", frame: 0, value: 1.45, easing: "hold" },
+        {
+          property: "scale",
+          frame: piece.animationOffset,
+          value: 1.45,
+          easing: "hold",
+        },
         {
           property: "y",
-          frame: 0,
+          frame: piece.animationOffset,
           value: Math.round(p.height * 0.13),
           easing: "hold",
         },
       );
-    pieces.push({
-      ...clip,
-      id: i === 0 ? clip.id : uid(),
-      start,
-      duration,
-      sourceIn: clip.reverse
-        ? clip.sourceIn
-        : clip.sourceIn + (offset / p.fps) * clip.speed,
-      transition: i === 0 ? clip.transition : undefined,
-      ...speakerPlacement(style, layout, p.width, p.height),
-      keyframes,
+    Object.assign(piece, speakerPlacement(style, layout, p.width, p.height), {
+      keyframes: keyframes.sort((a, b) => a.frame - b.frame),
     });
-  }
-  return pieces;
+    return piece;
+  });
 }
 
 /** Sutherland-Hodgman: a convex polygon cut to a rectangle. */
@@ -550,12 +565,10 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
 
   // Speaker framing on hard cuts.
   const reframed = speaker.flatMap((clip) =>
-    clip.freeze ? [clip] : reframeSpeaker(clip, edges, layoutAt, style, p),
+    clip.freeze
+      ? [clip]
+      : reframeSpeaker(p, clip, edges, layoutAt, style, warnings),
   );
-  p.clips = [
-    ...p.clips.filter((c) => !speaker.some((s) => s.id === c.id)),
-    ...reframed,
-  ];
 
   // Style layers sit directly above the speaker, under captions and titles.
   const make = (name: string, kind: Track["kind"]): Track => ({
@@ -904,6 +917,18 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
       beats: beats.length,
       speakerPieces: reframed.length,
       graphicWindows: windows.length,
+      // Every beat that changes the picture, once its entrance has landed.
+      checkFrames: checkFrames(
+        fps,
+        reelStart,
+        reelEnd,
+        beats
+          .filter((beat) => beat.visual || layoutFor(style, beat) !== "speaker")
+          .map((beat) => ({
+            start: beat.start,
+            duration: beat.end - beat.start,
+          })),
+      ),
     },
   };
 }

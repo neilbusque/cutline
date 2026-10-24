@@ -8,6 +8,7 @@ import {
 } from "../shared/transitions";
 import React, { useEffect, useRef, useState } from "react";
 import { compatibleTrack } from "../shared/timeline";
+import { retimedClipCommands } from "../shared/linked-captions";
 import { MotionInspector } from "./MotionInspector";
 import {
   type Clip,
@@ -275,7 +276,9 @@ export function Inspector({
               value={c.sourceIn}
               min={0}
               step={0.01}
-              onChange={(n) => patch({ sourceIn: n })}
+              onChange={(n) =>
+                edit("Adjust clip", retimedClipCommands(p, c, { sourceIn: n }))
+              }
             />
             <NumberField
               label="Speed"
@@ -284,10 +287,17 @@ export function Inspector({
               max={8}
               step={0.1}
               onChange={(n) =>
-                patch({
-                  speed: n,
-                  duration: Math.max(1, Math.floor((c.duration * c.speed) / n)),
-                })
+                // Captions and keys stay on the speech at the new speed.
+                edit(
+                  "Adjust clip",
+                  retimedClipCommands(p, c, {
+                    speed: n,
+                    duration: Math.max(
+                      1,
+                      Math.floor((c.duration * c.speed) / n),
+                    ),
+                  }),
+                )
               }
             />
           </div>

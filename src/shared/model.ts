@@ -9,10 +9,9 @@ import {
 import { StoryPlanSchema } from "./story-schema";
 export const uid = () => crypto.randomUUID();
 const finite = z.number().finite();
-const frame = finite
-  .int()
-  .min(0)
-  .max(30 * 60 * 60 * 8);
+/** The last timeline frame: 8 hours at 30 fps, 4 hours at 60. */
+export const MAX_FRAME = 30 * 60 * 60 * 8;
+const frame = finite.int().min(0).max(MAX_FRAME);
 // Only the hex lengths CSS reads. Browsers drop other lengths, so preview and
 // export would fall back to different inherited colors.
 const color = z
@@ -556,6 +555,10 @@ export function makeClip(
           : 0,
     text: kind === "text" ? "Your story starts here" : "",
     preset: kind === "text" ? "spring" : "none",
+    // A 0.6 second entrance at any frame rate, not 18 frames.
+    ...(kind === "text" || kind === "caption"
+      ? { animationFrames: Math.max(1, Math.round(p.fps * 0.6)) }
+      : {}),
   });
 }
 const isRecord = (value: unknown): value is Record<string, unknown> =>

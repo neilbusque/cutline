@@ -943,8 +943,17 @@ function volumeKeys(
 }
 
 function brollTrack(project: Project, commands: Command[]): string {
+  // Only an empty video track below every text track is reused: full-screen
+  // B-roll above the captions would hide them.
+  const lastText = project.tracks.reduce(
+    (last, track, index) => (track.kind === "text" ? index : last),
+    -1,
+  );
   const free = project.tracks.find(
-    (track) => !project.clips.some((clip) => clip.trackId === track.id),
+    (track, index) =>
+      index > lastText &&
+      track.kind === "video" &&
+      !project.clips.some((clip) => clip.trackId === track.id),
   );
   const track: Track = {
     id: free?.id ?? uid(),

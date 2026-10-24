@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
-import { captionClips, parseSrt, toSrt } from "../shared/subtitles";
+import { srtCaptionClips, toSrt } from "../shared/subtitles";
 import { Store } from "./store";
 import { Media, Jobs } from "./media";
 import type { ProjectLibrary } from "./projects";
@@ -377,11 +377,8 @@ export function createAgentIO(options: {
         return job;
       }
       case "cutline_caption_srt": {
-        const entries = parseSrt(args.srt);
-        if (!entries.length) throw Error("No valid SRT captions found.");
-        const clips = entries.flatMap((word) =>
-          captionClips(store.project, [word]),
-        );
+        const clips = srtCaptionClips(store.project, args.srt);
+        if (!clips.length) throw Error("No valid SRT captions found.");
         store.commit(
           { ...store.project, clips: [...store.project.clips, ...clips] },
           "Agent import captions",

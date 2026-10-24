@@ -191,9 +191,47 @@ function assertOutsideTransitions(p: Project, c: Clip, frame: number) {
 }
 
 /**
- * Removes a clip with the captions generated from it. A ripple closes the gap
- * on every track without stacking the clips that crossfaded with it.
+ * How far a ripple delete of c moves each later clip. Its own track closes
+ * the whole gap without stacking the clips that crossfaded with it. Another
+ * track moves only as far as its own free space allows, so a title or a
+ * second voice never slides onto the clip before it, and generated captions
+ * move with their clip. `short` lists the tracks that moved less.
  */
+export function rippleShifts(p: Project, c: Clip, removed: Set<string>) {
+  const { head, tail } = transitionOverlaps(p, c);
+  const from = c.start + c.duration - tail,
+    shift = Math.max(0, c.duration - head - tail);
+  const kept = p.clips.filter((x) => x.id !== c.id && !removed.has(x.id));
+  const keptIds = new Set(kept.map((x) => x.id));
+  const linked = (x: Clip) =>
+    !!x.captionSourceId && keptIds.has(x.captionSourceId);
+  const moves = new Map<string, number>();
+  const short: { track: Track; moved: number }[] = [];
+  for (const track of p.tracks) {
+    const own = kept.filter((x) => x.trackId === track.id && !linked(x));
+    const later = own.filter((x) => x.start >= from);
+    if (!later.length) continue;
+    let moved = shift;
+    if (track.id !== c.trackId) {
+      const blockEnd = Math.max(
+        0,
+        ...own.filter((x) => x.start < from).map((x) => x.start + x.duration),
+      );
+      moved = Math.min(
+        shift,
+        Math.max(0, Math.min(...later.map((x) => x.start)) - blockEnd),
+      );
+      if (moved < shift) short.push({ track, moved });
+    }
+    for (const x of later) if (moved) moves.set(x.id, moved);
+  }
+  for (const x of kept)
+    if (linked(x) && moves.has(x.captionSourceId!))
+      moves.set(x.id, moves.get(x.captionSourceId!)!);
+  return { shift, moves, short };
+}
+
+/** Removes a clip with the captions generated from it, closing the gap on a ripple. */
 function deleteClip(
   p: Project,
   c: Clip,
@@ -201,9 +239,6 @@ function deleteClip(
   captions: boolean,
   cascaded: Set<string>,
 ) {
-  const { head, tail } = ripple
-    ? transitionOverlaps(p, c)
-    : { head: 0, tail: 0 };
   const removed = new Set([c.id]);
   if (captions)
     for (const x of p.clips)
@@ -211,26 +246,51 @@ function deleteClip(
         removed.add(x.id);
         cascaded.add(x.id);
       }
+  // Planned while c is still in place: its crossfades decide the gap.
+  const moves = ripple ? rippleShifts(p, c, removed).moves : undefined;
   p.clips = p.clips.filter((x) => !removed.has(x.id));
   // A transition from a deleted clip has nothing left to blend from.
   for (const x of p.clips)
     if (x.transition?.fromId === c.id) delete x.transition;
-  if (!ripple) return;
-  const from = c.start + c.duration - tail,
-    shift = Math.max(0, c.duration - head - tail);
-  for (const x of p.clips) if (x.start >= from) x.start -= shift;
+  if (moves) for (const x of p.clips) x.start -= moves.get(x.id) ?? 0;
 }
 
 /** Raw edits must keep every clip it touches on a track of its kind. */
 /** Where every clip sat before an edit, kept apart from the project the edit changes. */
 type TrackPlaces = {
-  clips: Map<string, Pick<Clip, "trackId" | "kind">>;
+  clips: Map<string, Pick<Clip, "trackId" | "kind" | "assetId">>;
   tracks: Map<string, Track["kind"]>;
 };
 const trackPlaces = (p: Project): TrackPlaces => ({
-  clips: new Map(p.clips.map((c) => [c.id, { trackId: c.trackId, kind: c.kind }])),
+  clips: new Map(
+    p.clips.map((c) => [
+      c.id,
+      { trackId: c.trackId, kind: c.kind, assetId: c.assetId },
+    ]),
+  ),
   tracks: new Map(p.tracks.map((t) => [t.id, t.kind])),
 });
+
+/**
+ * A clip added or changed in this edit must be able to play its media: an
+ * mp3 in a video clip or a picture in an audio clip shows nothing and stops
+ * the export.
+ */
+function checkMediaKinds(before: TrackPlaces, p: Project) {
+  const assets = new Map(p.assets.map((a) => [a.id, a]));
+  for (const c of p.clips) {
+    if (c.kind !== "video" && c.kind !== "audio" && c.kind !== "image")
+      continue;
+    const old = before.clips.get(c.id);
+    // A mismatch saved by an older build stays editable until it changes.
+    if (old && old.kind === c.kind && old.assetId === c.assetId) continue;
+    const a = c.assetId ? assets.get(c.assetId) : undefined;
+    if (a && (c.kind === "audio" ? a.kind === "image" : a.kind !== c.kind))
+      throw Error(
+        `Clip ${c.id} is ${c.kind === "image" ? "an" : "a"} ${c.kind} clip, so it cannot play the ${a.kind} "${a.name}".`,
+      );
+  }
+}
 
 function checkTrackKinds(before: TrackPlaces, p: Project) {
   const tracks = new Map(p.tracks.map((t) => [t.id, t]));
@@ -428,6 +488,7 @@ export function applyCommands(
     }
   }
   checkTrackKinds(before, p);
+  checkMediaKinds(before, p);
   collectMotions(p, putMotions);
   p.revision++;
   return options.validate === false ? p : validateProject(p);
@@ -641,7 +702,29 @@ export function removePauses(
     // time they spanned. One that sat only inside a pause moves to the cut.
     const duration = stop - start >= 1 ? stop - start : x.duration;
     if (start !== x.start || duration !== x.duration)
-      update(x.id, { start, duration });
+      update(x.id, {
+        start,
+        duration,
+        // Keys stay on the moments they mark, such as a music duck under each
+        // phrase. Keys that land on one frame keep the later one.
+        ...(duration !== x.duration && x.keyframes.length
+          ? {
+              keyframes: [
+                ...new Map(
+                  x.keyframes.map((key) => {
+                    const frame = Math.max(
+                      0,
+                      map(x.start + key.frame - x.animationOffset) -
+                        start +
+                        x.animationOffset,
+                    );
+                    return [`${key.property} ${frame}`, { ...key, frame }];
+                  }),
+                ).values(),
+              ].sort((a, b) => a.frame - b.frame),
+            }
+          : {}),
+      });
   }
   return [
     ...[...patches].map(([clipId, patch]): Command => ({

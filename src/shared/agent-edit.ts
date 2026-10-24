@@ -8,6 +8,7 @@ import {
   AssetSchema,
   ClipSchema,
   KeyframeSchema,
+  MAX_FRAME,
   MotionLayerSchema,
   MotionSchema,
   ProjectSchema,
@@ -27,6 +28,7 @@ import {
   CommandSchema,
   TransactionSchema,
   applyCommands,
+  rippleShifts,
   type Command,
 } from "./commands";
 import { animatedProperties, propertyBounds } from "./animation";
@@ -44,10 +46,16 @@ import {
   shapeTypes,
 } from "./motion-presets";
 import { compatibleTrack, trimClip } from "./timeline";
+import { linkedCaptionCommands, retimedClipCommands } from "./linked-captions";
+import { resizeCanvas } from "./canvas";
 import { newTrack } from "./layers";
 import { captionTextPatch } from "./caption-edit";
-import { captionStylePatch, captionStyles } from "./caption-styles";
-import { captionClips, parseSrt } from "./subtitles";
+import {
+  captionPlacement,
+  captionStylePatch,
+  captionStyles,
+} from "./caption-styles";
+import { srtCaptionClips } from "./subtitles";
 import {
   MAX_VECTOR_LAYERS,
   MAX_VECTOR_PATH_LENGTH,
@@ -68,11 +76,7 @@ import {
   motionRecipes,
 } from "./motion-recipes";
 
-const frame = z
-  .number()
-  .int()
-  .min(0)
-  .max(30 * 60 * 60 * 8);
+const frame = z.number().int().min(0).max(MAX_FRAME);
 export const AgentTimeSchema = z.union([
   z.strictObject({ frame }),
   z.strictObject({
@@ -155,7 +159,9 @@ const projectPatch = partialShape({
   background: ProjectSchema.shape.background,
   // Only while the timeline is empty: clip timing is counted in frames.
   fps: ProjectSchema.shape.fps,
-});
+}) as z.ZodType<
+  Partial<Pick<Project, "name" | "width" | "height" | "background" | "fps">>
+>;
 const layerIndex = z.number().int().min(0).max(MAX_VECTOR_LAYERS - 1);
 const penCoordinate = z.number().finite().min(-1e7).max(1e7);
 const penHandle = z.strictObject({ x: penCoordinate, y: penCoordinate });
@@ -469,8 +475,16 @@ export const AgentEditSchema = z.strictObject({
 export type AgentAction = z.infer<typeof AgentActionSchema>;
 export type AgentEdit = z.infer<typeof AgentEditSchema>;
 type Time = z.infer<typeof AgentTimeSchema>;
-const toFrame = (time: Time, fps: number) =>
-  "frame" in time ? time.frame : Math.round(time.seconds * fps);
+/** A {frame} or {seconds} time in frames, refused in plain words past the timeline's end. */
+export function agentFrame(time: Time, fps: number) {
+  const value = "frame" in time ? time.frame : Math.round(time.seconds * fps);
+  if (value > MAX_FRAME)
+    throw Error(
+      `Times must be under ${Number((MAX_FRAME / fps / 3600).toFixed(1))} hours at ${fps} fps.`,
+    );
+  return value;
+}
+const toFrame = agentFrame;
 
 /** A finished edit that fails its project check, before naming the action that broke it. */
 class UncheckedEditError extends Error {}
@@ -561,17 +575,6 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
         fromId: resolve(result.transition.fromId),
       };
     return result;
-  };
-  const checkMedia = (c: Pick<Clip, "kind" | "assetId">) => {
-    if (!["video", "audio", "image"].includes(c.kind)) return;
-    const a = working.assets.find((asset) => asset.id === c.assetId);
-    if (!a) throw Error("Media clips require an imported asset.");
-    if (
-      (c.kind === "video" && a.kind !== "video") ||
-      (c.kind === "image" && a.kind !== "image") ||
-      (c.kind === "audio" && a.kind === "image")
-    )
-      throw Error("The selected asset does not support this clip kind.");
   };
   const run = (commands: Command[]) => {
     if (commands.length)
@@ -672,9 +675,23 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
               : action.kind === "text" || action.kind === "caption"
                 ? "text"
                 : "video";
+          // A caption joins the existing captions, or the Captions track,
+          // rather than the first text track (usually Titles).
+          const captionTrack =
+            action.kind === "caption"
+              ? working.tracks.find(
+                  (t) =>
+                    !t.hidden &&
+                    (working.clips.some(
+                      (c) => c.kind === "caption" && c.trackId === t.id,
+                    ) ||
+                      t.id === "captions"),
+                )
+              : undefined;
           const destination = action.trackId
             ? track(action.trackId)
-            : (working.tracks.find((t) => t.kind === kind && !t.hidden) ??
+            : (captionTrack ??
+              working.tracks.find((t) => t.kind === kind && !t.hidden) ??
               newTrack(working, kind));
           if (!compatibleTrack({ kind: action.kind }, destination))
             throw Error("The clip kind does not match its destination track.");
@@ -686,6 +703,14 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
               action.at ? toFrame(action.at, working.fps) : 0,
               asset,
             ),
+            // The look and placement generated captions get, inside the
+            // Reel safe area.
+            ...(action.kind === "caption"
+              ? {
+                  ...captionStylePatch("standard", working),
+                  ...captionPlacement(working),
+                }
+              : {}),
             ...resolvePatch(action.patch ?? {}),
             ...(action.duration
               ? { duration: toFrame(action.duration, working.fps) }
@@ -693,7 +718,6 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           });
           if (created.kind !== action.kind)
             throw Error("Set the clip kind in clip.add rather than its patch.");
-          checkMedia(created);
           if (created.trackId === destination.id) {
             if (!compatibleTrack(created, destination))
               throw Error(
@@ -716,8 +740,8 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
             { kind: patch.kind ?? c.kind },
             patch.trackId ?? c.trackId,
           );
-          checkMedia({ ...c, ...patch });
-          run([{ type: "clip.update", id: c.id, patch }]);
+          // A new speed or source in keeps its captions on the speech.
+          run(retimedClipCommands(working, c, patch));
           break;
         }
         case "clip.split": {
@@ -757,34 +781,10 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
               `Trim for ${c.id} was bounded to available source frames: ${trimmed.start}–${trimmed.start + trimmed.duration}.`,
             );
           const { id: ignored, ...patch } = trimmed;
-          const commands: Command[] = [
+          run([
             { type: "clip.update", id: c.id, patch },
-          ];
-          for (const caption of working.clips.filter(
-            (part) => part.captionSourceId === c.id,
-          )) {
-            const left = Math.max(caption.start, trimmed.start),
-              right = Math.min(
-                caption.start + caption.duration,
-                trimmed.start + trimmed.duration,
-              );
-            if (left >= right)
-              commands.push({
-                type: "clip.delete",
-                id: caption.id,
-                ripple: false,
-              });
-            else {
-              const { id: ignored, ...patch } = trimClip(
-                working,
-                trimClip(working, caption, "right", right),
-                "left",
-                left,
-              );
-              commands.push({ type: "clip.update", id: caption.id, patch });
-            }
-          }
-          run(commands);
+            ...linkedCaptionCommands(working, c, trimmed, "trim"),
+          ]);
           break;
         }
         case "clip.move": {
@@ -840,24 +840,38 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           break;
         }
         case "clip.delete": {
-          const c = clip(action.clipId),
-            commands: Command[] = [];
-          if (action.deleteCaptions)
-            for (const caption of working.clips.filter(
-              (part) => part.captionSourceId === c.id,
-            ))
-              commands.push({
-                type: "clip.delete",
-                id: caption.id,
-                ripple: false,
-              });
-          commands.push({
-            type: "clip.delete",
-            id: c.id,
-            ripple: action.ripple,
-            deleteCaptions: action.deleteCaptions,
-          });
-          run(commands);
+          const c = clip(action.clipId);
+          const captions = action.deleteCaptions
+            ? working.clips.filter((part) => part.captionSourceId === c.id)
+            : [];
+          if (action.ripple) {
+            const { shift, short } = rippleShifts(
+              working,
+              c,
+              new Set(captions.map((caption) => caption.id)),
+            );
+            const seconds = (frames: number) =>
+              `${Number((frames / working.fps).toFixed(2))} s`;
+            for (const { track, moved } of short)
+              warnings.push(
+                moved
+                  ? `Track "${track.name}" moved back ${seconds(moved)}, not ${seconds(shift)}: any further would overlap the clip before it.`
+                  : `Track "${track.name}" did not move: moving it back would overlap the clip before it.`,
+              );
+          }
+          run([
+            ...captions.map((caption) => ({
+              type: "clip.delete" as const,
+              id: caption.id,
+              ripple: false,
+            })),
+            {
+              type: "clip.delete",
+              id: c.id,
+              ripple: action.ripple,
+              deleteCaptions: action.deleteCaptions,
+            },
+          ]);
           break;
         }
         case "clip.keyframe": {
@@ -1104,10 +1118,13 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           break;
         }
         case "caption.import": {
-          const words = parseSrt(action.srt);
-          if (!words.length) throw Error("No valid subtitle cues were found.");
-          const offset = action.at ? toFrame(action.at, working.fps) : 0;
-          const captions = captionClips(working, words, offset / working.fps);
+          const captions = srtCaptionClips(
+            working,
+            action.srt,
+            action.at ? toFrame(action.at, working.fps) : 0,
+          );
+          if (!captions.length)
+            throw Error("No valid subtitle cues were found.");
           if (action.trackId)
             for (const c of captions)
               c.trackId = checkDestination(c, action.trackId);
@@ -1175,9 +1192,25 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           });
           break;
         }
-        case "project.update":
-          run([{ type: "project.update", patch: action.patch }]);
+        case "project.update": {
+          const { width, height, ...rest } = action.patch;
+          // A new canvas size reflows every clip and layer onto it, as the
+          // aspect ratio menu does, instead of leaving them off the frame.
+          if (
+            (width ?? working.width) !== working.width ||
+            (height ?? working.height) !== working.height
+          )
+            run(
+              resizeCanvas(
+                working,
+                width ?? working.width,
+                height ?? working.height,
+              ),
+            );
+          if (Object.keys(rest).length)
+            run([{ type: "project.update", patch: rest }]);
           break;
+        }
         case "command": {
           const command = structuredClone(action.command);
           if ("id" in command) command.id = resolve(command.id);
@@ -1432,12 +1465,12 @@ export function agentEditingGuide() {
     workflow:
       "Inspect first. Send the exact current projectId and revision. cutline_edit applies all actions as one undoable step; dryRun checks the whole edit and returns the same summary without changing anything. Then commit with the same revision. After the edit, inspect only what you need and check it with cutline_preview images.",
     canvas:
-      "x, y, width and height are canvas pixels, and x/y place the top-left corner of a clip or layer, not its center. To center something W wide, set x = (project width - W) / 2. For a centered title, give the text clip the frame's width (x 0) and align center.",
+      "x, y, width and height are canvas pixels, and x/y place the top-left corner of a clip or layer, not its center. To center something W wide, set x = (project width - W) / 2. For a centered title, give the text clip the frame's width (x 0) and align center. project.update width/height rescales every clip and layer onto the new canvas.",
     timing: {
       timeline:
         "at/start/end accept {frame} or {seconds}; seconds round to the project fps. End times are exclusive. Source media sourceIn and word timestamps are seconds; word timestamps are clip-relative. project.update fps (24, 25, 30 or 60) works only while the timeline is empty, so set it before adding clips.",
       clips:
-        "clip.keyframe.frame is clip-relative and automatically includes animationOffset. Split/trim preserve existing animation phase. Semantic clip.move/duplicate follows linked captions by default; clip.trim bounds linked captions; clip.delete deletes linked captions by default. Ripple deletion shifts later clips across all tracks. reverse=true plays a video or audio clip backwards from a reversed copy Cutline makes on this Mac (export waits for it); its sourceIn then counts from the end of the source, and switching reverse with clip.update and no sourceIn keeps the same footage, so the usual way is to place the clip forward, then set reverse. freeze=true holds the clip's first frame, silently, for its whole duration, which may run past the source. Reversed and held clips have no captions, pause removal or beat sync.",
+        "clip.keyframe.frame is clip-relative and automatically includes animationOffset. Split/trim preserve existing animation phase. Semantic clip.move/duplicate follows linked captions by default; clip.trim bounds linked captions; clip.update speed or sourceIn keeps them on their words; clip.delete deletes linked captions by default. Ripple deletion closes the gap on the clip's track; other tracks move back as far as they can without overlapping. reverse=true plays a video or audio clip backwards from a reversed copy Cutline makes on this Mac (export waits for it); its sourceIn then counts from the end of the source, and switching reverse with clip.update and no sourceIn keeps the same footage, so the usual way is to place the clip forward, then set reverse. freeze=true holds the clip's first frame, silently, for its whole duration, which may run past the source. Reversed and held clips have no captions, pause removal or beat sync.",
       motion:
         "motion.keyframe.frame and motion.keyframe.move fromFrame/toFrame are motion curve frames, including loop endpoints; they do not add a clip animationOffset. Key moves preserve the selected property's easing and Bezier handles and leave sibling curves unchanged. An occupied destination for that property rejects the whole transaction. Layers and track indices start at 0. Last motion layer is on top; track index 0 is topmost. Motion x/y keys are movement offsets from layer placement. Other curves override static values. Easing belongs to the outgoing key segment; cubic-bezier accepts bezier=[x1,y1,x2,y2], x in 0..1 and y in -2..3. Duplicate keys use the last specified value per property. motion.scene.durationFrames retimes choreography; leaving it out uses four seconds. Typography overrides and masked line-reveal timing are editable per layer. Layer name is optional and limited to 80 characters; hidden=true keeps the layer editable but excludes it from rendering and music accents. musicAccent=false keeps a graphical layer steady in accents mode.",
       references:
@@ -1685,7 +1718,7 @@ export const agentEditTools: Tool[] = [
   {
     name: "cutline_edit",
     description:
-      "Atomic, undoable edit of clips, motion, vectors, keyframes, transitions, captions, audio ducking, tracks and settings. Read cutline_editing_schema for actions and recipes. Requires current projectId/revision; returns revision, created IDs and summary. dryRun validates without edits.",
+      "Atomic, undoable edit of clips, motion, vectors, keyframes, transitions, captions, audio ducking, tracks and settings. Read cutline_editing_schema for actions and recipes. Requires current projectId/revision; returns revision, created IDs and summary.",
     inputSchema: agentEditInputSchema() as Tool["inputSchema"],
     annotations: {
       readOnlyHint: false,

@@ -261,7 +261,7 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_transcribe",
     description:
-      "Generate local word-highlight captions for video/audio. Remove pauses first. Long work returns jobs; wait with cutline_jobs.",
+      "Captions from local speech. If pauses are also to be cut, cut them first. Long work returns jobs; wait with cutline_jobs.",
     inputSchema: {
       type: "object",
       properties: { ...guarded, clipId: { type: "string" } },

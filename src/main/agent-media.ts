@@ -2,7 +2,11 @@ import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
-import { AgentTimeSchema, readableSchema } from "../shared/agent-edit";
+import {
+  AgentTimeSchema,
+  agentFrame,
+  readableSchema,
+} from "../shared/agent-edit";
 import { publicAsset } from "../shared/agent-inspect";
 import {
   AutoReelOptionsSchema,
@@ -156,7 +160,7 @@ const descriptions: Record<keyof typeof schemas, string> = {
   cutline_relink:
     "Relink asset/other missing folder files to absolute local path. Keeps credits; transcript/beats require matching length. Undoable.",
   cutline_reference:
-    "Show what the script names: kind logo (target=product or domain) or screenshot (target=url, CSS selector, phone view). at places it.",
+    "Show what the script names: kind logo (target=product or domain) or screenshot (target=url, selector, phone view). at places it; omit at to check, changing nothing.",
   cutline_style_reel:
     "Lay out a creator-style Short on the speaker video from timed beats; show = logo name, page url, assetId, text, or a drawing to make.",
   cutline_graphic:
@@ -249,8 +253,7 @@ export type AgentMediaDeps = {
   };
 };
 
-const toFrame = (time: Time, fps: number) =>
-  "frame" in time ? time.frame : Math.round(time.seconds * fps);
+const toFrame = agentFrame;
 
 function checkTrack(project: Project, trackId: string, kind: Track["kind"]) {
   const track = project.tracks.find((item) => item.id === trackId);
@@ -650,17 +653,36 @@ export function createAgentMedia(deps: AgentMediaDeps) {
       const site =
         /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/iu.test(args.target) &&
         !(await deps.references.inLibrary?.(args.target));
-      const logo = await deps.references.logo(
-        site
-          ? { domain: args.target.replace(/^https?:\/\//u, "").split("/")[0] }
-          : { name: args.target },
-      );
+      const at = args.at;
+      let logo: BrandLogo;
+      try {
+        logo = await deps.references.logo(
+          site
+            ? { domain: args.target.replace(/^https?:\/\//u, "").split("/")[0] }
+            : { name: args.target },
+        );
+      } catch (error) {
+        // A check answers that there is no logo instead of failing.
+        if (at === undefined)
+          return {
+            revision: store.project.revision,
+            found: false,
+            note: (error as Error).message,
+          };
+        throw error;
+      }
       stillOpen();
+      // Without at this is a check: what would be shown, and nothing changes.
+      if (at === undefined)
+        return {
+          revision: store.project.revision,
+          found: true,
+          kind: logo.kind,
+          title: logo.title,
+          source: logo.source,
+          warnings: nameOnly(logo),
+        };
       if (logo.kind === "vector") {
-        if (args.at === undefined)
-          throw Error(
-            "Give at: a vector logo is added straight to the timeline.",
-          );
         const color =
           args.color === "white"
             ? "#ffffff"
@@ -677,7 +699,7 @@ export function createAgentMedia(deps: AgentMediaDeps) {
         const aspect = parsed.width / parsed.height;
         const created = createVectorScene(
           store.project,
-          toFrame(args.at, store.project.fps),
+          toFrame(at, store.project.fps),
           parsed,
           {
             name: `${logo.title} logo`,
@@ -709,13 +731,8 @@ export function createAgentMedia(deps: AgentMediaDeps) {
       const asset = await deps.media.import(logo.file);
       stillOpen();
       asset.name = `${logo.title} logo`;
-      const at = args.at;
-      const landed = land(
-        asset,
-        `Add ${logo.title} logo`,
-        at
-          ? (project) => referenceCard(project, asset, { at }, "logo")
-          : undefined,
+      const landed = land(asset, `Add ${logo.title} logo`, (project) =>
+        referenceCard(project, asset, { at }, "logo"),
       );
       return {
         ...landed,
@@ -732,16 +749,22 @@ export function createAgentMedia(deps: AgentMediaDeps) {
       }),
     );
     stillOpen();
+    const at = args.at;
+    // A check: the page loads and this is what it shows. Its file can still
+    // be imported with cutline_import_media.
+    if (at === undefined)
+      return {
+        revision: store.project.revision,
+        found: true,
+        kind: "screenshot",
+        title: shot.title,
+        file: shot.file,
+      };
     const asset = await deps.media.import(shot.file);
     stillOpen();
     asset.name = shot.title.slice(0, 150);
-    const at = args.at;
-    const landed = land(
-      asset,
-      at ? "Add page screenshot" : "Import page screenshot",
-      at
-        ? (project) => referenceCard(project, asset, { at }, "screenshot")
-        : undefined,
+    const landed = land(asset, "Add page screenshot", (project) =>
+      referenceCard(project, asset, { at }, "screenshot"),
     );
     return {
       ...landed,

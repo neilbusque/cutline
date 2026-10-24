@@ -1160,6 +1160,115 @@ describe("agent media tools are listed, guarded and long-running", () => {
   });
 });
 
+describe("cutline_reference without at checks what would be shown", () => {
+  const mark = '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>';
+  function withReferences(logo: (query: unknown) => Promise<unknown>) {
+    const screenshot = vi.fn(async () => ({
+      file: "/captures/repo.png",
+      title: "octo/repo",
+    }));
+    const harness = setup({
+      references: { logo: vi.fn(logo), screenshot },
+    });
+    return { ...harness, screenshot };
+  }
+
+  it("reports a logo, a missing logo or a page and changes nothing", async () => {
+    const vector = withReferences(async () => ({
+      kind: "vector",
+      svg: mark,
+      title: "GitHub",
+      color: "#181717",
+      source: "Simple Icons: GitHub",
+    }));
+    const before = vector.store.project;
+    expect(
+      await vector.call("cutline_reference", {
+        ...vector.guard(),
+        kind: "logo",
+        target: "GitHub",
+      }),
+    ).toEqual({
+      revision: before.revision,
+      found: true,
+      kind: "vector",
+      title: "GitHub",
+      source: "Simple Icons: GitHub",
+      warnings: [],
+    });
+    expect(vector.store.project).toBe(before);
+
+    const bitmap = withReferences(async () => ({
+      kind: "image",
+      file: "/logos/acme.png",
+      title: "Acme",
+      source: "Wikidata",
+      matchedBy: "name",
+    }));
+    const checked = (await bitmap.call("cutline_reference", {
+      ...bitmap.guard(),
+      kind: "logo",
+      target: "Acme",
+    })) as any;
+    expect(checked).toMatchObject({
+      found: true,
+      kind: "image",
+      title: "Acme",
+    });
+    expect(checked.warnings[0]).toMatch(/name only/);
+    expect(bitmap.importMedia).not.toHaveBeenCalled();
+
+    const missing = withReferences(async () => {
+      throw Error('No logo found for "Zed". Try its website instead.');
+    });
+    expect(
+      await missing.call("cutline_reference", {
+        ...missing.guard(),
+        kind: "logo",
+        target: "Zed",
+      }),
+    ).toMatchObject({
+      found: false,
+      note: expect.stringMatching(/No logo found/),
+    });
+
+    const page = withReferences(async () => ({}));
+    const shot = (await page.call("cutline_reference", {
+      ...page.guard(),
+      kind: "screenshot",
+      target: "https://github.com/octo/repo",
+    })) as any;
+    expect(shot).toMatchObject({
+      found: true,
+      kind: "screenshot",
+      title: "octo/repo",
+      file: "/captures/repo.png",
+    });
+    expect(page.importMedia).not.toHaveBeenCalled();
+    expect(page.store.past.length).toBe(1);
+  });
+
+  it("still places a vector logo when at is given", async () => {
+    const { call, guard, store } = withReferences(async () => ({
+      kind: "vector",
+      svg: mark,
+      title: "GitHub",
+      color: "#181717",
+      source: "Simple Icons: GitHub",
+    }));
+    const placed = (await call("cutline_reference", {
+      ...guard(),
+      kind: "logo",
+      target: "GitHub",
+      at: { seconds: 2 },
+    })) as any;
+    expect(placed.revision).toBe(store.project.revision);
+    expect(store.project.clips.find((c) => c.id === placed.clipId)?.start).toBe(
+      60,
+    );
+  });
+});
+
 describe("cutline_stock_import downloads a search result and places muted B-roll", () => {
   it("checks the revision before downloading anything", async () => {
     const { call, guard, download } = setup();

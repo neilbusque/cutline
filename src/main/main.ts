@@ -117,7 +117,7 @@ import { StockLibrary, stockUrl } from "./stock";
 import { Codex } from "./codex";
 import { ClaudeAssistant, findClaude, type ClaudeModel } from "./claude";
 import { TransactionSchema } from "../shared/commands";
-import { captionClips, parseSrt, toSrt } from "../shared/subtitles";
+import { srtCaptionClips, toSrt } from "../shared/subtitles";
 import {
   publicProject,
   uid,
@@ -1794,8 +1794,10 @@ function register() {
         properties: ["openFile"],
       });
       if (d.canceled) return;
-      const words = parseSrt(readFileSync(d.filePaths[0], "utf8"));
-      const clips = words.flatMap((w) => captionClips(store.project, [w]));
+      const clips = srtCaptionClips(
+        store.project,
+        readFileSync(d.filePaths[0], "utf8"),
+      );
       return store.commit(
         { ...store.project, clips: [...store.project.clips, ...clips] },
         "Import subtitles",

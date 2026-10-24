@@ -37,8 +37,9 @@ export function toSrt(clips: Clip[], fps: number) {
     const ms = Math.round(s * 1000);
     return `${String(Math.floor(ms / 3600000)).padStart(2, "0")}:${String(Math.floor(ms / 60000) % 60).padStart(2, "0")}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")},${String(ms % 1000).padStart(3, "0")}`;
   };
+  // A blank caption would be an empty cue, which some players reject.
   return clips
-    .filter((c) => c.kind === "caption")
+    .filter((c) => c.kind === "caption" && c.text.trim())
     .sort((a, b) => a.start - b.start)
     .map((c, i) => {
       // Existing projects retain their exact text. Balanced captions export the
@@ -52,6 +53,19 @@ export function toSrt(clips: Clip[], fps: number) {
       return `${i + 1}\n${stamp(c.start / fps)} --> ${stamp((c.start + c.duration) / fps)}\n${text}\n`;
     })
     .join("\n");
+}
+
+/**
+ * Captions for a subtitle file, the same in the app and for agents: each cue
+ * stays one caption at its own times, and cues are built together so
+ * back-to-back cues share a frame boundary instead of overlapping by one.
+ */
+export function srtCaptionClips(
+  p: Project,
+  srt: string,
+  startFrame = 0,
+): Clip[] {
+  return buildCaptionClips(p, parseSrt(srt), { startFrame, cues: true });
 }
 
 export function captionClips(

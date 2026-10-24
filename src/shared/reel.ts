@@ -13,6 +13,7 @@ import {
 } from "./model";
 import { applyCommands, type Command } from "./commands";
 import { buildCaptionClips } from "./caption-grouping";
+import { checkFrames } from "./check-frames";
 import {
   creatorBrollPlacement,
   creatorBrollWindow,
@@ -107,6 +108,8 @@ export type ReelPlan = {
   proofCount: number;
   missingTranscriptAssetIds: string[];
   warnings: string[];
+  /** The opening, each card, title, proof and cutaway once settled, and the end. */
+  checkFrames?: number[];
 };
 
 type PreparedSource = {
@@ -1127,7 +1130,8 @@ export function createReelPlan(
   }
   const roles: Roles[] = [
     ...(hook || cta ? ["titles" as const] : []),
-    ...(format !== "montage" || requestedBeats?.length
+    // beats [] turns animations off: no empty animations track.
+    ...((requestedBeats ? requestedBeats.length : format !== "montage")
       ? ["beats" as const]
       : []),
     ...(options.captions !== false ? ["captions" as const] : []),
@@ -1496,5 +1500,12 @@ export function createReelPlan(
     proofCount: requestedProofs.length,
     missingTranscriptAssetIds: [...missingTranscriptAssetIds],
     warnings,
+    checkFrames: checkFrames(
+      fps,
+      startFrame,
+      startFrame + durationFrames,
+      [...beatClips, ...titles, ...proofWindows, ...overlays],
+      1,
+    ),
   };
 }

@@ -484,6 +484,46 @@ describe("Automatic one-video analysis", () => {
 });
 
 describe("Automatic Reel final assembly", () => {
+  it("keeps matched B-roll under the captions when timed animations are off", () => {
+    const asset = sample(),
+      p = projectFor(asset),
+      analysis = analyzeAutoReel(asset, { format: "talking-head" });
+    const placements = analysis.beats.map((beat) => ({
+      assetId: "coffee-stock",
+      startSeconds: beat.startSeconds,
+      durationSeconds: beat.durationSeconds,
+      query: beat.query,
+    }));
+    expect(placements.length).toBeGreaterThan(0);
+    const plan = finalizeAutoReelPlan(p, analysis, placements, undefined, {
+      broll: true,
+      music: false,
+      beats: [],
+    });
+    const next = applyCommands(p, {
+      projectId: p.id,
+      revision: p.revision,
+      label: plan.label,
+      commands: plan.commands,
+    });
+    const index = (assetId: string) =>
+      next.tracks.findIndex((track) =>
+        next.clips.some((c) => c.trackId === track.id && c.assetId === assetId),
+      );
+    const captions = next.tracks.findIndex((track) =>
+      next.clips.some((c) => c.trackId === track.id && c.kind === "caption"),
+    );
+    expect(plan.brollCount).toBeGreaterThan(0);
+    expect(captions).toBeGreaterThanOrEqual(0);
+    // Earlier tracks draw on top: captions, then B-roll, then the speaker.
+    expect(index("coffee-stock")).toBeGreaterThan(captions);
+    expect(index("coffee-stock")).toBeLessThan(index(asset.id));
+    // Animations off leaves no empty animations track behind.
+    expect(next.tracks.map((track) => track.name)).not.toContain(
+      "Reel · animations",
+    );
+  });
+
   it("respects explicit music and B-roll opt-outs without reporting them as unavailable", () => {
     const asset = sample(),
       p = projectFor(asset),

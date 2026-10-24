@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommands } from "../src/shared/commands";
 import { resizeCanvas } from "../src/shared/canvas";
+import { applyAgentEdit } from "../src/shared/agent-edit";
 import { animatedValue } from "../src/shared/animation";
 import { motionValue } from "../src/shared/motion";
 import { createMotionDemoProject } from "../src/shared/motion-presets";
@@ -343,5 +344,65 @@ describe("atomic canvas resize", () => {
     );
     expect(() => resizeCanvas(crowded, 1280, 720)).toThrow(/2,000-command/);
     expect(crowded.width).toBe(640);
+  });
+
+  it("reflows layers when an agent changes the canvas, exactly as the aspect menu does", () => {
+    const p = newProject();
+    p.assets = [
+      {
+        id: "talk",
+        name: "Talk",
+        kind: "video",
+        path: "/local/talk.mp4",
+        duration: 20,
+        width: 1080,
+        height: 1920,
+        hasAudio: true,
+      },
+    ];
+    p.clips = [
+      { ...makeClip(p, "video", "video", 0, p.assets[0]), id: "footage" },
+      {
+        ...makeClip(p, "caption", "captions", 0),
+        id: "caption",
+        text: "Hello there",
+        y: 1330,
+        height: 259,
+      },
+    ];
+    const portrait = validateProject(p);
+    const byAgent = applyAgentEdit(portrait, {
+      projectId: portrait.id,
+      revision: portrait.revision,
+      label: "Make it landscape",
+      actions: [
+        {
+          type: "project.update",
+          patch: { width: 1920, height: 1080, name: "Landscape cut" },
+        },
+      ],
+    }).project;
+    const byMenu = resized(portrait, 1920, 1080);
+    expect(byAgent).toMatchObject({
+      width: 1920,
+      height: 1080,
+      name: "Landscape cut",
+    });
+    for (const id of ["footage", "caption"]) {
+      const agent = byAgent.clips.find((c) => c.id === id)!,
+        menu = byMenu.clips.find((c) => c.id === id)!;
+      expect([
+        agent.x,
+        agent.y,
+        agent.width,
+        agent.height,
+        agent.fontSize,
+      ]).toEqual([menu.x, menu.y, menu.width, menu.height, menu.fontSize]);
+    }
+    const footage = byAgent.clips.find((c) => c.id === "footage")!,
+      caption = byAgent.clips.find((c) => c.id === "caption")!;
+    expect([footage.width, footage.height]).toEqual([1920, 1080]);
+    // The caption stays on the frame instead of below its bottom edge.
+    expect(caption.y + caption.height).toBeLessThanOrEqual(1080);
   });
 });

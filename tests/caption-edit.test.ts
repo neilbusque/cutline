@@ -79,6 +79,41 @@ describe("Caption text corrections", () => {
       captionReplacementPlan([caption()], "A quiet mourning.", ""),
     ).toThrow("at least one word");
   });
+  it("replaces whole words only, never letters inside other words", () => {
+    const phrase = (id: string, text: string) => ({
+      ...caption(),
+      id,
+      text,
+      words: [],
+    });
+    const plan = captionReplacementPlan(
+      [
+        phrase("said", "I said it again"),
+        phrase("paint", "Paint the wall again"),
+        phrase("ai", "Let AI write it, ai."),
+        phrase("contraction", "Don't touch don or Don's"),
+      ],
+      "ai",
+      "A.I.",
+    );
+    expect(plan.map(({ id, after }) => [id, after])).toEqual([
+      ["ai", "Let A.I. write it, A.I.."],
+    ]);
+    expect(
+      captionReplacementPlan(
+        [phrase("contraction", "Don't touch don or Don's")],
+        "don",
+        "Dan",
+      ).map((item) => item.after),
+    ).toEqual(["Don't touch Dan or Don's"]);
+    expect(
+      captionReplacementPlan(
+        [phrase("name", "Visit café Ünder")],
+        "café",
+        "cafe",
+      )[0].after,
+    ).toBe("Visit cafe Ünder");
+  });
   it("labels exact frame positions at supported frame rates", () => {
     expect(captionTimestamp(1831, 30)).toBe("1:01.03");
     expect(captionTimestamp(59, 60)).toBe("0:00.98");

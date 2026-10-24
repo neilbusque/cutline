@@ -97,6 +97,81 @@ describe("atomic editing", () => {
       applyCommands(p, tx(p, [{ type: "clip.split", id: "clip", frame: 300 }])),
     ).toThrow();
   });
+  it("refuses raw edits that put media in a clip that cannot play it, but keeps older mismatches editable", () => {
+    const p = fixture();
+    p.assets.push(
+      {
+        id: "song",
+        name: "song.mp3",
+        path: "/missing/song.mp3",
+        duration: 30,
+        kind: "audio",
+        hasAudio: true,
+      },
+      {
+        id: "logo",
+        name: "logo.png",
+        path: "/missing/logo.png",
+        duration: 0,
+        kind: "image",
+        hasAudio: false,
+      },
+    );
+    const raw = (commands: Command[], project = p) =>
+      applyCommands(project, tx(project, commands));
+    expect(() =>
+      raw([
+        {
+          type: "clip.add",
+          clip: { ...makeClip(p, "video", "video", 0), assetId: "song" },
+        },
+      ]),
+    ).toThrow('is a video clip, so it cannot play the audio "song.mp3"');
+    expect(() =>
+      raw([
+        {
+          type: "clip.add",
+          clip: { ...makeClip(p, "audio", "audio", 0), assetId: "logo" },
+        },
+      ]),
+    ).toThrow('cannot play the image "logo.png"');
+    expect(() =>
+      raw([{ type: "clip.update", id: "clip", patch: { kind: "image" } }]),
+    ).toThrow('is an image clip, so it cannot play the video "source.mp4"');
+    // Audio from a video file is fine.
+    expect(
+      raw([
+        {
+          type: "clip.add",
+          clip: {
+            ...makeClip(p, "audio", "audio", 0),
+            id: "voice",
+            assetId: "media",
+            duration: 30,
+          },
+        },
+      ]).clips.find((c) => c.id === "voice")?.assetId,
+    ).toBe("media");
+    // A mismatch saved by an older build still takes unrelated edits.
+    const older = validateProject({
+      ...p,
+      clips: [
+        ...p.clips,
+        {
+          ...makeClip(p, "video", "video", 400),
+          id: "old",
+          assetId: "song",
+          duration: 30,
+        },
+      ],
+    });
+    expect(
+      raw(
+        [{ type: "clip.update", id: "old", patch: { volume: 0.5 } }],
+        older,
+      ).clips.find((c) => c.id === "old")?.volume,
+    ).toBe(0.5);
+  });
   it("shifts all later tracks on ripple delete", () => {
     const p = fixture();
     p.clips.push({ ...makeClip(p, "text", "titles", 330), id: "title" });

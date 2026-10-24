@@ -1,5 +1,6 @@
 import { buildCaptionClips } from "./caption-grouping";
 import { captionTextWidth } from "./caption-layout";
+import { reelSafeArea } from "./safe-area";
 import {
   MotionLayerSchema,
   type Clip,
@@ -189,7 +190,8 @@ export function creatorCaptionClips(
       return {
         ...caption,
         x: (p.width - width) / 2,
-        y: Math.round(Math.min(p.height * 0.82, p.height * 0.9 - height)),
+        // Just above the Reel safe area's bottom, clear of the description.
+        y: Math.round(p.height * (reelSafeArea.bottom - 0.02) - height),
         width,
         height,
         fontSize,

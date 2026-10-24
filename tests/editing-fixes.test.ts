@@ -21,6 +21,7 @@ import { musicBindings, musicResponse } from "../src/shared/music-reactive";
 import { manualBeatGrid } from "../src/shared/music-sync";
 import { trimClip } from "../src/shared/timeline";
 import { activeTransition } from "../src/shared/transitions";
+import { presetTiming } from "../src/shared/text-presets";
 
 const tx = (p: Project, commands: unknown[]) =>
   applyCommands(p, {
@@ -287,6 +288,39 @@ describe("remove pauses keeps everything attached to the speech", () => {
     expect(byId(next, "music")).toMatchObject({ start: 0, duration: 366 });
   });
 
+  it("keeps a music duck on the speech after the pause is cut", () => {
+    const p = talkingHead();
+    // Ducked to 0.1 under speech, up to 0.5 in the 2 s to 5 s pause.
+    const volume = (pairs: [number, number][]) =>
+      pairs.map(([frame, value]) => ({
+        property: "volume" as const,
+        frame,
+        value,
+        easing: "linear" as const,
+      }));
+    byId(p, "music").keyframes = volume([
+      [0, 0.1],
+      [62, 0.1],
+      [70, 0.5],
+      [140, 0.5],
+      [147, 0.1],
+      [300, 0.1],
+      [330, 0.8],
+    ]);
+    const before = byId(p, "music");
+    // Speech at source 5.2 s played at frame 156; it now plays at 72.
+    expect(animatedValue(before, "volume", 156)).toBeCloseTo(0.1, 5);
+    const next = tx(p, removePauses(p, "v", pause));
+    const music = byId(next, "music");
+    expect(animatedValue(music, "volume", 72)).toBeCloseTo(0.1, 5);
+    expect(animatedValue(music, "volume", 30)).toBeCloseTo(0.1, 5);
+    // Keys after the clip move with everything else: the swell at 330 is now at 246.
+    expect(animatedValue(music, "volume", 246)).toBeCloseTo(0.8, 5);
+    expect(music.keyframes.map((key) => key.frame)).toEqual([
+      0, 62, 63, 216, 246,
+    ]);
+  });
+
   it("never cuts into a crossfade at either end of the clip", () => {
     const p = newProject();
     p.assets = [media("a"), media("talk"), media("c")];
@@ -456,6 +490,106 @@ describe("ripple delete respects crossfades", () => {
   });
 });
 
+describe("ripple delete never slides one clip onto another", () => {
+  function timeline() {
+    const p = newProject();
+    p.tracks.push(
+      {
+        id: "voice",
+        name: "Voice",
+        kind: "audio",
+        muted: false,
+        hidden: false,
+      },
+      { id: "talk", name: "Talk", kind: "audio", muted: false, hidden: false },
+    );
+    p.assets = [
+      media("a"),
+      media("b"),
+      media("c"),
+      media("song", "audio", 30),
+      media("vo", "audio", 30),
+    ];
+    const at = (
+      id: string,
+      kind: "video" | "audio",
+      track: string,
+      asset: number,
+      start: number,
+      duration: number,
+    ) => ({
+      ...makeClip(p, kind, track, start, p.assets[asset]),
+      id,
+      duration,
+    });
+    p.clips = [
+      // 30 fps: three 3 s shots back to back.
+      at("v1", "video", "video", 0, 0, 90),
+      at("v2", "video", "video", 1, 90, 90),
+      at("v3", "video", "video", 2, 180, 90),
+      { ...makeClip(p, "text", "titles", 60), id: "t1", duration: 60 },
+      { ...makeClip(p, "text", "titles", 180), id: "t2", duration: 60 },
+      // Two music clips back to back on one track.
+      at("m1", "audio", "audio", 3, 0, 180),
+      at("m2", "audio", "audio", 3, 180, 150),
+      // A voiceover alone on its track, after the deleted shot.
+      at("vo", "audio", "voice", 4, 200, 60),
+      // A long narration whose own captions sit after the deleted shot.
+      at("narration", "audio", "talk", 4, 0, 600),
+      caption("v3-words", 190, 30, [{ text: "third", start: 0, end: 0.5 }], {
+        captionSourceId: "v3",
+      }),
+      caption("told", 300, 30, [{ text: "told", start: 0, end: 0.5 }], {
+        captionSourceId: "narration",
+      }),
+    ];
+    return validateProject(p);
+  }
+  const overlaps = (p: Project) =>
+    p.clips.some((a) =>
+      p.clips.some(
+        (b) =>
+          a.id < b.id &&
+          a.trackId === b.trackId &&
+          a.start < b.start + b.duration &&
+          b.start < a.start + a.duration,
+      ),
+    );
+
+  it("closes the gap on the shot's track and moves other tracks only into free space", () => {
+    const p = timeline();
+    expect(overlaps(p)).toBe(false);
+    const next = tx(p, [{ type: "clip.delete", id: "v2", ripple: true }]);
+    expect(byId(next, "v3").start).toBe(90);
+    // The title can only close up to the one before it: 60 of 90 frames.
+    expect([byId(next, "t1").start, byId(next, "t2").start]).toEqual([60, 120]);
+    // The second music clip has no room, so the bed never doubles up.
+    expect(byId(next, "m2").start).toBe(180);
+    // A track with nothing before the gap closes all of it.
+    expect(byId(next, "vo").start).toBe(110);
+    // Captions follow their own clip: the third shot's move back, and the
+    // narration's staying put.
+    expect(byId(next, "v3-words").start).toBe(100);
+    expect(byId(next, "told").start).toBe(300);
+    expect(overlaps(next)).toBe(false);
+  });
+
+  it("tells an agent which tracks could not close the whole gap", () => {
+    const p = timeline();
+    const result = applyAgentEdit(p, {
+      projectId: p.id,
+      revision: p.revision,
+      label: "Ripple delete",
+      actions: [{ type: "clip.delete", clipId: "v2", ripple: true }],
+    });
+    expect(result.summary.warnings).toEqual([
+      'Track "Titles" moved back 2 s, not 3 s: any further would overlap the clip before it.',
+      'Track "Music & audio" did not move: moving it back would overlap the clip before it.',
+    ]);
+    expect(overlaps(result.project)).toBe(false);
+  });
+});
+
 describe("deleting a clip removes the captions made from it", () => {
   function fixture() {
     const p = newProject();
@@ -568,6 +702,76 @@ describe("transitions move the captions of the clips they move", () => {
     expect(byId(removed, "b").start).toBe(100);
     expect(byId(removed, "b1").start).toBe(120);
     expect(byId(removed, "c1").start).toBe(220);
+  });
+
+  it("ends the outgoing clip's captions where the incoming clip's begin, so two never show at once", () => {
+    const p = newProject();
+    p.assets = [media("a"), media("b")];
+    const words = (names: string[], step: number) =>
+      names.map((text, i) => ({
+        text,
+        start: i * step,
+        end: i * step + step * 0.8,
+      }));
+    p.clips = [
+      {
+        ...makeClip(p, "video", "video", 0, p.assets[0]),
+        id: "a",
+        duration: 300,
+      },
+      {
+        ...makeClip(p, "video", "video", 300, p.assets[1]),
+        id: "b",
+        duration: 300,
+      },
+      // 30 fps: the last phrase of a runs to its end, b speaks from its start.
+      caption(
+        "w35",
+        262,
+        38,
+        words(["w35", "w36", "w37", "w38", "w39"], 0.25),
+        {
+          captionSourceId: "a",
+        },
+      ),
+      caption("w0", 300, 37, words(["w0", "w1", "w2", "w3", "w4"], 0.24), {
+        captionSourceId: "b",
+      }),
+      caption("w5", 337, 40, words(["w5", "w6"], 0.6), {
+        captionSourceId: "b",
+      }),
+    ];
+    const faded = tx(validateProject(p), [
+      { type: "clip.transition", id: "b", kind: "crossfade", frames: 15 },
+    ]);
+    const incoming = byId(faded, "w0"),
+      outgoing = byId(faded, "w35");
+    expect(incoming.start).toBe(285);
+    expect(outgoing).toMatchObject({ start: 262, duration: 23 });
+    // Words spoken under the incoming clip's first phrase are cut from it.
+    expect(outgoing.text).toBe("w35 w36 w37 w38");
+    for (let frame = 250; frame < 340; frame++)
+      expect(
+        faded.clips.filter(
+          (c) =>
+            c.kind === "caption" &&
+            c.start <= frame &&
+            frame < c.start + c.duration,
+        ).length,
+      ).toBeLessThanOrEqual(1);
+    // A crossfade into a clip without captions leaves the outgoing ones alone.
+    const silent = {
+      ...p,
+      clips: p.clips.filter((c) => c.captionSourceId !== "b"),
+    };
+    expect(
+      byId(
+        tx(validateProject(silent), [
+          { type: "clip.transition", id: "b", kind: "crossfade", frames: 15 },
+        ]),
+        "w35",
+      ).duration,
+    ).toBe(38);
   });
 });
 
@@ -999,5 +1203,38 @@ describe("projects saved by a newer Cutline", () => {
     expect(() => store.load(file)).toThrow(/newer version of Cutline/);
     expect(readFileSync(file, "utf8")).toBe(contents);
     expect(store.filePath).toBeNull();
+  });
+});
+
+describe("timing that reads the same at any frame rate", () => {
+  it("gives a new title or caption a 0.6 second entrance at 24, 25, 30 and 60 fps", () => {
+    for (const fps of [24, 25, 30, 60] as const) {
+      const p = { ...newProject(), fps };
+      for (const kind of ["text", "caption"] as const) {
+        const clip = makeClip(p, kind, "titles", 0);
+        expect(clip.animationFrames / fps).toBeCloseTo(0.6, 1);
+        expect(presetTiming(clip, 0).window).toBe(clip.animationFrames);
+      }
+      // Media clips keep the schema default.
+      expect(makeClip(p, "image", "video", 0).animationFrames).toBe(18);
+    }
+    expect(
+      makeClip({ ...newProject(), fps: 60 }, "text", "titles").animationFrames,
+    ).toBe(36);
+  });
+
+  it("refuses agent times past the timeline's end in plain words instead of a schema error", () => {
+    const p = { ...newProject(), fps: 60 as const };
+    const add = (seconds: number) =>
+      applyAgentEdit(p, {
+        projectId: p.id,
+        revision: p.revision,
+        label: "Late title",
+        actions: [{ type: "clip.add", kind: "text", at: { seconds } }],
+      });
+    expect(() => add(5 * 60 * 60)).toThrow(
+      "Times must be under 4 hours at 60 fps.",
+    );
+    expect(add(3 * 60 * 60).project.clips[0].start).toBe(3 * 60 * 60 * 60);
   });
 });

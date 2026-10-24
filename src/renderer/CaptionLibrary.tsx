@@ -745,7 +745,7 @@ export function CaptionLibrary({
                 />
               </label>
               <p className="cs-hint">
-                Finds the search words in every caption.
+                Finds the search words in every caption, as whole words.
               </p>
               <button
                 className="control"
