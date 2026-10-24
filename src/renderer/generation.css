@@ -13,7 +13,8 @@
 .generation-library {
   gap: 14px;
 }
-.generation-heading {
+/* Beats ".section-heading", which loads later and doubled the gap below. */
+.generation-library > .generation-heading {
   margin-bottom: 0;
   gap: 6px;
 }

@@ -657,10 +657,12 @@ export function MotionLibrary({
         <div style={{ display: tab === "vectors" ? "contents" : "none" }}>
             {openGraphic && (
               <div className="mg-generate-row">
-                <span>Generate a graphic from a sentence</span>
-                <button className="control" onClick={openGraphic}>
-                  <Sparkles size={13} />
-                  Generate
+                <button
+                  className="import-button control"
+                  onClick={openGraphic}
+                >
+                  <Sparkles size={15} />
+                  Generate a graphic from a sentence
                 </button>
               </div>
             )}
