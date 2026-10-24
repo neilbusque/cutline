@@ -149,6 +149,27 @@ function splitCaptionOwnership(
       fadeIn: 0,
       transition: undefined,
     };
+    // Each word goes to the side that holds its middle, so a word spoken
+    // across the cut shows once, not at the end of one caption and again at
+    // the start of the next.
+    if (caption.words.length) {
+      const cut = (frame - caption.start) / p.fps;
+      const middle = (w: { start: number; end: number }) => (w.start + w.end) / 2;
+      left.words = caption.words
+        .filter((w) => middle(w) < cut)
+        .map((w) => ({ ...w, end: Math.min(w.end, cut) }))
+        .filter((w) => w.end > w.start);
+      right.words = caption.words
+        .filter((w) => middle(w) >= cut)
+        .map((w) => ({
+          ...w,
+          start: Math.max(0, w.start - cut),
+          end: Math.min(right.duration / p.fps, w.end - cut),
+        }))
+        .filter((w) => w.end > w.start);
+      left.text = left.words.map((w) => w.text).join(" ");
+      right.text = right.words.map((w) => w.text).join(" ");
+    }
     // A cut in a caption's silent handle must not leave a blank timed cue.
     // Corrected captions with cleared alignment keep their text on each side;
     // splitting them must not invent replacement word timestamps.
@@ -195,12 +216,18 @@ function assertOutsideTransitions(p: Project, c: Clip, frame: number) {
  * the whole gap without stacking the clips that crossfaded with it. Another
  * track moves only as far as its own free space allows, so a title or a
  * second voice never slides onto the clip before it, and generated captions
- * move with their clip. `short` lists the tracks that moved less.
+ * move with their clip. Subtitles that aren't linked to a clip follow the
+ * speech too: on a track of captions, cues from the deleted part go (`drops`),
+ * one running into it ends where it begins (`trims`), and later ones move
+ * back the whole way. `short` lists the tracks that moved less.
  */
 export function rippleShifts(p: Project, c: Clip, removed: Set<string>) {
   const { head, tail } = transitionOverlaps(p, c);
   const from = c.start + c.duration - tail,
-    shift = Math.max(0, c.duration - head - tail);
+    shift = Math.max(0, c.duration - head - tail),
+    gapStart = from - shift;
+  const drops = new Set<string>();
+  const trims = new Map<string, number>();
   const kept = p.clips.filter((x) => x.id !== c.id && !removed.has(x.id));
   const keptIds = new Set(kept.map((x) => x.id));
   const linked = (x: Clip) =>
@@ -210,25 +237,38 @@ export function rippleShifts(p: Project, c: Clip, removed: Set<string>) {
   for (const track of p.tracks) {
     const own = kept.filter((x) => x.trackId === track.id && !linked(x));
     const later = own.filter((x) => x.start >= from);
-    if (!later.length) continue;
     let moved = shift;
     if (track.id !== c.trackId) {
-      const blockEnd = Math.max(
-        0,
-        ...own.filter((x) => x.start < from).map((x) => x.start + x.duration),
+      const inGap = own.filter(
+        (x) => x.start < from && x.start + x.duration > gapStart,
       );
-      moved = Math.min(
-        shift,
-        Math.max(0, Math.min(...later.map((x) => x.start)) - blockEnd),
-      );
-      if (moved < shift) short.push({ track, moved });
+      if (
+        shift &&
+        own.some((x) => x.kind === "caption") &&
+        inGap.every((x) => x.kind === "caption")
+      ) {
+        for (const x of inGap)
+          if (x.start >= gapStart) drops.add(x.id);
+          else trims.set(x.id, gapStart);
+      } else {
+        if (!later.length) continue;
+        const blockEnd = Math.max(
+          0,
+          ...own.filter((x) => x.start < from).map((x) => x.start + x.duration),
+        );
+        moved = Math.min(
+          shift,
+          Math.max(0, Math.min(...later.map((x) => x.start)) - blockEnd),
+        );
+        if (moved < shift) short.push({ track, moved });
+      }
     }
     for (const x of later) if (moved) moves.set(x.id, moved);
   }
   for (const x of kept)
     if (linked(x) && moves.has(x.captionSourceId!))
       moves.set(x.id, moves.get(x.captionSourceId!)!);
-  return { shift, moves, short };
+  return { shift, moves, short, drops, trims };
 }
 
 /** Removes a clip with the captions generated from it, closing the gap on a ripple. */
@@ -247,12 +287,22 @@ function deleteClip(
         cascaded.add(x.id);
       }
   // Planned while c is still in place: its crossfades decide the gap.
-  const moves = ripple ? rippleShifts(p, c, removed).moves : undefined;
-  p.clips = p.clips.filter((x) => !removed.has(x.id));
+  const plan = ripple ? rippleShifts(p, c, removed) : undefined;
+  for (const id of plan?.drops ?? []) {
+    removed.add(id);
+    cascaded.add(id);
+  }
+  p.clips = p.clips
+    .filter((x) => !removed.has(x.id))
+    .map((x) =>
+      plan?.trims.has(x.id)
+        ? { ...x, ...trimClip(p, x, "right", plan.trims.get(x.id)!) }
+        : x,
+    );
   // A transition from a deleted clip has nothing left to blend from.
   for (const x of p.clips)
     if (x.transition?.fromId === c.id) delete x.transition;
-  if (moves) for (const x of p.clips) x.start -= moves.get(x.id) ?? 0;
+  if (plan) for (const x of p.clips) x.start -= plan.moves.get(x.id) ?? 0;
 }
 
 /** Raw edits must keep every clip it touches on a track of its kind. */

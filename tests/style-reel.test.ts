@@ -380,3 +380,73 @@ describe("creator-style Shorts cut the speaker the way a split does", () => {
     ]);
   });
 });
+
+describe("creator-style Shorts keep every spoken word once", () => {
+  function speakerProject(contiguous: boolean): Project {
+    const p: Project = { ...newProject(), width: 1080, height: 1920 };
+    const speaker: Asset = {
+      id: "speaker",
+      name: "Speaker",
+      kind: "video",
+      path: "/tmp/speaker.mov",
+      duration: 12,
+      width: 1080,
+      height: 1920,
+      hasAudio: true,
+    };
+    p.assets = [speaker];
+    const video = p.tracks.find((t) => t.kind === "video")!;
+    const clip = { ...makeClip(p, "video", video.id, 0, speaker), duration: 360 };
+    p.clips.push(clip);
+    // Whisper-like words, back to back or with small gaps.
+    const texts =
+      "I just built a free tool that deletes every trace of AI slop it is open source and on GitHub right now".split(
+        " ",
+      );
+    const words = texts.map((text, i) => ({
+      text,
+      start: 0.2 + i * 0.45,
+      end: contiguous ? 0.65 + i * 0.45 : 0.6 + i * 0.45,
+    }));
+    p.clips.push(...buildCaptionClips(p, words, { sourceId: clip.id }));
+    return validateProject(p);
+  }
+  // Beats start on word starts, as an assistant reading the transcript plans them.
+  const beats = [
+    { from: 0.2 + 4 * 0.45, to: 0.2 + 9 * 0.45, layout: "face" as const },
+    { from: 0.2 + 9 * 0.45, to: 0.2 + 14 * 0.45 },
+    { from: 0.2 + 14 * 0.45, to: 0.2 + 18 * 0.45, layout: "face" as const },
+  ];
+  const spoken = (p: Project) =>
+    p.clips
+      .filter((c) => c.kind === "caption")
+      .sort((a, b) => a.start - b.start)
+      .flatMap((c) => c.words.map((w) => w.text));
+
+  for (const contiguous of [true, false])
+    it(`never repeats a word across a cut (${contiguous ? "back to back" : "small gaps"})`, () => {
+      const p = speakerProject(contiguous);
+      const { project } = buildStyleReel(p, { style: "split", beats });
+      expect(spoken(project)).toEqual(spoken(p));
+      // No caption shorter than a few frames flashes up at a cut.
+      for (const c of project.clips.filter((c) => c.kind === "caption"))
+        expect(c.duration).toBeGreaterThanOrEqual(3);
+    });
+
+  it("leaves captions whole with captions: keep, owned by the piece under them", () => {
+    const p = speakerProject(true);
+    const before = p.clips
+      .filter((c) => c.kind === "caption")
+      .map((c) => [c.start, c.duration, c.text]);
+    const { project } = buildStyleReel(p, { style: "split", beats, captions: "keep" });
+    const captions = project.clips.filter((c) => c.kind === "caption");
+    expect(captions.map((c) => [c.start, c.duration, c.text])).toEqual(before);
+    const pieces = project.clips.filter((c) => c.assetId === "speaker");
+    for (const caption of captions) {
+      const owner = pieces.find((piece) => piece.id === caption.captionSourceId)!;
+      const middle = caption.start + caption.duration / 2;
+      expect(middle).toBeGreaterThanOrEqual(owner.start);
+      expect(middle).toBeLessThan(owner.start + owner.duration);
+    }
+  });
+});

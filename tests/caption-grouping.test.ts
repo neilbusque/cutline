@@ -13,6 +13,7 @@ import {
   ClipSchema,
   makeClip,
   newProject,
+  validateProject,
   ProjectSchema,
   type Word,
 } from "../src/shared/model";
@@ -462,6 +463,29 @@ describe("Subtitle file import", () => {
       expect(clips[3].start + clips[3].duration).toBe(Math.ceil(5.6 * fps));
     },
   );
+
+  it("keeps overlapping cues apart: each ends where the next begins", () => {
+    const p = newProject();
+    const overlapping = [
+      "1\n00:00:01,000 --> 00:00:03,200\nFirst speaker says hello\n",
+      "2\n00:00:03,000 --> 00:00:05,000\nSecond speaker answers\n",
+    ].join("\n");
+    expect(
+      srtCaptionClips(p, overlapping).map(({ start, duration, text }) => [start, duration, text]),
+    ).toEqual([
+      [30, 60, "First speaker says hello"],
+      [90, 60, "Second speaker answers"],
+    ]);
+    // Rolling subtitles, each overlapping the next, stay 400 captions.
+    const rolling = Array.from({ length: 400 }, (_, i) => {
+      const at = (s: number) =>
+        `00:${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")},000`;
+      return `${i + 1}\n${at(i * 2)} --> ${at(i * 2 + 3)}\nLine ${i + 1}\n`;
+    }).join("\n");
+    const clips = srtCaptionClips(p, rolling);
+    expect(clips).toHaveLength(400);
+    expect(() => validateProject({ ...p, clips })).not.toThrow();
+  });
 
   it("times a file the same in the app and for an agent's caption.import", () => {
     const p = newProject();

@@ -1,6 +1,7 @@
 import { type Project, type Word, type Clip } from "./model";
 import { buildCaptionClips } from "./caption-grouping";
 import { captionLayout } from "./caption-layout";
+import { captionCutoffs } from "./transitions";
 
 export function parseSrt(srt: string): Word[] {
   return srt
@@ -37,6 +38,8 @@ export function toSrt(clips: Clip[], fps: number) {
     const ms = Math.round(s * 1000);
     return `${String(Math.floor(ms / 3600000)).padStart(2, "0")}:${String(Math.floor(ms / 60000) % 60).padStart(2, "0")}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")},${String(ms % 1000).padStart(3, "0")}`;
   };
+  // A cue ends where the next caption on its track takes over, as on screen.
+  const cutoffs = captionCutoffs({ clips });
   // A blank caption would be an empty cue, which some players reject.
   return clips
     .filter((c) => c.kind === "caption" && c.text.trim())
@@ -50,7 +53,8 @@ export function toSrt(clips: Clip[], fps: number) {
               .lines.map((line) => line.text)
               .join("\n")
           : c.text;
-      return `${i + 1}\n${stamp(c.start / fps)} --> ${stamp((c.start + c.duration) / fps)}\n${text}\n`;
+      const end = cutoffs.get(c.id) ?? c.start + c.duration;
+      return `${i + 1}\n${stamp(c.start / fps)} --> ${stamp(end / fps)}\n${text}\n`;
     })
     .join("\n");
 }

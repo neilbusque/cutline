@@ -186,6 +186,12 @@ export function buildCaptionClips(
       })
       .sort((a, b) => Math.abs(a - ideal) - Math.abs(b - ideal));
     if (!candidates.length) {
+      // Subtitle cues never merge: one that runs into the next ends where
+      // the next begins. Only cues starting in the same frame share one.
+      if (options.cues && starts[index] > starts[index - 1]) {
+        index++;
+        continue;
+      }
       // Extremely short sub-frame words cannot be separated without losing one.
       // Keep this rare boundary in one cue instead of silently dropping text.
       previous.push(...current);

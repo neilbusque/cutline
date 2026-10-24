@@ -71,7 +71,7 @@ const owned = (p: Project, id: string) =>
 
 describe("Generated caption ownership when splitting source media", () => {
   it.each(["video", "audio"] as const)(
-    "splits crossing captions with the %s source and preserves visible word intervals",
+    "splits crossing captions with the %s source, giving a word spoken across the cut to the side holding its middle",
     (kind) => {
       const { p, source, caption } = fixture(kind),
         before = structuredClone(p);
@@ -87,16 +87,16 @@ describe("Generated caption ownership when splitting source media", () => {
         sourceIn: 6,
         speed: 2,
       });
+      // "Crossing" is spoken across the cut, centred on it: it shows once,
+      // after the cut, never at the end of one caption and again in the next.
       expect(leftCue).toMatchObject({
         start: 60,
         duration: 30,
-        text: "Before Crossing",
-        words: [
-          { text: "Before", start: 0, end: 0.5 },
-          { text: "Crossing", start: 0.5, end: 1 },
-        ],
+        text: "Before",
+        words: [{ text: "Before", start: 0, end: 0.5 }],
         animationOffset: 12,
       });
+      expect(leftCue.words).toHaveLength(1);
       expect(rightCue).toMatchObject({
         start: 90,
         duration: 60,

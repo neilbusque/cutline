@@ -18,9 +18,10 @@ import {
   type Word,
 } from "../src/shared/model";
 import { musicBindings, musicResponse } from "../src/shared/music-reactive";
+import { srtCaptionClips, toSrt } from "../src/shared/subtitles";
 import { manualBeatGrid } from "../src/shared/music-sync";
 import { trimClip } from "../src/shared/timeline";
-import { activeTransition } from "../src/shared/transitions";
+import { activeTransition, captionCutoffs } from "../src/shared/transitions";
 import { presetTiming } from "../src/shared/text-presets";
 
 const tx = (p: Project, commands: unknown[]) =>
@@ -657,6 +658,52 @@ describe("deleting a clip removes the captions made from it", () => {
   });
 });
 
+describe("ripple delete with an imported subtitle file", () => {
+  it("removes the deleted part's cues and moves the later cues back with the speech", () => {
+    const p0 = newProject();
+    p0.assets = [
+      AssetSchema.parse({
+        id: "talk",
+        name: "Talk",
+        kind: "video",
+        path: "/t.mp4",
+        duration: 60,
+        hasAudio: true,
+      }),
+    ];
+    const part = (id: string, start: number, sourceIn: number) => ({
+      ...makeClip(p0, "video", "video", start, p0.assets[0]),
+      id,
+      start,
+      sourceIn,
+      duration: 300,
+    });
+    const stamp = (s: number) => `00:00:${String(s).padStart(2, "0")},000`;
+    const srt = Array.from(
+      { length: 15 },
+      (_, i) => `${i + 1}\n${stamp(i * 2)} --> ${stamp(i * 2 + 2)}\ncue ${i}\n`,
+    ).join("\n");
+    p0.clips = [
+      part("A", 0, 0),
+      part("B", 300, 10),
+      part("C", 600, 20),
+      ...srtCaptionClips(p0, srt),
+    ];
+    const next = tx(validateProject(p0), [
+      { type: "clip.delete", id: "B", ripple: true },
+    ]);
+    expect(byId(next, "C").start).toBe(300);
+    const cues = next.clips
+      .filter((c) => c.kind === "caption")
+      .sort((a, b) => a.start - b.start)
+      .map((c) => [c.start, c.text]);
+    // Cues 5 to 9 were spoken in B; cue 10 starts with C again.
+    expect(cues.map(([, text]) => text)).not.toContain("cue 5");
+    expect(cues.find(([, text]) => text === "cue 10")?.[0]).toBe(300);
+    expect(cues.find(([, text]) => text === "cue 4")?.[0]).toBe(240);
+  });
+});
+
 describe("transitions move the captions of the clips they move", () => {
   function fixture() {
     const p = newProject();
@@ -704,7 +751,7 @@ describe("transitions move the captions of the clips they move", () => {
     expect(byId(removed, "c1").start).toBe(220);
   });
 
-  it("ends the outgoing clip's captions where the incoming clip's begin, so two never show at once", () => {
+  it("shows the outgoing clip's captions until the incoming clip's begin, and loses no words when the crossfade changes", () => {
     const p = newProject();
     p.assets = [media("a"), media("b")];
     const words = (names: string[], step: number) =>
@@ -747,18 +794,29 @@ describe("transitions move the captions of the clips they move", () => {
     const incoming = byId(faded, "w0"),
       outgoing = byId(faded, "w35");
     expect(incoming.start).toBe(285);
-    expect(outgoing).toMatchObject({ start: 262, duration: 23 });
-    // Words spoken under the incoming clip's first phrase are cut from it.
-    expect(outgoing.text).toBe("w35 w36 w37 w38");
+    // The words stay; the phrase stops showing where the next one starts.
+    expect(outgoing).toMatchObject({ start: 262, duration: 38 });
+    expect(outgoing.text).toBe("w35 w36 w37 w38 w39");
+    const cutoffs = captionCutoffs(faded);
+    expect(cutoffs.get("w35")).toBe(285);
+    const shownEnd = (c: Clip) => cutoffs.get(c.id) ?? c.start + c.duration;
     for (let frame = 250; frame < 340; frame++)
       expect(
         faded.clips.filter(
-          (c) =>
-            c.kind === "caption" &&
-            c.start <= frame &&
-            frame < c.start + c.duration,
+          (c) => c.kind === "caption" && c.start <= frame && frame < shownEnd(c),
         ).length,
       ).toBeLessThanOrEqual(1);
+    // A subtitle export ends the cue where the next one takes over.
+    expect(toSrt(faded.clips, 30)).toContain(
+      "00:00:08,733 --> 00:00:09,500\nw35 w36 w37 w38 w39",
+    );
+    // Removing the crossfade shows the whole phrase again.
+    const hard = tx(faded, [
+      { type: "clip.transition", id: "b", kind: "none", frames: 2 },
+    ]);
+    expect(byId(hard, "w0").start).toBe(300);
+    expect(captionCutoffs(hard).has("w35")).toBe(false);
+    expect(byId(hard, "w35").text).toBe("w35 w36 w37 w38 w39");
     // A crossfade into a clip without captions leaves the outgoing ones alone.
     const silent = {
       ...p,

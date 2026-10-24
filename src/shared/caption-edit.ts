@@ -33,9 +33,11 @@ export function captionReplacementPlan(
 ) {
   if (!find) return [];
   const escaped = find.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  // Whole words only: fixing "ai" must not touch "said" or "again".
+  // Whole words only: fixing "ai" must not touch "said" or "again", and an
+  // apostrophe (straight or curly) or accent keeps "can’t" one word.
+  const inWord = "\\p{L}\\p{N}\\p{M}'\u2018\u2019\u02bc";
   const pattern = new RegExp(
-    `(?<![\\p{L}\\p{N}'])${escaped}(?![\\p{L}\\p{N}'])`,
+    `(?<![${inWord}])${escaped}(?![${inWord}])`,
     "giu",
   );
   return captions.flatMap((clip) => {

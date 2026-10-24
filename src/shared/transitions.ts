@@ -1,5 +1,4 @@
 import type { Clip, Project } from "./model";
-import { trimClip } from "./timeline";
 export const transitionNames = {
   crossfade: "Crossfade",
   black: "Fade through black",
@@ -76,29 +75,30 @@ export function setTransition(
   const length = Math.max(2, Math.min(frames, limit));
   rippleTrack(p, c, previous.start + previous.duration - length - c.start);
   c.transition = { kind, frames: length, fromId: previous.id };
-  endOutgoingCaptions(p, previous, c);
 }
 
 /**
- * Over a crossfade the outgoing clip's captions end where the incoming
- * clip's first caption starts, so two phrases never show at once.
+ * The frame each overlapped caption stops showing at: where the next caption
+ * on its track starts. A crossfade pulls the incoming clip's captions over
+ * the outgoing clip's; this keeps one phrase on screen at a time without
+ * cutting any words, so shortening or removing the crossfade shows them all
+ * again. Captions not overlapped are not listed.
  */
-function endOutgoingCaptions(p: Project, previous: Clip, c: Clip) {
-  const next = Math.min(
-    ...p.clips.filter((x) => x.captionSourceId === c.id).map((x) => x.start),
-  );
-  if (!Number.isFinite(next)) return;
-  p.clips = p.clips.flatMap((caption) => {
-    if (
-      caption.captionSourceId !== previous.id ||
-      caption.start + caption.duration <= next
-    )
-      return [caption];
-    if (caption.start >= next) return [];
-    const cut = { ...caption, ...trimClip(p, caption, "right", next) };
-    // A cut that leaves none of its words would be a blank caption.
-    return caption.words.length && !cut.words.length ? [] : [cut];
-  });
+export function captionCutoffs(p: Pick<Project, "clips">) {
+  const cutoffs = new Map<string, number>();
+  const byTrack = new Map<string, Clip[]>();
+  for (const c of p.clips)
+    if (c.kind === "caption")
+      byTrack.set(c.trackId, [...(byTrack.get(c.trackId) ?? []), c]);
+  for (const list of byTrack.values()) {
+    list.sort((a, b) => a.start - b.start);
+    list.forEach((c, i) => {
+      const next = list.slice(i + 1).find((x) => x.start > c.start);
+      if (next && next.start < c.start + c.duration)
+        cutoffs.set(c.id, next.start);
+    });
+  }
+  return cutoffs;
 }
 // Zero velocity at either end makes the first and last visible steps gentle.
 // The same curve is shared by preview, export and complementary audio ramps.

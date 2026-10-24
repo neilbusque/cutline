@@ -106,6 +106,19 @@ describe("Caption text corrections", () => {
         "Dan",
       ).map((item) => item.after),
     ).toEqual(["Don't touch Dan or Don's"]);
+    // Subtitle files usually write the apostrophe curly.
+    expect(
+      captionReplacementPlan(
+        [phrase("curly", "Don\u2019t touch don or Don\u2019s, I can\u2019t")],
+        "don",
+        "Dan",
+      ).map((item) => item.after),
+    ).toEqual(["Don\u2019t touch Dan or Don\u2019s, I can\u2019t"]);
+    expect(
+      captionReplacementPlan([phrase("cant", "I can\u2019t, but you can")], "can", "could").map(
+        (item) => item.after,
+      ),
+    ).toEqual(["I can\u2019t, but you could"]);
     expect(
       captionReplacementPlan(
         [phrase("name", "Visit café Ünder")],

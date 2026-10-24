@@ -171,8 +171,19 @@ function reframeSpeaker(
   layoutAt: (frame: number) => StyleLayout,
   style: StyleReelStyle,
   warnings: string[],
+  keepCaptions = false,
 ): Clip[] {
   const ids = [clip.id];
+  // captions: "keep" leaves every caption whole: they sit out the cuts and
+  // then belong to the piece that plays under their middle.
+  const kept = new Set(
+    keepCaptions
+      ? p.clips
+          .filter((c) => c.kind === "caption" && c.captionSourceId === clip.id)
+          .map((c) => c.id)
+      : [],
+  );
+  for (const c of p.clips) if (kept.has(c.id)) c.captionSourceId = undefined;
   for (const frame of edges) {
     const last = p.clips.find((c) => c.id === ids.at(-1))!;
     if (frame <= last.start || frame >= clipEnd(last)) continue;
@@ -197,6 +208,15 @@ function reframeSpeaker(
     ids.push(
       p.clips.find((c) => !before.has(c.id) && c.kind === clip.kind)!.id,
     );
+  }
+  for (const caption of p.clips.filter((c) => kept.has(c.id))) {
+    const middle = caption.start + caption.duration / 2;
+    const owner =
+      ids
+        .map((id) => p.clips.find((c) => c.id === id)!)
+        .find((piece) => middle >= piece.start && middle < clipEnd(piece)) ??
+      p.clips.find((c) => c.id === ids[0])!;
+    caption.captionSourceId = owner.id;
   }
   return ids.map((id) => {
     const piece = p.clips.find((c) => c.id === id)!;
@@ -567,7 +587,15 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
   const reframed = speaker.flatMap((clip) =>
     clip.freeze
       ? [clip]
-      : reframeSpeaker(p, clip, edges, layoutAt, style, warnings),
+      : reframeSpeaker(
+          p,
+          clip,
+          edges,
+          layoutAt,
+          style,
+          warnings,
+          input.captions === "keep",
+        ),
   );
 
   // Style layers sit directly above the speaker, under captions and titles.

@@ -21,7 +21,11 @@ import {
   reactiveClipVisual,
   type MusicBinding,
 } from "../shared/music-reactive";
-import { activeTransition, clipFadeEnvelope } from "../shared/transitions";
+import {
+  activeTransition,
+  captionCutoffs,
+  clipFadeEnvelope,
+} from "../shared/transitions";
 import { reversedPartCovers, reversedRange } from "../shared/timeline";
 import {
   blackDip,
@@ -511,6 +515,8 @@ export const Film: React.FC<RenderProps> = ({
     const transitions = new Map(
       p.clips.map((c) => [c.id, activeTransition(p, c)]),
     );
+    // A caption overlapped by the next one on its track stops where it starts.
+    const cutoffs = captionCutoffs(p);
     const grouped = [...p.tracks]
       .reverse()
       .flatMap((track) =>
@@ -551,6 +557,7 @@ export const Film: React.FC<RenderProps> = ({
           ? music.get(c.musicReactive.musicClipId)
           : undefined,
         span: spans.get(c.id),
+        until: cutoffs.get(c.id),
       })),
     );
   }, [p]);
@@ -563,11 +570,12 @@ export const Film: React.FC<RenderProps> = ({
     outgoing,
     musicBinding,
     span,
+    until,
   }: (typeof groups)[number][number]) => (
     <Sequence
       key={c.id}
       from={c.start}
-      durationInFrames={c.duration}
+      durationInFrames={until === undefined ? c.duration : until - c.start}
       // In the editor, video and audio mount a second before their cut so the
       // element has loaded and seeked when it appears: no flash or audio gap
       // at fast cuts. Rendering ignores premounting; export keeps the plain
