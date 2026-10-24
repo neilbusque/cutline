@@ -1114,8 +1114,9 @@ export function App() {
               openCaptions={() => setLeft("captions")}
               openSettings={() => setSettingsOpen(true)}
               onCreated={(frame) => {
+                // Playing follows the player's pause event, as everywhere.
+                player.current?.pause();
                 seek(frame);
-                setPlaying(false);
               }}
               onAskAssistant={(text) => {
                 setSidebar(true);
