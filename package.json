@@ -1,7 +1,7 @@
 {
   "name": "cutline",
   "productName": "Cutline",
-  "version": "0.32.1",
+  "version": "0.33.0",
   "private": true,
   "description": "A local video editor with editable motion, built-in Claude and Codex assistance",
   "author": "Neil Busque",
@@ -38,6 +38,7 @@
     "qa:heavy": "node scripts/qa-heavy-footage.mjs",
     "qa:generation": "node scripts/qa-generation.mjs",
     "qa:story": "node scripts/qa-story.mjs",
+    "qa:story-draw": "node scripts/qa-story-draw.mjs",
     "qa:references": "node scripts/qa-references.mjs",
     "qa:product": "node scripts/qa-product-film.mjs",
     "qa:promo": "node scripts/qa-promo-alpha.mjs && node scripts/qa-promo.mjs",
