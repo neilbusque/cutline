@@ -33,7 +33,7 @@ import {
 } from "../shared/timeline";
 import { type Command } from "../shared/commands";
 import { linkedCaptionCommands } from "../shared/linked-captions";
-import { createNudge, trimCommands } from "./edit-gestures";
+import { createNudge, dragStarted, trimCommands } from "./edit-gestures";
 import { clipLabel, clipNote, countLabel, kindLabel } from "./labels";
 import { usePlayheadValue, useStoreValue, type Playhead } from "./playhead";
 import { clipFocusTarget, clipKeyMove, clipTabStop } from "./timeline-focus";
@@ -274,8 +274,10 @@ export function Timeline({
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     select(c.id);
-    const x = e.clientX;
-    let latest = c;
+    const x = e.clientX,
+      y = e.clientY;
+    let latest = c,
+      moved = false;
     const points = [
       0,
       playhead.get(),
@@ -293,6 +295,8 @@ export function Timeline({
       return Math.abs(near - n) * zoom < 8 ? near : n;
     };
     const move = (event: PointerEvent) => {
+      if (!moved && !dragStarted(event.clientX - x, event.clientY - y)) return;
+      moved = true;
       let delta = Math.round((event.clientX - x) / zoom);
       let next = { ...c };
       if (mode === "move") {
@@ -330,9 +334,10 @@ export function Timeline({
     const end = () => {
       cleanup.current();
       if (
-        latest.start === c.start &&
-        latest.duration === c.duration &&
-        latest.trackId === c.trackId
+        !moved ||
+        (latest.start === c.start &&
+          latest.duration === c.duration &&
+          latest.trackId === c.trackId)
       ) {
         restore();
         return;

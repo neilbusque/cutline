@@ -202,6 +202,13 @@ export function previewTransform(c: Clip, change: Transform, local: number) {
 }
 
 /**
+ * A click with a small wobble is still a click: a clip moves or trims only
+ * once the pointer travels 3 px sideways or 4 px up or down.
+ */
+export const dragStarted = (dx: number, dy: number) =>
+  Math.abs(dx) >= 3 || Math.abs(dy) >= 4;
+
+/**
  * Trim Start or Trim End to a frame. Like a dragged edge, the clip's
  * generated captions are cut to its new bounds.
  */

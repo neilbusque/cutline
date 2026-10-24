@@ -6,6 +6,7 @@ import { makeClip, newProject, type Project } from "../src/shared/model";
 import { errorText } from "../src/renderer/controls";
 import { exampleReplacesTyping } from "../src/renderer/ExplainerStory";
 import {
+  dragStarted,
   duplicateCommands,
   timingCommands,
   trimCommands,
@@ -493,5 +494,17 @@ describe("Cmd+D duplicates like the agent", () => {
     expect(captions).toHaveLength(2);
     expect(captions.every((c) => c.trackId !== "captions")).toBe(true);
     expect(overlaps(next)).toBe(false);
+  });
+});
+
+describe("clicking a clip never nudges it", () => {
+  it("ignores a 1 or 2 px wobble", () => {
+    expect(dragStarted(1, 0)).toBe(false);
+    expect(dragStarted(-2, 3)).toBe(false);
+  });
+
+  it("starts a drag once the pointer really moves", () => {
+    expect(dragStarted(3, 0)).toBe(true);
+    expect(dragStarted(0, -4)).toBe(true);
   });
 });
