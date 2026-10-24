@@ -161,23 +161,34 @@ export async function startBridge(
       res.end(JSON.stringify({ error: (e as Error).message }));
     }
   });
-  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve();
+    });
+  });
   const address = server.address() as any;
   const base = `http://127.0.0.1:${address.port}/${token}`;
   if (connectionFile)
-    writeFileSync(
-      connectionFile,
-      JSON.stringify({
-        base,
-        mcpUrl: `${base}/mcp`,
-        pid: process.pid,
-        version: CUTLINE_VERSION,
-        protocols: ["stdio", "streamable-http"],
-      }),
-      {
-        mode: 0o600,
-      },
-    );
+    try {
+      writeFileSync(
+        connectionFile,
+        JSON.stringify({
+          base,
+          mcpUrl: `${base}/mcp`,
+          pid: process.pid,
+          version: CUTLINE_VERSION,
+          protocols: ["stdio", "streamable-http"],
+        }),
+        {
+          mode: 0o600,
+        },
+      );
+    } catch (error) {
+      server.close();
+      throw error;
+    }
   return {
     base,
     mcpUrl: `${base}/mcp`,

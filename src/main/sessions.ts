@@ -305,6 +305,7 @@ export class SessionManager {
   readonly context: SessionContext;
   private options: SessionManagerOptions;
   private metadata?: SessionMetadata;
+  private saveFailed = false;
   private pending = new Map<string, Promise<SessionInfo>>();
   private readyConnections = new Map<
     string,
@@ -333,8 +334,22 @@ export class SessionManager {
       pid: process.pid,
       version: this.options.version,
     };
-    writeMetadata(this.context.rootData, this.metadata);
+    this.save(this.metadata);
     return this.current();
+  }
+  /**
+   * Session metadata only helps other sessions find this one, so a full disk
+   * or an unwritable folder never stops startup or an edit; it is reported
+   * once.
+   */
+  private save(metadata: SessionMetadata) {
+    try {
+      writeMetadata(this.context.rootData, metadata);
+    } catch (error) {
+      if (!this.saveFailed)
+        console.error("Cutline couldn't update its session list:", error);
+      this.saveFailed = true;
+    }
   }
 
   current(): SessionInfo {
@@ -359,7 +374,7 @@ export class SessionManager {
       ...(project ? { projectId: project.id, projectName: project.name } : {}),
       updatedAt: new Date().toISOString(),
     };
-    writeMetadata(this.context.rootData, this.metadata);
+    this.save(this.metadata);
   }
 
   private summary(metadata: SessionMetadata, running: boolean): SessionInfo {
@@ -543,6 +558,6 @@ export class SessionManager {
       pid: null,
       updatedAt: new Date().toISOString(),
     };
-    writeMetadata(this.context.rootData, this.metadata);
+    this.save(this.metadata);
   }
 }

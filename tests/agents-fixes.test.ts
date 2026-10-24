@@ -1468,6 +1468,30 @@ describe("the launcher works and explains itself when Cutline is closed", () => 
     }
   });
 
+  it("fails startup cleanly when the connection can't be written", async () => {
+    const directory = temporary("cutline-bridge-start-");
+    const store = new Store(path.join(directory, "recovery.cutline"));
+    const close = vi.spyOn(http.Server.prototype, "close");
+    await expect(
+      startBridge(
+        store,
+        path.join(directory, "missing", "connection.json"),
+        async () => null,
+        [],
+      ),
+    ).rejects.toThrow(/ENOENT/);
+    // Its listener is closed, not left running without a window.
+    expect(close).toHaveBeenCalledTimes(1);
+    close.mockRestore();
+    const bridge = await startBridge(
+      store,
+      path.join(directory, "connection.json"),
+      async () => null,
+      [],
+    );
+    bridge.close();
+  });
+
   it("leaves a newer Cutline's connection file in place", async () => {
     const directory = temporary("cutline-bridge-");
     const connection = path.join(directory, "connection.json");

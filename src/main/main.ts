@@ -262,7 +262,22 @@ const defaultData =
       ));
 const sessionContext = resolveSessionContext(defaultData);
 const data = sessionContext.dataDir;
-mkdirSync(data, { recursive: true });
+/** A problem found before the app was ready, shown once it is. */
+let startupError: unknown;
+try {
+  mkdirSync(data, { recursive: true });
+} catch (error) {
+  startupError = error;
+}
+/** Why Cutline couldn't start, in words for the person. */
+function startupProblem(error: unknown) {
+  const code = (error as NodeJS.ErrnoException)?.code;
+  if (code === "ENOSPC")
+    return "The disk is full. Free up some space, then open Cutline again.";
+  if (code === "EACCES" || code === "EPERM" || code === "EROFS")
+    return `Cutline isn't allowed to write to its data folder:\n${data}\n\nCheck that folder's permissions, then open Cutline again.`;
+  return `${(error as Error)?.message || String(error)}\n\nOpen Cutline again to retry.`;
+}
 const sessions = new SessionManager({
   context: sessionContext,
   executable: process.execPath,
@@ -1931,6 +1946,7 @@ function register() {
 }
 app.whenReady().then(async () => {
   if (!primary) return;
+  if (startupError) throw startupError;
   // Chrome left running by workers of an earlier run that crashed.
   void sweepOrphanedBrowsers(path.join(vendor, browserDirectory));
   sessions.register();
@@ -2252,6 +2268,18 @@ app.whenReady().then(async () => {
     });
   // Edits from last time that never reached the project file.
   if (store.saveError) void warnSaveFailed(store.saveError);
+}).catch((error) => {
+  // Without a window there is nothing to click and no way back: say why,
+  // then quit, so opening Cutline again starts afresh.
+  dialog.showErrorBox("Cutline couldn't start", startupProblem(error));
+  app.exit(1);
+});
+// Clicking the Dock icon brings the editor back.
+app.on("activate", () => {
+  if (win && !win.isDestroyed()) {
+    win.show();
+    win.focus();
+  }
 });
 app.on("window-all-closed", () => app.quit());
 app.on("before-quit", () => {
