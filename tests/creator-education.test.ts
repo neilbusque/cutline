@@ -14,6 +14,7 @@ import {
   creatorTitlePlacement,
 } from "../src/shared/creator-education";
 import { captionTextWidth } from "../src/shared/caption-layout";
+import { reelSafeArea } from "../src/shared/safe-area";
 
 function fixture(): Project {
   const p = newProject();
@@ -96,8 +97,11 @@ describe("Creator education Reel format", () => {
       expect(caption.captionStrokeWidth).toBe(0);
       expect(caption.captionMaxLines).toBe(1);
       expect(caption.height).toBeLessThan(next.height * 0.06);
-      expect(caption.y).toBeGreaterThan(next.height * 0.8);
-      expect(caption.y + caption.height).toBeLessThan(next.height * 0.9);
+      // Inside the Reel safe area, just above the description at the bottom.
+      expect(caption.y).toBeGreaterThan(next.height * 0.7);
+      expect(caption.y + caption.height).toBeLessThanOrEqual(
+        next.height * reelSafeArea.bottom,
+      );
       expect(caption.x + caption.width / 2).toBe(next.width / 2);
       expect(caption.width).toBeLessThanOrEqual(next.width * 0.78);
     }

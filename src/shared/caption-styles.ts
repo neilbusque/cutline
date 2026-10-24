@@ -1,4 +1,5 @@
 import type { Clip, Project } from "./model";
+import { reelSafeArea } from "./safe-area";
 
 type CaptionPreset = {
   id: Clip["captionStyle"];
@@ -199,17 +200,28 @@ export function captionStylePatch(
   };
 }
 
-/** Center the caption on the canvas with balanced side margins and room below. */
+/**
+ * Center the caption on the canvas with balanced side margins and room below.
+ * On a vertical canvas it stays inside the Reel safe area: centered on the
+ * frame, clear of the buttons on the right and above the description.
+ */
 export function captionPlacement(
   p: Pick<Project, "width" | "height">,
 ): Pick<Clip, "x" | "y" | "width" | "height"> {
   const height = Math.round(
     Math.min(p.height * 0.24, Math.min(p.width, p.height) * 0.24),
   );
-  const width = Math.round(p.width * 0.78);
+  const portrait = p.height > p.width;
+  // Equal margins as wide as the safe area's wider side keep it centered.
+  const width = Math.round(
+    p.width *
+      (portrait
+        ? 1 - 2 * Math.max(reelSafeArea.left, 1 - reelSafeArea.right)
+        : 0.78),
+  );
   return {
     x: (p.width - width) / 2,
-    y: Math.round(p.height * 0.76 - height / 2),
+    y: Math.round(p.height * (portrait ? 0.7 : 0.76) - height / 2),
     width,
     height,
   };

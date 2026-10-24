@@ -24,6 +24,7 @@ import {
 } from "../src/shared/subtitles";
 import { reelCaptionClips } from "../src/shared/reel";
 import { applyAgentEdit } from "../src/shared/agent-edit";
+import { reelSafeArea } from "../src/shared/safe-area";
 
 const spoken = (text: string, step = 0.34): Word[] =>
   text.split(" ").map((text, index) => ({
@@ -368,6 +369,64 @@ describe("Caption presets and compatible documents", () => {
       { captionTracking: Infinity },
     ])
       expect(ClipSchema.safeParse({ ...c, ...patch }).success).toBe(false);
+  });
+});
+
+describe("Built-in caption placement on a vertical Reel", () => {
+  const inside = (
+    c: { x: number; y: number; width: number; height: number },
+    w: number,
+    h: number,
+  ) => {
+    expect(c.x).toBeGreaterThanOrEqual(w * reelSafeArea.left);
+    expect(c.x + c.width).toBeLessThanOrEqual(w * reelSafeArea.right);
+    expect(c.y).toBeGreaterThanOrEqual(h * reelSafeArea.top);
+    expect(c.y + c.height).toBeLessThanOrEqual(h * reelSafeArea.bottom);
+  };
+
+  it("keeps generated captions centered and inside the safe area", () => {
+    const placement = captionPlacement({ width: 1080, height: 1920 });
+    inside(placement, 1080, 1920);
+    expect(placement.x + placement.width / 2).toBe(540);
+    const p = newProject();
+    const two = buildCaptionClips(p, spoken("Every frame should read clearly here"));
+    for (const c of two) {
+      inside(c, p.width, p.height);
+      // The rendered lines fit the box, so they stay inside too.
+      const layout = captionLayout(c);
+      expect(layout.contentWidth).toBeLessThanOrEqual(c.width);
+    }
+    // Wide and square canvases keep their placement.
+    expect(captionPlacement({ width: 1920, height: 1080 })).toEqual({
+      x: 211,
+      y: 691,
+      width: 1498,
+      height: 259,
+    });
+  });
+
+  it("puts an agent's new caption on the Captions track in the standard look, inside the safe area", () => {
+    const p = newProject();
+    const made = applyAgentEdit(p, {
+      projectId: p.id,
+      revision: p.revision,
+      label: "Add caption",
+      actions: [
+        {
+          type: "clip.add",
+          kind: "caption",
+          at: { seconds: 1 },
+          patch: { text: "Hello there" },
+          ref: "line",
+        },
+      ],
+    });
+    const caption = made.project.clips.find(
+      (c) => c.id === made.references.line,
+    )!;
+    expect(caption.trackId).toBe("captions");
+    expect(caption.captionLayout).toBe("balanced");
+    inside(caption, p.width, p.height);
   });
 });
 

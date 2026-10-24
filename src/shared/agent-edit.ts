@@ -50,7 +50,11 @@ import { linkedCaptionCommands, retimedClipCommands } from "./linked-captions";
 import { resizeCanvas } from "./canvas";
 import { newTrack } from "./layers";
 import { captionTextPatch } from "./caption-edit";
-import { captionStylePatch, captionStyles } from "./caption-styles";
+import {
+  captionPlacement,
+  captionStylePatch,
+  captionStyles,
+} from "./caption-styles";
 import { srtCaptionClips } from "./subtitles";
 import {
   MAX_VECTOR_LAYERS,
@@ -671,9 +675,23 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
               : action.kind === "text" || action.kind === "caption"
                 ? "text"
                 : "video";
+          // A caption joins the existing captions, or the Captions track,
+          // rather than the first text track (usually Titles).
+          const captionTrack =
+            action.kind === "caption"
+              ? working.tracks.find(
+                  (t) =>
+                    !t.hidden &&
+                    (working.clips.some(
+                      (c) => c.kind === "caption" && c.trackId === t.id,
+                    ) ||
+                      t.id === "captions"),
+                )
+              : undefined;
           const destination = action.trackId
             ? track(action.trackId)
-            : (working.tracks.find((t) => t.kind === kind && !t.hidden) ??
+            : (captionTrack ??
+              working.tracks.find((t) => t.kind === kind && !t.hidden) ??
               newTrack(working, kind));
           if (!compatibleTrack({ kind: action.kind }, destination))
             throw Error("The clip kind does not match its destination track.");
@@ -685,6 +703,14 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
               action.at ? toFrame(action.at, working.fps) : 0,
               asset,
             ),
+            // The look and placement generated captions get, inside the
+            // Reel safe area.
+            ...(action.kind === "caption"
+              ? {
+                  ...captionStylePatch("standard", working),
+                  ...captionPlacement(working),
+                }
+              : {}),
             ...resolvePatch(action.patch ?? {}),
             ...(action.duration
               ? { duration: toFrame(action.duration, working.fps) }

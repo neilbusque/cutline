@@ -5,6 +5,7 @@ import { evaluatedClip } from "../shared/animation";
 import { musicBindings, reactiveClipVisual } from "../shared/music-reactive";
 import { beatFrames } from "../shared/music-sync";
 import { resizeCanvas } from "../shared/canvas";
+import { reelSafeArea } from "../shared/safe-area";
 import React, {
   useEffect,
   useLayoutEffect,
@@ -122,6 +123,14 @@ const StablePlayer = React.memo(
     ),
   ),
 );
+/** The guide draws the same safe area the built-in placements use. */
+const percent = (fraction: number) => `${Math.round(fraction * 1000) / 10}%`;
+const safeGuideStyle = {
+  "--safe-left": percent(reelSafeArea.left),
+  "--safe-right": percent(1 - reelSafeArea.right),
+  "--safe-top": percent(reelSafeArea.top),
+  "--safe-bottom": percent(1 - reelSafeArea.bottom),
+} as React.CSSProperties;
 // Both sides read minutes:seconds, then frames in a quieter weight, so
 // "0:03:00" reads as three seconds rather than three minutes.
 const timecode = (f: number, fps: number) => {
@@ -1630,7 +1639,7 @@ export function App() {
                 />
               )}
               {safeGuides && (
-                <div className="safe-guide">
+                <div className="safe-guide" style={safeGuideStyle}>
                   <span>Reel safe area</span>
                 </div>
               )}
