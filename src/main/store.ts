@@ -48,8 +48,12 @@ const content = (project: Project) =>
     ...project,
     revision: 0,
     assets: project.assets.map(
-      ({ proxy: _proxy, thumbnail: _thumbnail, reversed: _reversed, ...asset }) =>
-        asset,
+      ({
+        proxy: _proxy,
+        thumbnail: _thumbnail,
+        reversed: _reversed,
+        ...asset
+      }) => asset,
     ),
   });
 const moved = "it was moved, renamed or deleted outside Cutline";
@@ -476,7 +480,9 @@ export class Store extends EventEmitter {
     )
       return { state: "same", stamp };
     try {
-      if (content(validateProject(theirs?.project ?? theirs)) === content(project))
+      if (
+        content(validateProject(theirs?.project ?? theirs)) === content(project)
+      )
         return { state: "same", stamp };
     } catch {
       return { state: "unreadable" };

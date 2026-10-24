@@ -1081,7 +1081,9 @@ describe("long edits keep their finished work when other edits land meanwhile", 
     writeFileSync(copy, readFileSync(file, "utf8"));
     const captions = generateCaptions(f.deps, f.args());
     f.store.load(copy);
-    expect(f.store.project.id).toBe(JSON.parse(readFileSync(file, "utf8")).project.id);
+    expect(f.store.project.id).toBe(
+      JSON.parse(readFileSync(file, "utf8")).project.id,
+    );
     f.transcribed.resolve(spoken);
     await expect(captions).rejects.toThrow("Another project");
     expect(captionsOf(f.store.project)).toHaveLength(0);
@@ -1090,9 +1092,9 @@ describe("long edits keep their finished work when other edits land meanwhile", 
     f.store.restore(copy);
     f.found.resolve([{ start: 5, end: 9 }]);
     await expect(pauses).rejects.toThrow("Another project");
-    expect(f.store.project.clips.filter((c) => c.kind === "video")).toHaveLength(
-      1,
-    );
+    expect(
+      f.store.project.clips.filter((c) => c.kind === "video"),
+    ).toHaveLength(1);
   });
 
   it("removes pauses after an unrelated edit made while finding them", async () => {
