@@ -540,7 +540,17 @@ export const Film: React.FC<RenderProps> = ({
       key={c.id}
       from={c.start}
       durationInFrames={c.duration}
-      layout="none"
+      // In the editor, video and audio mount a second before their cut so the
+      // element has loaded and seeked when it appears: no flash or audio gap
+      // at fast cuts. Rendering ignores premounting; export keeps the plain
+      // layout so its output is unchanged.
+      {...(preview && (c.kind === "video" || c.kind === "audio")
+        ? {
+            layout: "absolute-fill" as const,
+            premountFor: p.fps,
+            style: { pointerEvents: "none" as const },
+          }
+        : { layout: "none" as const })}
     >
       <Layer
         c={c}
