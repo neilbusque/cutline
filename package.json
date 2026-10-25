@@ -1,7 +1,7 @@
 {
   "name": "cutline",
   "productName": "Cutline",
-  "version": "0.33.0",
+  "version": "0.33.1",
   "private": true,
   "description": "A local video editor with editable motion, built-in Claude and Codex assistance",
   "author": "Neil Busque",

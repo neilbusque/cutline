@@ -4,12 +4,14 @@ import { browserOptions } from "../../scripts/browser-config.mjs";
 import {
   openBrowser,
   renderMedia,
+  renderStill,
   selectComposition,
   makeCancelSignal,
 } from "@remotion/renderer";
 import { spawn, type ChildProcess } from "node:child_process";
 import { rmSync } from "node:fs";
 import { freePort } from "./free-port";
+import { repairDamagedFrames } from "./frame-repair";
 let browser: Awaited<ReturnType<typeof openBrowser>> | undefined;
 let sentPercent = -1;
 let cancel: (() => void) | undefined;
@@ -118,6 +120,32 @@ process.on("message", async (message: any) => {
       },
     });
     if (cancelled) throw Error("Cancelled");
+    // Chrome now and then captures a frame wrong (once: the top of the canvas
+    // tiled five times). Re-render any frame that breaks from both
+    // neighbours and keep the fresh one where it differs.
+    const repairedFrames = await repairDamagedFrames({
+      ffmpeg,
+      video,
+      fps: composition.fps,
+      renderFrame: (frame, output) =>
+        renderStill({
+          serveUrl,
+          composition,
+          inputProps,
+          frame,
+          output,
+          imageFormat: "png",
+          overwrite: true,
+          browserExecutable,
+          ...browserOptions,
+          puppeteerInstance: browser,
+          offthreadVideoCacheSizeInBytes: frameCache,
+          port,
+          timeoutInMilliseconds: 30000,
+          cancelSignal: signal.cancelSignal,
+        }),
+    });
+    if (cancelled) throw Error("Cancelled");
     await new Promise<void>((resolve, reject) => {
       mux = spawn(
         ffmpeg,
@@ -164,7 +192,7 @@ process.on("message", async (message: any) => {
             ),
       );
     });
-    process.send?.({ type: "done", output: outputLocation });
+    process.send?.({ type: "done", output: outputLocation, repairedFrames });
   } catch (e) {
     process.send?.({ type: "error", message: (e as Error).message });
   } finally {

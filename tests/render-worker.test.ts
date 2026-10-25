@@ -6,6 +6,8 @@ const mocks = vi.hoisted(() => ({
   process: { on: vi.fn(), send: vi.fn(), exit: vi.fn() },
   selectComposition: vi.fn(),
   renderMedia: vi.fn(),
+  renderStill: vi.fn(),
+  repairDamagedFrames: vi.fn(),
   openBrowser: vi.fn(),
   browser: { close: vi.fn() },
   spawn: vi.fn(),
@@ -14,9 +16,13 @@ const mocks = vi.hoisted(() => ({
 vi.mock("node:process", () => ({ default: mocks.process }));
 vi.mock("node:child_process", () => ({ spawn: mocks.spawn }));
 vi.mock("node:fs", () => ({ rmSync: mocks.rm }));
+vi.mock("../src/main/frame-repair", () => ({
+  repairDamagedFrames: mocks.repairDamagedFrames,
+}));
 vi.mock("@remotion/renderer", () => ({
   selectComposition: mocks.selectComposition,
   renderMedia: mocks.renderMedia,
+  renderStill: mocks.renderStill,
   openBrowser: mocks.openBrowser,
   makeCancelSignal: () => ({ cancel: vi.fn(), cancelSignal: vi.fn() }),
 }));
@@ -28,6 +34,7 @@ beforeEach(async () => {
   });
   mocks.selectComposition.mockResolvedValue({ durationInFrames: 60, fps: 30 });
   mocks.renderMedia.mockResolvedValue(undefined);
+  mocks.repairDamagedFrames.mockResolvedValue([]);
   mocks.browser.close.mockResolvedValue(undefined);
   mocks.openBrowser.mockResolvedValue(mocks.browser);
   mocks.spawn.mockImplementation(() => {
@@ -67,6 +74,7 @@ it("uses the reviewed full browser for both composition loading and video render
   expect(mocks.process.send).toHaveBeenCalledWith({
     type: "done",
     output: "/output.mp4",
+    repairedFrames: [],
   });
   // One Chrome serves composition loading and rendering, with a bounded
   // frame cache, and is closed when the export ends.
@@ -179,4 +187,46 @@ it("stops cleanly on the editor's SIGTERM, even while Chrome is still starting",
 it("exits right away on SIGTERM when no export has started", () => {
   mocks.handlers.SIGTERM();
   expect(mocks.process.exit).toHaveBeenCalledWith(0);
+});
+
+it("re-renders damaged frames with the export's own browser and composition before muxing", async () => {
+  mocks.repairDamagedFrames.mockImplementation(async ({ renderFrame }) => {
+    await renderFrame(131, "/tmp/frame-131.png");
+    return [131];
+  });
+  await mocks.handlers.message({
+    type: "render",
+    serveUrl: "/composition",
+    inputProps: { project: "p" },
+    browserExecutable: "/reviewed/Chrome",
+    outputLocation: "/output.mp4",
+    ffmpeg: "/ffmpeg",
+  });
+  expect(mocks.repairDamagedFrames).toHaveBeenCalledWith(
+    expect.objectContaining({
+      ffmpeg: "/ffmpeg",
+      video: "/output.mp4.video.mp4",
+      fps: 30,
+    }),
+  );
+  expect(mocks.renderStill).toHaveBeenCalledWith(
+    expect.objectContaining({
+      serveUrl: "/composition",
+      inputProps: { project: "p" },
+      frame: 131,
+      output: "/tmp/frame-131.png",
+      imageFormat: "png",
+      puppeteerInstance: mocks.browser,
+      chromeMode: "chrome-for-testing",
+    }),
+  );
+  // The repair runs on the silent video, before the audio mux reads it.
+  expect(mocks.repairDamagedFrames.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.spawn.mock.invocationCallOrder[0],
+  );
+  expect(mocks.process.send).toHaveBeenCalledWith({
+    type: "done",
+    output: "/output.mp4",
+    repairedFrames: [131],
+  });
 });

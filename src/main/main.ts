@@ -132,6 +132,7 @@ import { ClaudeAssistant, findClaude, type ClaudeModel } from "./claude";
 import { TransactionSchema } from "../shared/commands";
 import { reversedPartHolds, reversedRequest } from "../shared/timeline";
 import { srtCaptionClips, toSrt } from "../shared/subtitles";
+import { plural } from "../shared/plural";
 import {
   publicProject,
   uid,
@@ -540,10 +541,13 @@ async function exportVideo(output?: string) {
         if (m.type === "done") {
           try {
             renameSync(temporary, output!);
+            const repaired: number[] = m.repairedFrames ?? [];
             jobs.update(job, {
               state: "done",
               progress: 1,
-              message: "Video exported",
+              message: repaired.length
+                ? `Video exported · re-rendered ${plural(repaired.length, "damaged frame")}`
+                : "Video exported",
               output,
             });
           } catch (e) {

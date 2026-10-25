@@ -1,3 +1,13 @@
+# Changes in 0.33.1
+
+## Exports check every frame
+
+Chrome, which draws each frame of an export, now and then captures one wrong. On 2026-10-24 a reel came out with two single frames showing the top of the canvas tiled five times and the speaker gone, while the preview of those moments was fine. Exporting the same project again was clean, so the fault is random.
+
+Every export now checks its frames before it finishes. A frame that breaks from both of its neighbours while they agree with each other is drawn again on its own, and where the fresh frame differs, it replaces the damaged one. A real one-frame shot in your edit draws the same again and is kept. The job then reads **Video exported · re-rendered 2 damaged frames**. If a frame stays wrong after that, the export stops with an error instead of saving a damaged video.
+
+The check reads a small grayscale copy of the video, so it adds a few seconds to a short reel.
+
 # Changes in 0.33.0
 
 ## Graphics Cutline makes itself
