@@ -104,6 +104,17 @@ export const AssetSchema = z.object({
   hasAudio: z.boolean().default(false),
   thumbnail: z.string().optional(),
   proxy: z.string().optional(),
+  /** Editable scene source and its immutable local render. Older editors play the render. */
+  composition: z
+    .object({
+      engine: z.literal("hyperframes"),
+      entry: z.string().min(1),
+      source: z.string().min(1).max(1_000_000),
+      sourceHash: z.string().regex(/^[a-f0-9]{64}$/u),
+      engineVersion: z.string().min(1).max(40),
+      transparent: z.boolean(),
+    })
+    .optional(),
   /** This Mac's cached copy that plays the media backwards, for reversed clips. */
   reversed: z.string().optional(),
   /**
@@ -672,6 +683,21 @@ function repairLegacyColors(input: unknown): unknown {
 }
 export function validateProject(input: unknown): Project {
   if (isRecord(input)) {
+    if (Array.isArray(input.assets)) {
+      let sourceSize = 0;
+      for (const asset of input.assets) {
+        if (
+          isRecord(asset) &&
+          isRecord(asset.composition) &&
+          typeof asset.composition.source === "string"
+        )
+          sourceSize += asset.composition.source.length;
+        if (sourceSize > 16_000_000)
+          throw Error(
+            "This project contains too much scene source. Split the scenes into separate projects.",
+          );
+      }
+    }
     if (typeof input.version === "number" && input.version > PROJECT_VERSION)
       throw Error(
         "This project was saved by a newer version of Cutline. Update Cutline to open it.",
@@ -687,6 +713,9 @@ export function validateProject(input: unknown): Project {
     if (ids.has(item.id)) throw Error("Duplicate object ID");
     ids.add(item.id);
   }
+  for (const asset of p.assets)
+    if (asset.composition && asset.kind !== "video")
+      throw Error("An HTML scene must reference a rendered video asset.");
   for (const c of p.clips) {
     const last = new Map<string, number>();
     for (const k of c.keyframes) {
@@ -705,6 +734,10 @@ export function validateProject(input: unknown): Project {
     if (c.preset === "custom" && !p.motions.some((m) => m.id === c.motionId))
       throw Error("Animation is missing");
     const a = p.assets.find((a) => a.id === c.assetId);
+    if (a?.composition?.transparent && c.reverse)
+      throw Error(
+        "Reverse is unavailable for transparent scenes. Reverse the animation in its HTML source instead.",
+      );
     // A held frame can run longer than its source; it only needs that frame.
     if (
       a &&
@@ -730,9 +763,20 @@ export function publicProject(p: Project) {
         reversedPart,
         reversedSpan,
         rhythm,
+        composition,
         ...a
       }) => ({
         ...a,
+        ...(composition
+          ? {
+              composition: {
+                engine: composition.engine,
+                sourceHash: composition.sourceHash,
+                engineVersion: composition.engineVersion,
+                transparent: composition.transparent,
+              },
+            }
+          : {}),
         ...(rhythm ? { rhythm: publicRhythm(rhythm) } : {}),
       }),
     ),

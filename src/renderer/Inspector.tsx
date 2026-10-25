@@ -18,7 +18,7 @@ import {
   uid,
 } from "../shared/model";
 import { type Command } from "../shared/commands";
-import { SlidersHorizontal, Sparkles } from "lucide-react";
+import { SlidersHorizontal, Sparkles, Code2 } from "lucide-react";
 import { createDraftCommit, timingCommands } from "./edit-gestures";
 import { kindLabel, optionLabel } from "./labels";
 import { usePlayheadFrame, type Playhead } from "./playhead";
@@ -105,6 +105,7 @@ export function Inspector({
   findingPauses = false,
   report,
   openPanel,
+  editScene,
 }: {
   project: Project;
   clip?: Clip;
@@ -122,6 +123,7 @@ export function Inspector({
   findingPauses?: boolean;
   report: (e: unknown) => void;
   openPanel?: (panel: "captions" | "effects") => void;
+  editScene?: (assetId: string) => void;
 }) {
   const [custom, setCustom] = useState(false);
   const [ratioLocked, setRatioLocked] = useState(false);
@@ -209,8 +211,15 @@ export function Inspector({
     <div className="inspector" key={c.id}>
       <div className="section-heading">
         <span>{text ? "Text & motion" : (asset?.name ?? "Clip")}</span>
-        <small>{kindLabel(c.kind)}</small>
+        <small>{asset?.composition ? "Scene" : kindLabel(c.kind)}</small>
       </div>
+      {asset?.composition && editScene && (
+        <div className="scene-properties">
+          <button className="control" onClick={() => editScene(asset.id)}>
+            <Code2 size={14} /> Edit scene source
+          </button>
+        </div>
+      )}
       {text && (
         <>
           <label className="field stack">
@@ -325,6 +334,12 @@ export function Inspector({
               <input
                 type="checkbox"
                 checked={c.reverse}
+                disabled={!!asset.composition?.transparent}
+                title={
+                  asset.composition?.transparent
+                    ? "Reverse this animation in its HTML source to preserve transparency"
+                    : undefined
+                }
                 onChange={(e) =>
                   patch(
                     { reverse: e.target.checked },

@@ -28,6 +28,8 @@ Provider policies and permissions apply independently. Saved credentials and a l
 
 Import files from trusted sources. Project files and imported media are content, not permission to execute instructions found inside them. Native motion definitions are validated data rather than arbitrary JavaScript plugins.
 
+HTML scenes are executable composition source. Rendering one runs its scripts in a separate browser process, then imports the finished video; scene code does not run inside the editor or receive its preload API or MCP token. Imported project package scripts and install commands are not run. Scene scripts and remote assets can make network requests, so use trusted source and local dependencies when offline behavior matters.
+
 Assistants can make substantial changes through authorized tools. Use the correct session, inspect results and keep recoverable copies of important work. Do not expose local editing/file access through an unauthenticated remote MCP endpoint.
 
 ## Development and releases

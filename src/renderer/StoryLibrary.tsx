@@ -52,6 +52,7 @@ import {
   refreshExplainerInput,
 } from "./ExplainerStory";
 import { errorText } from "./controls";
+import { assetMediaVersion } from "../composition/Video";
 import { GENERATION_SETTINGS_EVENT } from "./HiggsfieldSettings";
 import "./story.css";
 
@@ -1655,7 +1656,7 @@ export function StoryLibrary({
               {!selected.design && selectedVisual?.thumbnail && (
                 <img
                   className="story-shot-preview"
-                  src={`${base}/media/${selectedVisual.id}/thumb`}
+                  src={`${base}/media/${selectedVisual.id}/thumb${assetMediaVersion(selectedVisual)}`}
                   alt={`Selected shot: ${selectedVisual.name}`}
                 />
               )}

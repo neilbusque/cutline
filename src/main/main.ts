@@ -69,6 +69,8 @@ import { contentSecurityPolicy } from "./csp";
 import { confirmReplace, type UnsavedChoice } from "./project-guard";
 import { agentIoTools, createAgentIO } from "./agent-io";
 import { musicTools, createMusicControl } from "./music-control";
+import { Hyperframes } from "./hyperframes";
+import { createHyperframesControl } from "./agent-hyperframes";
 import {
   writeAgentLauncher,
   testAgentConnection,
@@ -207,6 +209,9 @@ let bridge: Awaited<ReturnType<typeof startBridge>>;
 let mcpLauncher = "";
 let agentIO: ReturnType<typeof createAgentIO>;
 let agentMedia: ReturnType<typeof createAgentMedia>;
+let hyperframes: Hyperframes;
+let hyperframesControl: ReturnType<typeof createHyperframesControl>;
+const uiSceneRequests = new Map<string, string>();
 let references: References;
 let vectorGeneration: AbortController | undefined;
 /** A Story shot being drawn, so Cancel can stop it. */
@@ -700,6 +705,7 @@ async function runTool(
   args: any,
   signal?: AbortSignal,
 ): Promise<unknown> {
+  if (name === "cutline_hyperframes") return hyperframesControl(args);
   if (musicTools.some((tool) => tool.name === name)) {
     const result: any = await musicControl(name, args);
     // A sync plan holds a command per clip; keep the reply short.
@@ -1887,6 +1893,41 @@ function register() {
       }
       return agentIO("cutline_vector_import", { ...args, path: file });
     },
+    "hyperframes.read": (args) =>
+      hyperframesControl({ ...args, action: "read" }),
+    "hyperframes.render": async (args) => {
+      assertRevision(args);
+      if (args?.action === "import" && !args.path && !args.html) {
+        const selected = await dialog.showOpenDialog(win, {
+          title: "Import an editable scene",
+          properties: ["openFile"],
+          filters: [{ name: "HyperFrames HTML", extensions: ["html", "htm"] }],
+        });
+        if (selected.canceled || !selected.filePaths[0]) return null;
+        args = { ...args, path: selected.filePaths[0] };
+      }
+      const { requestId: rawRequestId, ...input } = args;
+      const requestId = rawRequestId === undefined
+        ? undefined
+        : z.string().uuid().parse(rawRequestId);
+      if (!requestId) return hyperframesControl(input);
+      if (uiSceneRequests.has(requestId))
+        throw Error("This scene render is already running.");
+      try {
+        return await jobs.run("agent", "Rendering scene", (job) => {
+          uiSceneRequests.set(requestId, job.id);
+          return hyperframesControl(input);
+        });
+      } finally {
+        uiSceneRequests.delete(requestId);
+      }
+    },
+    "hyperframes.cancel": (args) => {
+      const { requestId } = z.object({ requestId: z.string().uuid() }).strict().parse(args);
+      const parent = uiSceneRequests.get(requestId);
+      if (parent) jobs.cancel(parent);
+      return { cancelled: !!parent };
+    },
     import: async (args) => {
       let files: string[] = args?.paths
         ? z.array(z.string()).max(100).parse(args.paths)
@@ -2104,6 +2145,18 @@ app.whenReady().then(async () => {
   // A cancelled agent call never lands an edit, whatever it was waiting on.
   store.beforeCommit = () => jobs.assertActive();
   media = new Media(path.join(data, "media-cache"), bin, jobs);
+  hyperframes = new Hyperframes({
+    directory: path.join(data, "scenes"),
+    media,
+    jobs,
+    browserExecutable: previewBrowser,
+    ffmpeg: bin.ffmpeg,
+    ffprobe: bin.ffprobe,
+  });
+  hyperframesControl = createHyperframesControl({
+    store,
+    renderer: hyperframes,
+  });
   // Older versions left raw audio dumps behind (about 115 MB per hour of media),
   // and preview copies of old imports pile up: keep the cache under its cap,
   // never touching what the open project uses.
@@ -2488,6 +2541,7 @@ app.on("before-quit", (event) => {
     return;
   }
   generation?.stop();
+  hyperframes?.close();
   // Drawings in progress stop with Cutline instead of running on alone.
   vectorGeneration?.abort();
   shotDrawing?.abort();

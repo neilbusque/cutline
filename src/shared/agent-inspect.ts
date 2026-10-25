@@ -39,13 +39,27 @@ export function publicAsset(asset: Asset) {
     path: _path,
     thumbnail: _thumbnail,
     proxy: _proxy,
+    reversed: _reversed,
+    reversedPart: _reversedPart,
+    reversedSpan: _reversedSpan,
     waveform: _waveform,
     words,
     rhythm,
+    composition,
     ...rest
   } = asset;
   return {
     ...rest,
+    ...(composition
+      ? {
+          composition: {
+            engine: composition.engine,
+            sourceHash: composition.sourceHash,
+            engineVersion: composition.engineVersion,
+            transparent: composition.transparent,
+          },
+        }
+      : {}),
     ...(words?.length ? { transcriptWords: words.length } : {}),
     ...(rhythm ? { rhythm: publicRhythm(rhythm) } : {}),
   };

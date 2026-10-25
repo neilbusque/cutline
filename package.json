@@ -1,7 +1,7 @@
 {
   "name": "cutline",
   "productName": "Cutline",
-  "version": "0.34.0",
+  "version": "0.35.0",
   "private": true,
   "description": "A local video editor with editable motion, built-in Claude and Codex assistance",
   "author": "Neil Busque",
@@ -46,22 +46,26 @@
     "qa:reel-formats": "node scripts/qa-reel-formats.mjs",
     "qa:creator-shorts": "node scripts/qa-creator-shorts.mjs",
     "setup:runtime": "node scripts/setup-runtime.mjs",
-    "qa:explainer": "node scripts/qa-explainer.mjs"
+    "qa:explainer": "node scripts/qa-explainer.mjs",
+    "qa:hyperframes": "node scripts/qa-hyperframes.mjs"
   },
   "dependencies": {
     "@ffmpeg-installer/darwin-arm64": "4.1.5",
     "@ffprobe-installer/darwin-arm64": "5.0.1",
     "@huggingface/transformers": "3.8.1",
+    "@hyperframes/producer": "0.8.198",
     "@modelcontextprotocol/sdk": "1.32.1",
     "@remotion/bundler": "4.0.538",
     "@remotion/player": "4.0.538",
     "@remotion/renderer": "4.0.538",
+    "gsap": "3.14.2",
     "kokoro-js": "1.2.1",
     "lucide-react": "1.48.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "remotion": "4.0.538",
     "sharp": "0.35.5",
+    "three": "0.186.1",
     "zod": "4.6.5"
   },
   "devDependencies": {

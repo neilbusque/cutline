@@ -64,8 +64,14 @@ export type RenderProps = {
   /** Rendered stills play the editor's lighter preview copies where they exist. */
   proxies?: boolean;
 };
+/** A source edit keeps its asset ID but must load the new video and thumbnail. */
+export function assetMediaVersion(a: Asset) {
+  return a.composition
+    ? `?scene=${a.composition.sourceHash}-${encodeURIComponent(a.composition.engineVersion)}-${a.composition.transparent ? "alpha" : "opaque"}`
+    : "";
+}
 export function assetUrl(base: string, a: Asset, preview = false) {
-  return `${base}/media/${a.id}/${preview && a.proxy ? "proxy" : "original"}`;
+  return `${base}/media/${a.id}/${preview && a.proxy ? "proxy" : "original"}${assetMediaVersion(a)}`;
 }
 /**
  * The file a media clip plays, and how many seconds of the clip's sourceIn
@@ -84,12 +90,12 @@ export function clipMedia(
   if (c.reverse)
     return reversedPartCovers(a, reversedRange(c, fps), fps)
       ? {
-          src: `${base}/media/${a.id}/reversed-part`,
+          src: `${base}/media/${a.id}/reversed-part${assetMediaVersion(a)}`,
           pending: false,
           offset: a.reversedSpan!.from,
         }
       : {
-          src: `${base}/media/${a.id}/reversed`,
+          src: `${base}/media/${a.id}/reversed${assetMediaVersion(a)}`,
           pending: !a.reversed,
           offset: 0,
         };
@@ -399,6 +405,7 @@ function Layer({
   const footage =
     c.kind === "video" && a ? (
       <MediaVideo
+        {...(!preview ? { transparent: !!a.composition?.transparent } : {})}
         src={src}
         startFrom={Math.max(0, Math.round(c.sourceIn * p.fps) - offset)}
         playbackRate={c.speed}

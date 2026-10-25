@@ -4,6 +4,7 @@ import { ArrowRight, Check, MonitorPlay, Play, Type } from "lucide-react";
 import type { Asset } from "../shared/model";
 import type { StoryPlan, StoryScene } from "../shared/story-schema";
 import { productBrand, productLayouts } from "../shared/product-scenes";
+import { assetMediaVersion } from "../composition/Video";
 
 type Recipe = "launch" | "walkthrough" | "type-led";
 type Design = NonNullable<StoryScene["design"]>;
@@ -264,7 +265,7 @@ export function ProductScenePreview({
     (asset.kind === "image"
       ? `${base}/media/${asset.id}`
       : asset.thumbnail
-        ? `${base}/media/${asset.id}/thumb`
+        ? `${base}/media/${asset.id}/thumb${assetMediaVersion(asset)}`
         : undefined);
   return (
     <div className="product-preview-block">

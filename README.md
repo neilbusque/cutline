@@ -16,6 +16,7 @@ Cutline turns footage, screenshots and scripts into videos you can keep editing.
 - **Explainers:** choose Kinetic type, Product focus, Sketch flow or Editorial collage, turn your script into an editable outline, then create local narration, captions and a timeline sequence. [Make an explainer](docs/explainer-guide.md) and [choose a style](docs/explainer-styles.md).
 - **Product videos:** plan scenes, use imported screenshots or recordings, add narration, and build an editable sequence. Product layouts and motion scenes render locally.
 - **Motion graphics:** animate text, shapes and imported SVG paths with editable layers, keyframes, easing and timing. [Motion controls](docs/motion-controls.md).
+- **Custom animated scenes:** import HyperFrames HTML or start with titles, charts and Three.js scenes. Edit the source in Cutline, render locally, and keep earlier versions in Undo. [Editable HTML scenes](docs/hyperframes.md).
 - **Voiceover and music:** generate English narration locally with Kokoro, import audio, compose an instrumental bed, and lower music under speech. [Voiceover](docs/kokoro-tts.md) and [music sync](docs/music-sync.md).
 - **Assisted editing:** connect Claude or Codex, or use a compatible MCP client to inspect, edit, preview and export the current project. Assistant accounts are optional. [Agent control](docs/agent-control.md).
 
@@ -72,7 +73,7 @@ Adding media to a local project does not submit it for cloud generation. Review 
 | Connect an editing assistant                               | [Agent control](docs/agent-control.md)                                                                                    |
 | Build and test                                             | [Development](docs/development.md)                                                                                        |
 | Resolve a problem                                          | [Troubleshooting](docs/troubleshooting.md)                                                                                |
-| Review the current source release                          | [Changes in 0.34](docs/release-0.34.md)                                                                                   |
+| Review the current source release                          | [Changes in 0.35](docs/release-0.35.md)                                                                                   |
 
 ## Contribute
 

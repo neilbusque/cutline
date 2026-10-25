@@ -38,6 +38,8 @@ Cutline uses `sharp` 0.35.5 (Apache-2.0) to render generated vectors for the ass
 
 ## Other packages and media
 
+HTML scenes use the pinned HyperFrames 0.8.198 producer and its related packages under Apache-2.0. See the [upstream license](https://github.com/heygen-com/hyperframes/blob/v0.8.198/LICENSE). Scene snapshots include the local GSAP 3.14.2 runtime under [GSAP's Standard License](https://gsap.com/standard-license/) and Three.js 0.186.1 under its [MIT license](https://github.com/mrdoob/three.js/blob/r186/LICENSE). These packages retain their own notices and terms; Cutline's MIT license does not relicense GSAP. Dependency files remain outside this source release.
+
 React, React DOM, Zod, Lucide, the MCP SDK, build tools and test tools retain their package licenses. Exact installed versions are in `package-lock.json`. [Source references](licenses/source-notices.md) identify important upstream sources and the provenance of included notice copies; this is not an exhaustive software bill of materials.
 
 Imported footage, stock assets, fonts, logos, reference images and generated content require their own rights review. Stock credits are stored with assets, but attribution alone does not grant permission to use an asset. No third-party creator's videos or identity are licensed by Cutline's source license.

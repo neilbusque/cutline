@@ -51,6 +51,10 @@ Use filters and paging to keep project reads small. Follow a returned `page.next
 
 For creator Shorts, `options.format: "creator-punch"` keeps the speaker prominent; `"screen-demo"` supports timed evidence from imported media. Use `cutline_create_reel` with `proofBeats` for explicit split views or cutaways. Proof timing refers to the original speaker source, before trimming and speed changes. Auto edit supports these formats but does not accept explicit proof shots or identify the best passage anywhere in a long recording. See the [creator shorts guide](creator-shorts.md) for exact fields and examples.
 
+## Editable HTML scenes
+
+`cutline_hyperframes` imports, reads and updates custom HTML/GSAP/Three.js scenes. Imports accept one absolute HTML `path` or complete `html` source, optional `name`, `transparent`, and `at` in frames or explicit seconds. Updates use `assetId` and replacement `html`. Read returns source in pages with `offset`, `limit`, `total` and optional `nextOffset`. Every action checks the current project ID and revision. Native timeline clips use a local rendered copy while the source remains editable; a render update is one Undo. Wait on returned jobs. See [editable HTML scenes](hyperframes.md) for the source contract, local libraries, safe project snapshots and examples.
+
 ## Reading the project
 
 `cutline_inspect` returns a summary by default: the revision, canvas, tracks, assets, and each clip's ID, kind, track, start and duration plus only the fields that differ from the defaults. Motion definitions list their layers by index with type, name, text and which properties have keys. Long runs of generated captions appear as one line per source clip in `captionGroups`.

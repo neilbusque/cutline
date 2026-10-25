@@ -9,6 +9,7 @@ import {
   lookStrength,
 } from "../shared/effects";
 import { optionLabel } from "./labels";
+import { assetMediaVersion } from "../composition/Video";
 export function EffectSlider({
   label,
   value,
@@ -104,7 +105,7 @@ export function EffectsPanel({
               }}
             >
               {asset?.thumbnail ? (
-                <img src={`${base}/media/${asset.id}/thumb`} alt="" />
+                <img src={`${base}/media/${asset.id}/thumb${assetMediaVersion(asset)}`} alt="" />
               ) : (
                 <div className="look-sample" />
               )}

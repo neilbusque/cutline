@@ -695,6 +695,7 @@ export class Media extends EventEmitter {
       const key = `${asset.id}\n${asset.path}`;
       const wantsProxy =
         asset.kind === "video" &&
+        !asset.composition?.transparent &&
         !asset.proxy &&
         this.proxyNeeded.get(key) !== false;
       if (!wantsProxy && asset.thumbnail) continue;
@@ -1081,7 +1082,11 @@ export class Media extends EventEmitter {
       }
     }
     try {
-      if (asset.kind === "video" && !asset.proxy) {
+      if (
+        asset.kind === "video" &&
+        !asset.composition?.transparent &&
+        !asset.proxy
+      ) {
         let needed = this.proxyNeeded.get(key);
         if (needed === undefined) {
           needed = (await this.probe(asset.path)).needsProxy;

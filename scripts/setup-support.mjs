@@ -33,6 +33,7 @@ export const mainEntryPoints = [
   "src/main/main.ts",
   "src/main/preload.ts",
   "src/main/render-worker.ts",
+  "src/main/hyperframes-worker.ts",
   "src/main/still-worker.ts",
   "src/main/tts-worker.ts",
   "src/main/tts-inference.ts",

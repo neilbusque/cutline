@@ -72,6 +72,7 @@ for (const file of [
   "vendor/kokoro/NOTICE",
   "dist/main/preload.cjs",
   "dist/main/render-worker.cjs",
+  "dist/main/hyperframes-worker.cjs",
   "dist/main/still-worker.cjs",
   "dist/main/mcp.cjs",
   "dist/ui/index.html",

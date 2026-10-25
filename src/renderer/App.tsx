@@ -15,7 +15,7 @@ import React, {
   useMemo,
 } from "react";
 import { Player, type PlayerRef } from "@remotion/player";
-import { Film } from "../composition/Video";
+import { Film, assetMediaVersion } from "../composition/Video";
 import {
   duration,
   makeClip,
@@ -28,6 +28,7 @@ import {
 } from "../shared/model";
 import { type Command } from "../shared/commands";
 import { Inspector } from "./Inspector";
+import { HyperframesStudio } from "./HyperframesStudio";
 import { Timeline } from "./Timeline";
 import { EffectsPanel } from "./EffectsPanel";
 import { ReelBuilder } from "./ReelBuilder";
@@ -103,6 +104,7 @@ import {
   Smartphone,
   Images,
   Palette,
+  Code2,
 } from "lucide-react";
 const api = window.cutline;
 /** The left panels. Each has its own icon, so the grid can be scanned. */
@@ -389,6 +391,10 @@ export function App() {
   const [mediaSelection, setMediaSelection] = useState<string[]>([]);
   const [mediaQuery, setMediaQuery] = useState("");
   const [mediaKind, setMediaKind] = useState("all");
+  const [sceneEditor, setSceneEditor] = useState<{
+    projectId: string;
+    assetId?: string;
+  }>();
   const [left, setLeft] = useState("story");
   const [assistantDraft, setAssistantDraft] = useState<{
     id: number;
@@ -1416,6 +1422,34 @@ export function App() {
                 )}{" "}
                 {importing ? "Importing…" : "Import media"}
               </button>
+              <div className="scene-actions">
+                <button
+                  className="control"
+                  onClick={() => setSceneEditor({ projectId: p.id })}
+                >
+                  <Code2 size={13} /> New scene
+                </button>
+                <button
+                  className="control"
+                  disabled={importing}
+                  onClick={async () => {
+                    setImporting(true);
+                    try {
+                      await api.invoke("hyperframes.render", {
+                        projectId: p.id,
+                        revision: p.revision,
+                        action: "import",
+                      });
+                    } catch (e) {
+                      report(e);
+                    } finally {
+                      setImporting(false);
+                    }
+                  }}
+                >
+                  <FolderOpen size={13} /> Import scene
+                </button>
+              </div>
               {!p.assets.length ? (
                 <div className="empty-library">
                   <div className="empty-media-icon">
@@ -1440,18 +1474,20 @@ export function App() {
                     className="media-filters pill-tabs"
                     aria-label="Media types"
                   >
-                    {["all", "video", "image", "audio"].map((kind) => (
+                    {["all", "video", "image", "audio", "scene"].map((kind) => (
                       <button
                         key={kind}
                         aria-pressed={mediaKind === kind}
                         className={mediaKind === kind ? "active" : ""}
                         onClick={() => setMediaKind(kind)}
                       >
-                        {kind === "all"
-                          ? "All"
-                          : kind === "image"
-                            ? "Photos"
-                            : kind[0].toUpperCase() + kind.slice(1)}
+                        {kind === "scene"
+                          ? "Scenes"
+                          : kind === "all"
+                            ? "All"
+                            : kind === "image"
+                              ? "Photos"
+                              : kind[0].toUpperCase() + kind.slice(1)}
                       </button>
                     ))}
                   </div>
@@ -1494,7 +1530,9 @@ export function App() {
                     {p.assets
                       .filter(
                         (a) =>
-                          (mediaKind === "all" || a.kind === mediaKind) &&
+                          (mediaKind === "all" ||
+                            a.kind === mediaKind ||
+                            (mediaKind === "scene" && !!a.composition)) &&
                           a.name
                             .toLowerCase()
                             .includes(mediaQuery.toLowerCase()),
@@ -1543,7 +1581,10 @@ export function App() {
                             }}
                           >
                             {a.thumbnail ? (
-                              <img src={`${base}/media/${a.id}/thumb`} alt="" />
+                              <img
+                                src={`${base}/media/${a.id}/thumb${assetMediaVersion(a)}`}
+                                alt=""
+                              />
                             ) : (
                               <Music2 size={22} />
                             )}
@@ -1562,8 +1603,25 @@ export function App() {
                           </button>
                           <div className="asset-caption">
                             <span title={a.name}>{a.name}</span>
-                            <small>{kindLabel(a.kind)}</small>
+                            <small>
+                              {a.composition
+                                ? "HyperFrames scene"
+                                : kindLabel(a.kind)}
+                            </small>
                           </div>
+                          {a.composition && (
+                            <button
+                              className="asset-scene"
+                              onClick={() =>
+                                setSceneEditor({
+                                  projectId: p.id,
+                                  assetId: a.id,
+                                })
+                              }
+                            >
+                              <Code2 size={12} /> Edit source
+                            </button>
+                          )}
                           {a.kind !== "audio" && (
                             <button
                               className="asset-broll"
@@ -1587,10 +1645,19 @@ export function App() {
                           {snap.missing.includes(a.id) && (
                             <button
                               className="missing"
-                              onClick={() => run("relink", { id: a.id })}
+                              onClick={() =>
+                                a.composition
+                                  ? setSceneEditor({
+                                      projectId: p.id,
+                                      assetId: a.id,
+                                    })
+                                  : run("relink", { id: a.id })
+                              }
                             >
                               <Link2 size={12} />
-                              Relink missing file
+                              {a.composition
+                                ? "Render scene again"
+                                : "Relink missing file"}
                             </button>
                           )}
                         </div>
@@ -1944,6 +2011,9 @@ export function App() {
                 findingPauses={findingPauses}
                 report={report}
                 openPanel={setLeft}
+                editScene={(assetId) =>
+                  setSceneEditor({ projectId: p.id, assetId })
+                }
               />
             </div>
             <div
@@ -1963,6 +2033,22 @@ export function App() {
           </aside>
         }
       </main>
+      {sceneEditor?.projectId === p.id &&
+        (!sceneEditor.assetId ||
+          p.assets.some((a) => a.id === sceneEditor.assetId)) && (
+          <HyperframesStudio
+            key={`${p.id}/${sceneEditor.assetId ?? "new"}`}
+            project={p}
+            asset={p.assets.find((a) => a.id === sceneEditor.assetId)}
+            at={playhead.get()}
+            onClose={() => setSceneEditor(undefined)}
+            onRendered={(result) => {
+              if (result.clipId) select(result.clipId);
+              if (result.warnings?.length) report(result.warnings.join(" "));
+              setLeft("media");
+            }}
+          />
+        )}
       <Timeline
         beats={beats}
         p={p}

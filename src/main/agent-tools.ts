@@ -19,6 +19,7 @@ import { JobsArgsSchema } from "./agent-tasks";
 import { directorStyles } from "../shared/director-guide";
 import { ExplainerInputSchema } from "../shared/explainer";
 import { StoryProduceSchema } from "./story-batch";
+import { hyperframesTools } from "./agent-hyperframes";
 
 /**
  * Tools whose work can outlast a client's request timeout. They answer within
@@ -40,6 +41,7 @@ export const longRunningTools = new Set([
   "cutline_reference",
   "cutline_style_reel",
   "cutline_graphic",
+  "cutline_hyperframes",
 ]);
 
 const read = {
@@ -162,6 +164,7 @@ export const cutlineTools: Tool[] = [
   ...agentEditTools,
   ...(agentIoTools as Tool[]),
   ...agentMediaTools,
+  ...hyperframesTools,
   ...musicTools.map((tool) => ({
     ...tool,
     inputSchema: tidySchema(tool.inputSchema, false),

@@ -63,6 +63,10 @@ export async function relinkMedia(
   const opening = store.openSession;
   const old = start.assets.find((a) => a.id === assetId);
   if (!old) throw Error("Asset missing");
+  if (old.composition)
+    throw Error(
+      "Render this scene again from Edit source to restore its video. Import replacement footage as a separate asset.",
+    );
   const probe = await media.probe(chosen);
   if (probe.kind !== old.kind)
     throw Error(`Choose a ${kindNames[old.kind]} to relink ${old.name}.`);

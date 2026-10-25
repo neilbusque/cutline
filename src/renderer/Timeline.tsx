@@ -32,6 +32,7 @@ import {
   type Clip,
 } from "../shared/model";
 import { newTrack } from "../shared/layers";
+import { assetMediaVersion } from "../composition/Video";
 import {
   compatibleTrack,
   trimClip,
@@ -881,7 +882,7 @@ export function Timeline({
                         <div
                           className="filmstrip"
                           style={{
-                            backgroundImage: `url(${base}/media/${a.id}/thumb)`,
+                            backgroundImage: `url(${base}/media/${a.id}/thumb${assetMediaVersion(a)})`,
                           }}
                         />
                       )}

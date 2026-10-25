@@ -17,6 +17,7 @@ import { captionStyles } from "../shared/caption-styles";
 import { reelFormats, type ReelFormat } from "../shared/reel-formats";
 import { allocateReelFrames } from "../shared/reel";
 import { errorText } from "./controls";
+import { assetMediaVersion } from "../composition/Video";
 
 type BeatDraft = {
   id: string;
@@ -395,7 +396,7 @@ export function ReelBuilder({
                         onChange={() => toggle(a.id)}
                       />
                       {a.thumbnail ? (
-                        <img src={`${base}/media/${a.id}/thumb`} alt="" />
+                        <img src={`${base}/media/${a.id}/thumb${assetMediaVersion(a)}`} alt="" />
                       ) : (
                         <Film size={18} />
                       )}
