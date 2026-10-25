@@ -107,6 +107,8 @@ export const ReferenceArgsSchema = z.strictObject({
   color: z.enum(["brand", "white", "black"]).optional(),
   at: AgentTimeSchema.optional(),
 });
+/** A three-minute creator-style Short changes shot about every 1 to 2 s. */
+export const STYLE_REEL_BEAT_LIMIT = 200;
 export const StyleReelArgsSchema = z.strictObject({
   ...guard,
   style: z.enum(["split", "cards", "locked-split"]),
@@ -122,7 +124,7 @@ export const StyleReelArgsSchema = z.strictObject({
       }),
     )
     .min(1)
-    .max(80),
+    .max(STYLE_REEL_BEAT_LIMIT),
 });
 export const GraphicArgsSchema = z.strictObject({
   ...guard,

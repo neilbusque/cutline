@@ -1,3 +1,9 @@
+# Changes in 0.33.4
+
+## Three-minute Shorts
+
+A creator-style Short (`cutline_style_reel`) takes up to 200 beats instead of 80. At the creator pace of a new shot every 1 to 2 seconds, a Short over about two minutes needed more than 80 and was refused.
+
 # Changes in 0.33.3
 
 ## Room for longer Shorts
