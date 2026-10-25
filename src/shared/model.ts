@@ -447,7 +447,7 @@ export const TrackSchema = z.object({
  * version 1: validateProject carries fields it does not know through edits.
  */
 export const PROJECT_VERSION = 1;
-export const MOTION_LIMIT = 100;
+export const MOTION_LIMIT = 400;
 export const motionLimitMessage = `This project has reached ${MOTION_LIMIT} motion designs, the most it can hold. Delete a motion graphic you no longer use, then try again.`;
 export const ProjectSchema = z.object({
   version: z.literal(PROJECT_VERSION),

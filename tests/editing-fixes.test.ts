@@ -16,6 +16,7 @@ import {
   type Clip,
   type Project,
   type Word,
+  MOTION_LIMIT,
 } from "../src/shared/model";
 import { musicBindings, musicResponse } from "../src/shared/music-reactive";
 import { srtCaptionClips, toSrt } from "../src/shared/subtitles";
@@ -880,20 +881,20 @@ describe("unused motion designs are cleaned up at the limit", () => {
     MotionSchema.parse({ id, name: id, layers: [{ type: "rectangle" }] });
   function full(referenced: number) {
     const p = newProject();
-    p.motions = Array.from({ length: 100 }, (_, i) => motion(`m${i}`));
+    p.motions = Array.from({ length: MOTION_LIMIT }, (_, i) => motion(`m${i}`));
     p.clips = Array.from({ length: referenced }, (_, i) => ({
       ...makeClip(p, "text", "titles", i * 10),
       id: `clip${i}`,
       duration: 10,
       preset: "custom" as const,
-      motionId: `m${99 - i}`,
+      motionId: `m${MOTION_LIMIT - 1 - i}`,
     }));
     return validateProject(p);
   }
 
   it("drops the oldest unused design to make room", () => {
     const next = tx(full(10), [{ type: "motion.put", motion: motion("new") }]);
-    expect(next.motions).toHaveLength(100);
+    expect(next.motions).toHaveLength(MOTION_LIMIT);
     expect(next.motions.some((m) => m.id === "m0")).toBe(false);
     expect(next.motions.some((m) => m.id === "m1")).toBe(true);
     expect(next.motions.some((m) => m.id === "new")).toBe(true);
@@ -903,15 +904,15 @@ describe("unused motion designs are cleaned up at the limit", () => {
 
   it("keeps a design added in the same edit and explains when every design is in use", () => {
     expect(() =>
-      tx(full(100), [{ type: "motion.put", motion: motion("new") }]),
-    ).toThrow(/100 motion designs/);
-    const p = full(99);
+      tx(full(MOTION_LIMIT), [{ type: "motion.put", motion: motion("new") }]),
+    ).toThrow(`${MOTION_LIMIT} motion designs`);
+    const p = full(MOTION_LIMIT - 1);
     expect(() =>
       tx(p, [
         { type: "motion.put", motion: motion("one") },
         { type: "motion.put", motion: motion("two") },
       ]),
-    ).toThrow(/100 motion designs/);
+    ).toThrow(`${MOTION_LIMIT} motion designs`);
     const next = tx(p, [{ type: "motion.put", motion: motion("one") }]);
     expect(next.motions.some((m) => m.id === "one")).toBe(true);
     expect(next.motions.some((m) => m.id === "m0")).toBe(false);

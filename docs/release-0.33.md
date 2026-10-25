@@ -1,3 +1,9 @@
+# Changes in 0.33.3
+
+## Room for longer Shorts
+
+A project can hold 400 motion designs instead of 100. A creator-style Short lays out a graphic, a ring and a backdrop per beat, so a reel over about a minute with 40+ beats stopped with "This project has reached 100 motion designs". Unused designs are still dropped first when a project fills up.
+
 # Changes in 0.33.2
 
 ## Repaired frames keep the video's colors

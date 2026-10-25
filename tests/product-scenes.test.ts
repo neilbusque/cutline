@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  MOTION_LIMIT,
   AssetSchema,
   makeClip,
   MotionLayerSchema,
@@ -464,14 +465,14 @@ describe("Product film assembly ownership", () => {
       ),
     ).toBe(true);
     const full = prepared();
-    full.motions = Array.from({ length: 95 }, () => ({
+    full.motions = Array.from({ length: MOTION_LIMIT - 5 }, () => ({
       id: uid(),
       name: "Existing",
       layers: [MotionLayerSchema.parse({ type: "text", text: "Existing" })],
     }));
     const before = structuredClone(full);
     expect(() => buildStoryTimeline(full, { mode: "append" })).toThrow(
-      /at most 100/,
+      `at most ${MOTION_LIMIT}`,
     );
     expect(full).toEqual(before);
   });
