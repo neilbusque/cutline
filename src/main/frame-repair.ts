@@ -9,13 +9,16 @@ import {
   meanDifference,
 } from "../shared/frame-check";
 
+// RGB thumbnails: FFmpeg converts video by its own range and matrix tags and a
+// PNG stays as drawn, so a fresh still and a video frame compare like for like.
 const thumbnailArgs = [
   "-vf",
-  `scale=${FRAME_CHECK_SIZE}:${FRAME_CHECK_SIZE},format=gray`,
+  `scale=${FRAME_CHECK_SIZE}:${FRAME_CHECK_SIZE},format=rgb24`,
   "-f",
   "rawvideo",
   "-",
 ];
+const THUMBNAIL_BYTES = FRAME_CHECK_SIZE * FRAME_CHECK_SIZE * 3;
 /** More one-frame breaks than this is not a capture fault worth patching. */
 export const MAX_REPAIRED_FRAMES = 24;
 
@@ -39,27 +42,105 @@ function runFfmpeg(
   });
 }
 
-/** Frames of a video that break from both neighbours, with their thumbnails. */
-export async function findIsolatedFrames(ffmpeg: string, video: string) {
-  const size = FRAME_CHECK_SIZE * FRAME_CHECK_SIZE;
-  const finder = new IsolatedFrameFinder();
+/** Calls back with every frame's thumbnail, in order. */
+async function eachThumbnail(
+  ffmpeg: string,
+  file: string,
+  onFrame: (thumbnail: Uint8Array) => void,
+) {
   let pending = Buffer.alloc(0);
-  await runFfmpeg(ffmpeg, ["-i", video, ...thumbnailArgs], (chunk) => {
+  await runFfmpeg(ffmpeg, ["-i", file, ...thumbnailArgs], (chunk) => {
     pending = Buffer.concat([pending, chunk]);
-    while (pending.length >= size) {
-      finder.push(new Uint8Array(pending.subarray(0, size)));
-      pending = pending.subarray(size);
+    while (pending.length >= THUMBNAIL_BYTES) {
+      onFrame(new Uint8Array(pending.subarray(0, THUMBNAIL_BYTES)));
+      pending = pending.subarray(THUMBNAIL_BYTES);
     }
   });
+}
+
+/** Frames of a video that break from both neighbours, with their thumbnails. */
+export async function findIsolatedFrames(ffmpeg: string, video: string) {
+  const finder = new IsolatedFrameFinder();
+  await eachThumbnail(ffmpeg, video, (t) => finder.push(t));
   return finder.found;
 }
 
 async function thumbnailOf(ffmpeg: string, image: string) {
-  const chunks: Buffer[] = [];
-  await runFfmpeg(ffmpeg, ["-i", image, ...thumbnailArgs], (c) =>
-    chunks.push(c),
+  let thumbnail: Uint8Array = new Uint8Array();
+  await eachThumbnail(ffmpeg, image, (t) => (thumbnail = t));
+  return thumbnail;
+}
+
+export type VideoColor = {
+  pixelFormat: string;
+  range: "pc" | "tv";
+  matrix: "bt601" | "bt709";
+  /** The colorspace tag to write back, when the source had one. */
+  tag?: string;
+};
+
+/**
+ * Reads pixel format, range and matrix from FFmpeg's stream line, such as
+ * "yuvj420p(pc, bt470bg/unknown/unknown)" for Remotion's H.264.
+ */
+export function parseVideoColor(info: string): VideoColor {
+  const match = /Video: [^\n]*?, (\w+)(?:\(([^)]*)\))?/.exec(info);
+  const pixelFormat = match?.[1] ?? "yuv420p";
+  const details = (match?.[2] ?? "").split(/[,\s/]+/);
+  const range = details.includes("pc")
+    ? "pc"
+    : details.includes("tv")
+      ? "tv"
+      : pixelFormat.startsWith("yuvj")
+        ? "pc"
+        : "tv";
+  const tag = details.find((d) =>
+    ["bt709", "bt470bg", "smpte170m"].includes(d),
   );
-  return new Uint8Array(Buffer.concat(chunks));
+  return {
+    pixelFormat,
+    range,
+    matrix: tag === "bt709" ? "bt709" : "bt601",
+    ...(tag ? { tag } : {}),
+  };
+}
+
+function probeColor(ffmpeg: string, video: string): Promise<VideoColor> {
+  return new Promise((resolve) => {
+    const child = spawn(ffmpeg, ["-hide_banner", "-i", video], {
+      stdio: ["ignore", "ignore", "pipe"],
+    });
+    let info = "";
+    child.stderr?.on("data", (d) => (info += d));
+    child.on("error", () => resolve(parseVideoColor("")));
+    // FFmpeg exits with an error when given no output; the stream line is enough.
+    child.on("exit", () => resolve(parseVideoColor(info)));
+  });
+}
+
+/**
+ * The patch filter: fresh frames are laid over their own frame numbers in RGB,
+ * then converted back to the source's pixel format, range and matrix, so a
+ * repaired frame keeps the video's colors.
+ */
+export function patchFilter(frames: number[], color: VideoColor, fps: number) {
+  // Timestamps are renumbered from the decoded frame index first, so frame N
+  // is exactly the N the scan reported. (Overlay's own `n` can follow the
+  // other input's frame rate.)
+  const toRgb = `setpts=N/(${fps}*TB),scale=in_range=${color.range}:in_color_matrix=${color.matrix},format=gbrp`;
+  const parts = [`[0:v]${toRgb}[b0]`];
+  frames.forEach((frame, i) => {
+    const from = ((frame - 0.5) / fps).toFixed(6),
+      to = ((frame + 0.5) / fps).toFixed(6);
+    parts.push(`[${i + 1}:v]format=gbrp[s${i}]`);
+    parts.push(
+      `[b${i}][s${i}]overlay=enable='between(t\\,${from}\\,${to})':format=gbrp[b${i + 1}]`,
+    );
+  });
+  parts.push(
+    `[b${frames.length}]scale=out_range=${color.range}:out_color_matrix=${color.matrix},format=${color.pixelFormat}[out]`,
+  );
+  return parts.join(";");
 }
 
 /**
@@ -96,42 +177,48 @@ export async function repairDamagedFrames({
         damaged.push({ frame: candidate.frame, image, fresh });
     }
     if (!damaged.length) return [];
-    // Each fresh frame is laid over its own frame number only.
-    const filters = damaged.map(
-      ({ frame }, i) =>
-        `[${i ? `v${i}` : "0:v"}][${i + 1}:v]overlay=enable='eq(n\\,${frame})'[v${i + 1}]`,
-    );
+    const color = await probeColor(ffmpeg, video);
     await runFfmpeg(ffmpeg, [
       "-y",
       "-i",
       video,
       ...damaged.flatMap(({ image }) => ["-i", image]),
       "-filter_complex",
-      filters.join(";"),
+      patchFilter(
+        damaged.map((d) => d.frame),
+        color,
+        fps,
+      ),
       "-map",
-      `[v${damaged.length}]`,
+      "[out]",
       "-c:v",
       "libx264",
       "-crf",
       "19",
       "-pix_fmt",
-      "yuv420p",
+      color.pixelFormat,
+      "-color_range",
+      color.range,
+      ...(color.tag ? ["-colorspace", color.tag] : []),
       "-r",
       String(fps),
       "-video_track_timescale",
       "90000",
       patched,
     ]);
-    const still = await findIsolatedFrames(ffmpeg, patched);
-    const unrepaired = damaged.filter(({ frame, fresh }) =>
-      still.some(
-        (s) =>
-          s.frame === frame && meanDifference(s.thumbnail, fresh) > FRAME_BREAK,
-      ),
-    );
-    if (unrepaired.length)
+    // Every repaired frame must now match its fresh render.
+    const wanted = new Map(damaged.map((d) => [d.frame, d.fresh]));
+    const mismatched: number[] = [];
+    let index = 0;
+    await eachThumbnail(ffmpeg, patched, (t) => {
+      const fresh = wanted.get(index);
+      if (fresh && meanDifference(t, fresh) > FRAME_BREAK / 2)
+        mismatched.push(index);
+      index++;
+    });
+    if (mismatched.length)
       throw Error(
-        `Frames ${unrepaired.map((d) => d.frame).join(", ")} stayed damaged after a re-render. Export again.`,
+        `Frames ${mismatched.join(", ")} stayed damaged after a re-render. Export again.`,
       );
     renameSync(patched, video);
     return damaged.map((d) => d.frame);

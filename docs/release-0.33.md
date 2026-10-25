@@ -1,3 +1,9 @@
+# Changes in 0.33.2
+
+## Repaired frames keep the video's colors
+
+0.33.1's frame repair laid the fresh frame into the video without matching its color range. Remotion writes full-range video, and the repaired frame came out washed out and grey for one frame, which read as a glitch. The repair now works in RGB and converts back to the video's own pixel format, range and color matrix, and it checks every repaired frame against its fresh render before keeping the result. Frames are compared in RGB, so a limited-range and a full-range copy of the same picture no longer look different. Each fresh frame is placed by the decoded frame number the scan reported.
+
 # Changes in 0.33.1
 
 ## Exports check every frame

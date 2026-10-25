@@ -2,7 +2,7 @@
  * Finds single frames that break from both neighbours while the neighbours
  * agree with each other: the signature of a frame the renderer captured wrong
  * (seen 2026-10-24 as the top of the canvas tiled five times, speaker gone).
- * Frames are small grayscale thumbnails of equal size.
+ * Frames are small thumbnails of equal size.
  */
 export const FRAME_CHECK_SIZE = 96;
 /** Mean 0-255 difference above which a frame breaks from a neighbour. */
