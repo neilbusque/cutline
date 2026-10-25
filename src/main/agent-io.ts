@@ -126,25 +126,25 @@ const schemas = {
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   cutline_import_media:
-    "Import local media by absolute path. Returns revision, asset IDs and per-file failures; valid files still import. Place with cutline_edit clip.add. One Undo; originals stay local.",
+    "Import absolute local paths; returns asset IDs/failures. Valid files still import. Place with cutline_edit clip.add. One Undo.",
   cutline_vector_import:
-    "Import local SVG by absolute path as editable layers at startFrame. Unsupported parts (text, filters) are listed in warnings. One Undo.",
+    "Import absolute SVG as editable layers at startFrame. Unsupported parts warn. One Undo.",
   cutline_save_project:
-    "Save to optional absolute .cutline path, current file or new local project. Cannot overwrite unrelated files or source media.",
+    "Save .cutline to optional absolute path or current/new file. No unrelated overwrites.",
   cutline_open_project:
-    "Open .cutline by absolute path or listed name. Requires current revision; current work is already saved. Returns project summary.",
+    "Open absolute .cutline path or listed name at current revision. Existing work is saved.",
   cutline_list_projects:
-    "List Projects/recent files by recency: name, path, duration, clip count and open status. Open with cutline_open_project.",
+    "List recent projects with paths and timing. Open with cutline_open_project.",
   cutline_new_project:
-    "Start blank at current revision; current work is saved. A named project saves immediately to Projects; otherwise saves once it has content.",
+    "New project at current revision; keeps saved work. Named projects save immediately.",
   cutline_redo: "Redo at current revision; returns revision and changes.",
   cutline_cancel_job:
     "Cancel a running local export, transcription or other processing job by ID.",
   cutline_caption_srt:
-    "Add SRT captions at timeline times. One Undo. Generate word captions with cutline_transcribe; style/retime with cutline_edit.",
+    "Add timeline SRT; one Undo. Word captions: cutline_transcribe. Style: cutline_edit.",
   cutline_get_srt: "Read timeline captions as SRT; page with offset.",
   cutline_preview:
-    "View video: image=true renders one frame; frames/count renders a labeled contact sheet. frame/seconds seek, clipId selects, playing plays/pauses. Uses timeline time and export renderer.",
+    "Preview timeline: image=true returns rendered images; frames/count makes a sheet. frame/seconds seek; clipId selects; playing toggles.",
   cutline_connection_status:
     "Read editor availability, transports, tool count and last agent call. Omits tokens/paths.",
 };

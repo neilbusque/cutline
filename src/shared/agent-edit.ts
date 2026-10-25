@@ -1,4 +1,5 @@
 import { cutlineWorkflow } from "./assistant-instructions";
+import { motionReferenceGuide } from "./motion-reference";
 import { regroupCaptionCommands } from "./caption-grouping";
 import { z } from "zod";
 import { StoryPlanSchema, StorySceneSchema } from "./story-schema";
@@ -162,7 +163,11 @@ const projectPatch = partialShape({
 }) as z.ZodType<
   Partial<Pick<Project, "name" | "width" | "height" | "background" | "fps">>
 >;
-const layerIndex = z.number().int().min(0).max(MAX_VECTOR_LAYERS - 1);
+const layerIndex = z
+  .number()
+  .int()
+  .min(0)
+  .max(MAX_VECTOR_LAYERS - 1);
 const penCoordinate = z.number().finite().min(-1e7).max(1e7);
 const penHandle = z.strictObject({ x: penCoordinate, y: penCoordinate });
 const penPoint = z.strictObject({
@@ -1353,7 +1358,9 @@ const looseBound = (key: string, value: unknown) =>
   (((key === "maximum" || key === "maxLength" || key === "maxItems") &&
     value >= 100_000) ||
     (key === "maxLength" && value >= 200) ||
-    (key === "minLength" && value <= 1));
+    (key === "minLength" && value <= 1) ||
+    (key === "minimum" && value === 0) ||
+    (key === "minItems" && value <= 1));
 /**
  * JSON Schema without generator noise (draft URI, safe-integer bounds).
  * compact also drops defaults, strictness markers and loose bounds and
@@ -1452,6 +1459,7 @@ export const editingSchemaSections = [
   "actions",
   "commands",
   "motionRecipes",
+  "motionReferences",
   ...Object.keys(schemaSections),
 ];
 
@@ -1542,6 +1550,7 @@ export function agentEditingGuide() {
 export function editingSchemaSection(section: string): unknown {
   // External clients keep only the start of the server instructions.
   if (section === "workflow") return { workflow: cutlineWorkflow };
+  if (section === "motionReferences") return motionReferenceGuide;
   if (section === "guide") return agentEditingGuide();
   if (section === "motionRecipes") return motionRecipeCatalog();
   if (section === "actions")
@@ -1597,23 +1606,27 @@ export function agentEditingSchemas() {
 const described = (description: string) => ({ type: "object", description });
 /** Nested definitions described once in tools/list; sections hold the full versions. */
 const actionStubs: Record<string, Record<string, object>> = {
+  "motion.scene": {
+    scene: {
+      type: "string",
+      description: "Scene ID from section guide values.motionScenes.",
+    },
+  },
   "clip.add": {
     patch: described("Fields for the new clip: same as clip.update patch."),
   },
   "motion.layer.add": {
     definition: described(
-      "A layer: type plus any motion.layer.update patch fields. Section motionLayer lists every field.",
+      "Layer type and properties; read section motionLayer.",
     ),
   },
   "motion.put": {
     motion: described(
-      "{id, name, layers[]}; each layer is a motion.layer.add definition. Prefer motion.scene or motion.shape, then layer edits.",
+      "{id,name,layers[]}; read motionLayer. Prefer motion.scene/shape then edits.",
     ),
   },
   "caption.update": {
-    patch: described(
-      "Caption appearance fields. Read section captionPatch for exact fields and bounds.",
-    ),
+    patch: described("Read section captionPatch for appearance fields."),
   },
   "caption.style": {
     patch: described("Caption appearance fields. Read section captionPatch."),
@@ -1633,12 +1646,12 @@ const ownActions: Record<
   "clip.update": {
     field: "patch",
     omit: ["keyframes", "words", "transition", "musicReactive"],
-    note: "Clip fields to change. Keyframes, transitions and music pulses have their own actions (clip.keyframe, clip.transition, cutline_music_reactive).",
+    note: "Clip fields; keys/transitions/music use clip.keyframe, clip.transition, cutline_music_reactive.",
   },
   "motion.layer.update": {
     field: "patch",
     omit: ["keyframes"],
-    note: "Layer fields to change. Keys have their own actions (motion.keyframe, motion.keyframe.move).",
+    note: "Layer fields; animate with motion.keyframe or motion.keyframe.move.",
   },
 };
 /** cutline_edit's input schema: every action and field, nested definitions described once. */
@@ -1650,7 +1663,7 @@ export function agentEditInputSchema() {
       revision: {
         type: "integer",
         minimum: 0,
-        description: "Current revision from cutline_inspect or the last edit.",
+        description: "Current inspected/edited revision.",
       },
       label: {
         type: "string",
@@ -1663,7 +1676,7 @@ export function agentEditInputSchema() {
         minItems: 1,
         maxItems: 500,
         description:
-          "Run in order as one undoable step. A creation can set ref; later actions use $ref (and $ref.motion for scenes and shapes).",
+          "Ordered, one Undo. Creation ref is $ref later; scene/shape motion is $ref.motion.",
         items: {
           oneOf: advertisedActions().map((option) => {
             const schema = readableSchema(option, true);
@@ -1675,6 +1688,10 @@ export function agentEditInputSchema() {
             if (own) {
               const patch = schema.properties[own.field];
               for (const name of own.omit) delete patch.properties[name];
+              if (patch.properties.vectorGradient)
+                patch.properties.vectorGradient = described(
+                  "Linear/radial SVG fill. Read section motionLayerPatch for coordinates and stops.",
+                );
               patch.description = own.note;
             }
             return schema;
@@ -1683,14 +1700,12 @@ export function agentEditInputSchema() {
       },
       dryRun: {
         type: "boolean",
-        description:
-          "Check the whole edit and summarize it without changing anything.",
+        description: "Validate without changes.",
       },
       detail: {
         type: "string",
         enum: ["summary", "full"],
-        description:
-          "full also returns every field of the changed clips and motions.",
+        description: "full includes changed object fields.",
       },
     },
     required: ["projectId", "revision", "label", "actions"],
@@ -1721,7 +1736,7 @@ export const agentEditTools: Tool[] = [
   {
     name: "cutline_edit",
     description:
-      "Atomic, undoable edit of clips, motion, vectors, keyframes, transitions, captions, audio ducking, tracks and settings. Read cutline_editing_schema for actions and recipes. Requires current projectId/revision; returns revision, created IDs and summary.",
+      "Atomic undoable editing. Read cutline_editing_schema for actions/recipes. Current projectId/revision required; returns revision, IDs and summary.",
     inputSchema: agentEditInputSchema() as Tool["inputSchema"],
     annotations: {
       readOnlyHint: false,

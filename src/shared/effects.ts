@@ -13,7 +13,19 @@ export const videoLooks = [
   "sunset",
   "teal-orange",
   "bleach",
+  "studio",
+  "soft-film",
+  "crisp-mono",
 ] as const;
+/** Starting strengths, not an automatic exposure or skin-tone match. */
+export const lookStrength = (look: (typeof videoLooks)[number]) =>
+  look === "studio"
+    ? 0.7
+    : look === "soft-film"
+      ? 0.6
+      : look === "crisp-mono"
+        ? 0.85
+        : 1;
 export const cameraMoves = [
   "none",
   "zoom-in",
@@ -72,6 +84,9 @@ export function filterFor(
     sunset: [1.08, 1.1, 1.25, 0.38, -12],
     "teal-orange": [1.02, 1.22, 1.3, 0.15, -18],
     bleach: [1.06, 1.48, 0.35, 0.05, 0],
+    studio: [1.02, 1.055, 1.035, 0, 0],
+    "soft-film": [1.035, 0.95, 0.9, 0.045, 0],
+    "crisp-mono": [1.015, 1.18, 0, 0, 0],
   };
   const [b, k, s, sepia, hue] = looks[c.look ?? "none"];
   return `brightness(${(c.brightness ?? 1) * (1 + (b - 1) * a)}) contrast(${(c.contrast ?? 1) * (1 + (k - 1) * a)}) saturate(${(c.saturation ?? 1) * (1 + (s - 1) * a)}) sepia(${sepia * a}) hue-rotate(${hue * a}deg) blur(${c.blur ?? 0}px)${c.invert ? ` invert(${c.invert})` : ""}`;

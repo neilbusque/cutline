@@ -836,6 +836,30 @@ export function Inspector({
             step={0.05}
             onChange={(scale) => patch({ scale })}
           />
+          <div className="two-col">
+            <NumberField
+              label="Tilt X"
+              value={c.rotateX}
+              min={-85}
+              max={85}
+              onChange={(rotateX) => patch({ rotateX })}
+            />
+            <NumberField
+              label="Tilt Y"
+              value={c.rotateY}
+              min={-85}
+              max={85}
+              onChange={(rotateY) => patch({ rotateY })}
+            />
+          </div>
+          <NumberField
+            label="Perspective"
+            value={c.perspective}
+            min={200}
+            max={8000}
+            step={50}
+            onChange={(perspective) => patch({ perspective })}
+          />
           <label className="field">
             <span>Blend mode</span>
             <select

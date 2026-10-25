@@ -8,6 +8,7 @@ import {
   X,
   Image as ImageIcon,
   Film,
+  AudioLines,
 } from "lucide-react";
 import type {
   StockItem,
@@ -32,7 +33,8 @@ const defaults: Filters = {
   kind: "video",
   orientation: "all",
 };
-const labelFor = (kind: StockKind) => (kind === "image" ? "photos" : "videos");
+const labelFor = (kind: StockKind) =>
+  kind === "image" ? "photos" : kind === "audio" ? "audio" : "videos";
 
 export function StockLibrary({
   active = true,
@@ -133,6 +135,20 @@ export function StockLibrary({
 
   function changeFilters(patch: Partial<Filters>) {
     const updated = { ...filters, ...patch };
+    if (
+      patch.provider &&
+      patch.provider !== "openverse" &&
+      updated.kind === "audio"
+    )
+      updated.kind = "image";
+    if (patch.kind === "video" && updated.provider === "openverse")
+      updated.provider = "commons";
+    if (updated.kind === "audio") {
+      updated.provider = "openverse";
+      updated.orientation = "all";
+    }
+    if (updated.provider === "openverse" && updated.kind === "video")
+      updated.kind = "image";
     setFilters(updated);
     request.current++;
     setItems([]);
@@ -158,9 +174,11 @@ export function StockLibrary({
       if (mounted.current)
         setMessage(
           place
-            ? item.kind === "image"
-              ? "Photo added at the playhead with a slow zoom."
-              : "Muted B-roll added at the playhead."
+            ? item.kind === "audio"
+              ? "Sound effect added at the playhead. Adjust its level in Properties."
+              : item.kind === "image"
+                ? "Photo added at the playhead with a slow zoom."
+                : "Muted B-roll added at the playhead."
             : "Downloaded to your media library.",
         );
     } catch (error) {
@@ -198,6 +216,13 @@ export function StockLibrary({
         >
           <ImageIcon size={14} /> Photos
         </button>
+        <button
+          className={filters.kind === "audio" ? "active" : ""}
+          aria-pressed={filters.kind === "audio"}
+          onClick={() => changeFilters({ kind: "audio" })}
+        >
+          <AudioLines size={14} /> Audio
+        </button>
       </div>
       <form
         className="stock-search"
@@ -210,7 +235,11 @@ export function StockLibrary({
           <Search size={14} />
           <input
             aria-label={`Search stock ${labelFor(filters.kind)}`}
-            placeholder="Coffee, city, ocean…"
+            placeholder={
+              filters.kind === "audio"
+                ? "Click, paper, transition…"
+                : "Coffee, city, ocean…"
+            }
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
@@ -239,11 +268,13 @@ export function StockLibrary({
           >
             <option value="commons">Wikimedia</option>
             <option value="pexels">Pexels</option>
+            <option value="openverse">Openverse</option>
           </select>
         </label>
         <label>
           Orientation
           <select
+            disabled={filters.kind === "audio"}
             aria-label="Stock orientation"
             value={filters.orientation}
             onChange={(event) =>
@@ -260,6 +291,12 @@ export function StockLibrary({
         </label>
       </div>
 
+      {filters.provider === "openverse" && (
+        <p className="library-note">
+          Key-free photos and sounds. Attribution stays with each import. Review
+          the source license before publishing.
+        </p>
+      )}
       {filters.provider === "pexels" && (
         <div className="stock-connect stock-connect-line">
           {settings?.pexelsConfigured ? (
@@ -285,19 +322,20 @@ export function StockLibrary({
       )}
       {!searched && !busy && !needsKey && (
         <div className="stock-topics">
-          {["Coffee", "City", "Ocean", "Nature", "Food", "Travel"].map(
-            (topic) => (
-              <button
-                key={topic}
-                onClick={() => {
-                  setQuery(topic);
-                  void search(topic);
-                }}
-              >
-                {topic}
-              </button>
-            ),
-          )}
+          {(filters.kind === "audio"
+            ? ["Click", "Paper", "Footsteps", "Impact", "Water", "Wind"]
+            : ["Coffee", "City", "Ocean", "Nature", "Food", "Travel"]
+          ).map((topic) => (
+            <button
+              key={topic}
+              onClick={() => {
+                setQuery(topic);
+                void search(topic);
+              }}
+            >
+              {topic}
+            </button>
+          ))}
         </div>
       )}
       <div className="stock-providers">
@@ -337,11 +375,22 @@ export function StockLibrary({
         {items.map((item) => (
           <article className="stock-result" key={item.key}>
             <div
-              className={`stock-preview ${item.kind === "image" ? "stock-photo" : ""}`}
+              className={`stock-preview ${item.kind === "image" ? "stock-photo" : item.kind === "audio" ? "stock-audio" : ""}`}
             >
               {preview === item.key ? (
                 <>
-                  {item.kind === "image" ? (
+                  {item.kind === "audio" ? (
+                    <audio
+                      src={item.preview}
+                      controls
+                      autoPlay
+                      onError={() =>
+                        setMessage(
+                          "Audio preview unavailable. Open the source page or choose another sound.",
+                        )
+                      }
+                    />
+                  ) : item.kind === "image" ? (
                     <img
                       src={item.preview}
                       alt={item.title}
@@ -389,10 +438,9 @@ export function StockLibrary({
                     )}
                   </span>
                   <small>
-                    {item.kind === "video"
-                      ? `${Math.round(item.duration)}s · `
-                      : ""}
-                    {item.width} × {item.height}
+                    {item.kind === "audio"
+                      ? `${item.duration.toFixed(1)}s`
+                      : `${item.kind === "video" ? `${Math.round(item.duration)}s · ` : ""}${item.width} × ${item.height}`}
                   </small>
                 </button>
               )}
@@ -402,7 +450,12 @@ export function StockLibrary({
               className="stock-author stock-credit-link"
               onClick={() => openSource(item.page)}
             >
-              {item.kind === "image" ? "Photo" : "Video"} by {item.creator}
+              {item.kind === "image"
+                ? "Photo"
+                : item.kind === "audio"
+                  ? "Audio"
+                  : "Video"}{" "}
+              by {item.creator}
               {item.provider === "pexels" ? " on Pexels" : ""}{" "}
               <ExternalLink size={10} />
             </button>
@@ -430,13 +483,19 @@ export function StockLibrary({
                 className="primary"
                 disabled={downloading !== undefined}
                 title={
-                  item.kind === "image"
-                    ? "Adds a 4-second shot with a slow zoom at the playhead"
-                    : "Adds a muted clip above your video at the playhead"
+                  item.kind === "audio"
+                    ? "Adds audible audio on a separate Sound effects track at the playhead"
+                    : item.kind === "image"
+                      ? "Adds a 4-second shot with a slow zoom at the playhead"
+                      : "Adds a muted clip above your video at the playhead"
                 }
                 onClick={() => void download(item, true)}
               >
-                {item.kind === "image" ? "Add photo" : "Add B-roll"}
+                {item.kind === "image"
+                  ? "Add photo"
+                  : item.kind === "audio"
+                    ? "Add audio"
+                    : "Add B-roll"}
               </button>
             </div>
           </article>

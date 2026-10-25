@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   MotionLayerSchema,
+  fontFamilies,
   type Motion,
   type Clip,
   type Project,
@@ -61,6 +62,9 @@ const names: Record<Property, string> = {
   y: "Move Y",
   scale: "Scale",
   rotate: "Rotation",
+  rotateX: "Tilt X",
+  rotateY: "Tilt Y",
+  perspective: "Perspective",
   opacity: "Opacity",
   blur: "Blur",
   trim: "Stroke reveal",
@@ -938,6 +942,45 @@ export function MotionInspector({
           <details className="motion-typography">
             <summary>Typography</summary>
             <label className="field">
+              <span>Layer font</span>
+              <select
+                aria-label="Layer font"
+                value={layer.fontFamily ?? "inherit"}
+                onChange={(event) =>
+                  update({
+                    fontFamily:
+                      event.target.value === "inherit"
+                        ? undefined
+                        : (event.target.value as Layer["fontFamily"]),
+                  })
+                }
+              >
+                <option value="inherit">
+                  Use clip font · {clip.fontFamily}
+                </option>
+                {fontFamilies.map((family) => (
+                  <option key={family} value={family}>
+                    {family}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="field">
+              <span>Layer font style</span>
+              <select
+                aria-label="Layer font style"
+                value={layer.fontStyle ?? "normal"}
+                onChange={(event) =>
+                  update({
+                    fontStyle: event.target.value as Layer["fontStyle"],
+                  })
+                }
+              >
+                <option value="normal">Normal</option>
+                <option value="italic">Italic</option>
+              </select>
+            </label>
+            <label className="field">
               <span>Layer font weight</span>
               <select
                 aria-label="Layer font weight"
@@ -1176,6 +1219,16 @@ export function MotionInspector({
           {number("Layer height", "height", layer.height, 1, 4000)}
           {number("Layer scale", "scale", layer.scale, 0, 10, 0.05)}
           {number("Layer rotation", "rotate", layer.rotate, -3600, 3600)}
+          {number("Layer tilt X", "rotateX", layer.rotateX, -85, 85)}
+          {number("Layer tilt Y", "rotateY", layer.rotateY, -85, 85)}
+          {number(
+            "Layer perspective",
+            "perspective",
+            layer.perspective,
+            200,
+            8000,
+            50,
+          )}
           {number("Layer opacity", "opacity", layer.opacity, 0, 1, 0.05)}
           {number("Roundness", "radius", layer.radius, 0, 2000)}
           {number("Anchor X", "anchorX", layer.anchorX, 0, 1, 0.05)}
@@ -1265,7 +1318,12 @@ export function MotionInspector({
             min={min}
             max={max}
             step={
-              property === "x" || property === "y" || property === "rotate"
+              property === "x" ||
+              property === "y" ||
+              property === "rotate" ||
+              property === "rotateX" ||
+              property === "rotateY" ||
+              property === "perspective"
                 ? 1
                 : 0.05
             }

@@ -13,7 +13,11 @@ const beats = (count: number) =>
     show: "Beat",
   }));
 
-const project = { projectId: "project-1", revision: 3, style: "split" as const };
+const project = {
+  projectId: "project-1",
+  revision: 3,
+  style: "split" as const,
+};
 
 describe("style reel arguments", () => {
   it("takes the beats of a three-minute Short", () => {
@@ -30,5 +34,16 @@ describe("style reel arguments", () => {
       beats: beats(STYLE_REEL_BEAT_LIMIT + 1),
     });
     expect(parsed.success).toBe(false);
+  });
+
+  it("rejects backwards beats, malformed colors and negative source passages before fetching media", () => {
+    for (const beat of [
+      { from: 2, to: 1 },
+      { from: 0, to: 2, background: "red" },
+      { from: 0, to: 2, sourceIn: -1 },
+    ])
+      expect(
+        StyleReelArgsSchema.safeParse({ ...project, beats: [beat] }).success,
+      ).toBe(false);
   });
 });

@@ -445,8 +445,24 @@ export function packageIgnore(file) {
     ].includes(top)
   )
     return true;
-  // Published help is Markdown only; local media or exports cannot hitch a ride.
-  if (top === "docs" && relative !== "docs" && !relative.endsWith(".md"))
+  // Published help is Markdown plus the explicit public reference inventory.
+  // Allow its directories so packager traverses them, without admitting media.
+  const referenceFiles = [
+    "docs/motion-reference-library",
+    "docs/motion-reference-library/catalogs",
+    ...[
+      "jack-roberts",
+      "nick-automates",
+      "aasil-khan-shorts",
+      "aasil-khan-videos",
+    ].map((name) => `docs/motion-reference-library/catalogs/${name}.json`),
+  ];
+  if (
+    top === "docs" &&
+    relative !== "docs" &&
+    !relative.endsWith(".md") &&
+    !referenceFiles.includes(relative)
+  )
     return true;
   return /^(?:node_modules\/(?:\.remotion|electron)(?:\/|$)|node_modules\/onnxruntime-node\/bin\/napi-v3\/(?:linux|win32|darwin\/x64)(?:\/|$))/u.test(
     relative,

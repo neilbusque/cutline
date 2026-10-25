@@ -6,6 +6,9 @@ export const motionProperties = [
   "opacity",
   "scale",
   "rotate",
+  "rotateX",
+  "rotateY",
+  "perspective",
   "blur",
   "trim",
   "strokeWidth",
@@ -18,6 +21,9 @@ export const motionPropertyBounds: Record<MotionProperty, [number, number]> = {
   opacity: [0, 1],
   scale: [0, 10],
   rotate: [-3600, 3600],
+  rotateX: [-85, 85],
+  rotateY: [-85, 85],
+  perspective: [200, 8000],
   blur: [0, 100],
   trim: [0, 1],
   strokeWidth: [0, 100],
@@ -194,6 +200,7 @@ const motionAmounts = new Set<MotionProperty>([
   "blur",
   "trim",
   "fillOpacity",
+  "perspective",
 ]);
 
 /** x/y keys are movement offsets, preserving existing custom motion projects. */
@@ -206,12 +213,14 @@ export function motionValue(
     property === "x" || property === "y"
       ? 0
       : (layer[property] ??
-        (property === "opacity" ||
-        property === "scale" ||
-        property === "trim" ||
-        property === "fillOpacity"
-          ? 1
-          : 0));
+        (property === "perspective"
+          ? 1000
+          : property === "opacity" ||
+              property === "scale" ||
+              property === "trim" ||
+              property === "fillOpacity"
+            ? 1
+            : 0));
   const keys = curves(layer).get(property);
   if (!keys?.length) return base;
   const at = motionFrame(layer, frame);

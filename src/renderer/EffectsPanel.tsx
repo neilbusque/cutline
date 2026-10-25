@@ -2,7 +2,12 @@ import React, { useState, useRef } from "react";
 import { RotateCcw } from "lucide-react";
 import type { Project, Clip } from "../shared/model";
 import type { Command } from "../shared/commands";
-import { videoLooks, cameraMoves, filterFor } from "../shared/effects";
+import {
+  videoLooks,
+  cameraMoves,
+  filterFor,
+  lookStrength,
+} from "../shared/effects";
 import { optionLabel } from "./labels";
 export function EffectSlider({
   label,
@@ -78,14 +83,19 @@ export function EffectsPanel({
             aria-pressed={clip?.look === look}
             className={clip?.look === look ? "selected" : ""}
             key={look}
-            onClick={() => patch({ look }, `Apply ${look} look`)}
+            onClick={() =>
+              patch(
+                { look, effectAmount: lookStrength(look) },
+                `Apply ${look} look`,
+              )
+            }
           >
             <div
               style={{
                 filter: filterFor({
                   ...clip!,
                   look,
-                  effectAmount: 1,
+                  effectAmount: lookStrength(look),
                   brightness: 1,
                   contrast: 1,
                   saturation: 1,
@@ -119,6 +129,8 @@ export function EffectsPanel({
                     saturation: 1,
                     blur: 0,
                     vignette: 0,
+                    rgbSplit: 0,
+                    invert: 0,
                     cameraMotion: "none",
                     overlay: "none",
                     overlayAmount: 0.5,
@@ -198,6 +210,27 @@ export function EffectsPanel({
               onCommit={(n) => patch({ overlayAmount: n })}
             />
           )}
+          <button
+            className="full subtle"
+            onClick={() =>
+              edit(
+                "Copy look to this track",
+                p.clips
+                  .filter(
+                    (c) =>
+                      c.trackId === clip.trackId &&
+                      (c.kind === "video" || c.kind === "image"),
+                  )
+                  .map((c) => ({
+                    type: "clip.update",
+                    id: c.id,
+                    patch: { look: clip.look, effectAmount: clip.effectAmount },
+                  })),
+              )
+            }
+          >
+            Copy look to this track
+          </button>
           <button
             className="full subtle"
             onClick={() =>

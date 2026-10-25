@@ -1,0 +1,1438 @@
+{
+  "retrieved": "2026-10-25",
+  "title": "Nick Automates - Shorts",
+  "channel_id": "UCUX5AP1M0mBbgUi_WklPbOQ",
+  "count": 203,
+  "scope": "All entries exposed by the public channel tab to yt-dlp; metadata inventory, not all individually watched.",
+  "entries": [
+    {
+      "id": "WcXaTrFt6oU",
+      "title": "Run a Full AI Agency Inside Claude Code (200+ Free Agents)",
+      "url": "https://www.youtube.com/watch?v=WcXaTrFt6oU",
+      "view_count": 8400,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "a99VVqGgVM8",
+      "title": "Use 3 Free Tools to Add Pro Sound Effects to Claude Edited Videos and Motion Graphics",
+      "url": "https://www.youtube.com/watch?v=a99VVqGgVM8",
+      "view_count": 13000,
+      "evidence_level": "sampled_frames",
+      "inspected_intervals": ["0-4.4s", "9-13.4s"],
+      "listening_review": "not_performed"
+    },
+    {
+      "id": "-s8wFpNUd9Y",
+      "title": "Remove all Ads and Bloatware Apps from your TV With Claude Code and this Github Repo",
+      "url": "https://www.youtube.com/watch?v=-s8wFpNUd9Y",
+      "view_count": 80000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "-H7bNMqYMPE",
+      "title": "Google just Open-Sourced a Free AI tool that lets your Claude Code use a Real phone like a Human",
+      "url": "https://www.youtube.com/watch?v=-H7bNMqYMPE",
+      "view_count": 26000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "9bGfbup_dSg",
+      "title": "Higgsfield API is the cheapest way to make AI Videos and Images",
+      "url": "https://www.youtube.com/watch?v=9bGfbup_dSg",
+      "view_count": 6700,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "fDpuRX6yr08",
+      "title": "This Free AI Tool Turns Any Website Into an Unlimited API",
+      "url": "https://www.youtube.com/watch?v=fDpuRX6yr08",
+      "view_count": 39000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "bHIMNW_4mlg",
+      "title": "This Free Websites gives you access to over 500+ AI Motion Graphic Prompts",
+      "url": "https://www.youtube.com/watch?v=bHIMNW_4mlg",
+      "view_count": 24000,
+      "evidence_level": "sampled_frames",
+      "inspected_intervals": ["0-4.4s"],
+      "listening_review": "not_performed"
+    },
+    {
+      "id": "XxTCAnRWYfE",
+      "title": "VoiceStudio is a Free AI Voice Generator that can clone your voice with just 3 seconds of audio",
+      "url": "https://www.youtube.com/watch?v=XxTCAnRWYfE",
+      "view_count": 22000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "WWiGhyLXD6g",
+      "title": "Claude Can Now Make Smooth Animations That React to Your Cursor with just one Prompt",
+      "url": "https://www.youtube.com/watch?v=WWiGhyLXD6g",
+      "view_count": 21000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "J33PnS6vyiA",
+      "title": "Recreate Viral Video Edits with Claude Opus 5.5 + Higgsfield Katana",
+      "url": "https://www.youtube.com/watch?v=J33PnS6vyiA",
+      "view_count": 8900,
+      "evidence_level": "sampled_frames",
+      "inspected_intervals": ["whole-duration contact sheet"],
+      "listening_review": "not_performed"
+    },
+    {
+      "id": "3Ev0BVJh-DU",
+      "title": "Use these 5 AI Plugins to make Claude Code code like a senior dev.",
+      "url": "https://www.youtube.com/watch?v=3Ev0BVJh-DU",
+      "view_count": 42000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "DvHMFnDWUG0",
+      "title": "Fish Audio Is a New AI Voice Agent That Feels 100% Human and Replies Instantly",
+      "url": "https://www.youtube.com/watch?v=DvHMFnDWUG0",
+      "view_count": 25000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "xVOYn6RX5Gg",
+      "title": "Build full AI Games in any style and Genre using Claude AI",
+      "url": "https://www.youtube.com/watch?v=xVOYn6RX5Gg",
+      "view_count": 8900,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "nAK_Vr_yyqo",
+      "title": "You Don't Need to Pay for Booking Tools Anymore, Instead use Replit AI to Build Your Own",
+      "url": "https://www.youtube.com/watch?v=nAK_Vr_yyqo",
+      "view_count": 5600,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "dsE5X_-x8KE",
+      "title": "Don't use Claude Code untill you've installed these 5 AI Plugins.",
+      "url": "https://www.youtube.com/watch?v=dsE5X_-x8KE",
+      "view_count": 24000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "QzDnfL2e6cQ",
+      "title": "Claude just dropped 11 Official plugins that turn Claude Code into an expert at your actual job",
+      "url": "https://www.youtube.com/watch?v=QzDnfL2e6cQ",
+      "view_count": 17000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "q3DoYC8oUwk",
+      "title": "This Free AI skill finds and fixes security holes in your vibe coded apps",
+      "url": "https://www.youtube.com/watch?v=q3DoYC8oUwk",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "wx-AOllxnww",
+      "title": "Use these 12 AI Skills to automate your Linkedin with Claude Code",
+      "url": "https://www.youtube.com/watch?v=wx-AOllxnww",
+      "view_count": 25000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "yZdxHcgCsmI",
+      "title": "Open Montage is a Free Agentic Video Production Agent for creating Full Films, Trailers, UGC & more",
+      "url": "https://www.youtube.com/watch?v=yZdxHcgCsmI",
+      "view_count": 16000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "sUvLZHSXslQ",
+      "title": "Freebuff is a 100% Free AI Coding Agent with No Subscription or API Key Required",
+      "url": "https://www.youtube.com/watch?v=sUvLZHSXslQ",
+      "view_count": 36000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "K1aufEf83Hk",
+      "title": "Laya is a Free and Opensource alternative to Jev AI but faster",
+      "url": "https://www.youtube.com/watch?v=K1aufEf83Hk",
+      "view_count": 31000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "RPgML1vBnq0",
+      "title": "Use these 5 free AI Plugins to instantly 10x your Claaude Code setup.",
+      "url": "https://www.youtube.com/watch?v=RPgML1vBnq0",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "q3vDqyWqqdo",
+      "title": "LTX 2.5 Is a Free AI Video Model that you can run on a Regular PC or even a Mac",
+      "url": "https://www.youtube.com/watch?v=q3vDqyWqqdo",
+      "view_count": 20000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "zYlCtVGRwKo",
+      "title": "Free LLM API Lets you run Claude Code for Free with almost unlimited usage with 7b Free AI Tokens",
+      "url": "https://www.youtube.com/watch?v=zYlCtVGRwKo",
+      "view_count": 91000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "08lDzkR6UrA",
+      "title": "You don't need a subscription to use the top AI video models anymore, instead use Higgsfield API",
+      "url": "https://www.youtube.com/watch?v=08lDzkR6UrA",
+      "view_count": 22000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "7eVylM1pTrA",
+      "title": "3 Free AI PLugins to Turn Claude Code Into an SEO Expert",
+      "url": "https://www.youtube.com/watch?v=7eVylM1pTrA",
+      "view_count": 33000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "7cBexZWBfOo",
+      "title": "Claude Can Now Edit Full Videos Using DaVinci Resolve's Official MCP",
+      "url": "https://www.youtube.com/watch?v=7cBexZWBfOo",
+      "view_count": 90000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "q1y8W2e4J44",
+      "title": "This free AI tool lets you scrape unlimited local leads From Google Maps without paying for anything",
+      "url": "https://www.youtube.com/watch?v=q1y8W2e4J44",
+      "view_count": 27000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "LaNMx5q261U",
+      "title": "Someone just leaked the Full System Prompt of Claude Fable 5.1 and now its out in the open on Github",
+      "url": "https://www.youtube.com/watch?v=LaNMx5q261U",
+      "view_count": 114000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "so77pKFhWPY",
+      "title": "You can now build full end-to-end 3D ad campaigns with GPT-6 Astra and Higgsfield Genjutsu",
+      "url": "https://www.youtube.com/watch?v=so77pKFhWPY",
+      "view_count": 35000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "OLsE1GReCBs",
+      "title": "Use these 4 AI Plugins to stop your AI from creating generic AI Slop content",
+      "url": "https://www.youtube.com/watch?v=OLsE1GReCBs",
+      "view_count": 21000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "JlRiNyHS5ks",
+      "title": "Prompts Chat is the World's Biggest Free AI Prompt Library with over 50k+ Prompts for various tasks",
+      "url": "https://www.youtube.com/watch?v=JlRiNyHS5ks",
+      "view_count": 71000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "QXmgdiTKA_g",
+      "title": "Steal the Design.md Files of Apple, Spotify, Ferrari, Tesla, and 2,000+ Top Brands for Your AI",
+      "url": "https://www.youtube.com/watch?v=QXmgdiTKA_g",
+      "view_count": 27000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "6H9luwL3lFo",
+      "title": "This free AI tool lets you clone any website with just one single screenshot.",
+      "url": "https://www.youtube.com/watch?v=6H9luwL3lFo",
+      "view_count": 29000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "YDLXsLKK7Ic",
+      "title": "Anthropic just launched Claude Academy with Free AI courses to help you master Claude Apps",
+      "url": "https://www.youtube.com/watch?v=YDLXsLKK7Ic",
+      "view_count": 22000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "NOnIrDx2b_4",
+      "title": "Top 4 Claude Code Plugins to use while Vibe Coding",
+      "url": "https://www.youtube.com/watch?v=NOnIrDx2b_4",
+      "view_count": 58000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "TK_BXQga5lk",
+      "title": "This Free AI Tool lets you scrape anything off the internet for completely Free and unlimited times",
+      "url": "https://www.youtube.com/watch?v=TK_BXQga5lk",
+      "view_count": 76000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "vyrVH8S9JVE",
+      "title": "NVIDIA SkillSpector is a Free AI Tool that Scans your Claude Code Skills for Malware and other Risks",
+      "url": "https://www.youtube.com/watch?v=vyrVH8S9JVE",
+      "view_count": 31000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "rMw6YJz0Ows",
+      "title": "Google just dropped over 100 AI skills that make your Claude Code an expert on Google's entire stack",
+      "url": "https://www.youtube.com/watch?v=rMw6YJz0Ows",
+      "view_count": 47000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "5Mh_LjMFFjc",
+      "title": "If you're using Claude Code, you need to install these 5 AI plugins and skills.",
+      "url": "https://www.youtube.com/watch?v=5Mh_LjMFFjc",
+      "view_count": 59000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "DSlg2sQxvO4",
+      "title": "The 3 Best AI Tools to Scrape Anything of the internet using Claude Code",
+      "url": "https://www.youtube.com/watch?v=DSlg2sQxvO4",
+      "view_count": 57000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "ofqHdK9_Tmg",
+      "title": "CLI Anything lets you connect Claude Code to any App you use For Completely Free",
+      "url": "https://www.youtube.com/watch?v=ofqHdK9_Tmg",
+      "view_count": 46000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "lWqZMgclCt0",
+      "title": "You can now Design Apple level websites with Claude Code using this one skill.",
+      "url": "https://www.youtube.com/watch?v=lWqZMgclCt0",
+      "view_count": 33000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "9zYoAh2PH60",
+      "title": "Deepseek Harness is a new Free Claude Code alternative where you can customize it however you want",
+      "url": "https://www.youtube.com/watch?v=9zYoAh2PH60",
+      "view_count": 150000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "h8qy-MBDzho",
+      "title": "LTX 2.5 is a New Free and Opensource AI Video Model that is Insanely Fast in Generation",
+      "url": "https://www.youtube.com/watch?v=h8qy-MBDzho",
+      "view_count": 24000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "h_L0SvoM3ZY",
+      "title": "Minimax H3 is a new Free AI Video Generator that's already beating Top AI Models",
+      "url": "https://www.youtube.com/watch?v=h_L0SvoM3ZY",
+      "view_count": 42000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "3Y7I6nL6QJE",
+      "title": "Use these 5 Claude Code Plugins to 10x Your Designs and UIs",
+      "url": "https://www.youtube.com/watch?v=3Y7I6nL6QJE",
+      "view_count": 54000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "IB1QVQUXV6M",
+      "title": "This Claude skill lets you vibe code like a senior engineer built by a former Google AI Engineer.",
+      "url": "https://www.youtube.com/watch?v=IB1QVQUXV6M",
+      "view_count": 35000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Z_fy0N5lYi8",
+      "title": "Replit Design lets you Build Entire Brands Assets with zero design experience required",
+      "url": "https://www.youtube.com/watch?v=Z_fy0N5lYi8",
+      "view_count": 12000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "o-h5Z6XS81Q",
+      "title": "Forget Elevenlabs, instead use this Free and Opensource Alternative called Omnivoice",
+      "url": "https://www.youtube.com/watch?v=o-h5Z6XS81Q",
+      "view_count": 27000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "JowUBVKbCB0",
+      "title": "Use this Free Claude skill to Humanize your AI Writing",
+      "url": "https://www.youtube.com/watch?v=JowUBVKbCB0",
+      "view_count": 35000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "6HS6_nsRM2I",
+      "title": "Seedance 2.5 is Now Unlimited for Next 7 days on Higgsfield",
+      "url": "https://www.youtube.com/watch?v=6HS6_nsRM2I",
+      "view_count": 18000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "bU5ZDdRnN2M",
+      "title": "Here are Top 5 Claude Code Plugins that gives you unlimited tokens and 10x your workflows",
+      "url": "https://www.youtube.com/watch?v=bU5ZDdRnN2M",
+      "view_count": 97000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "xoxM8Tt8rbE",
+      "title": "This Free and Open-source Tool helps you secure your Vibe-Coded Apps by attacking it like a Hacker",
+      "url": "https://www.youtube.com/watch?v=xoxM8Tt8rbE",
+      "view_count": 61000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "3oUSrHsw1Ug",
+      "title": "Google just launched AI Boost Bites to teach you real AI skills in under 10 minutes a lesson",
+      "url": "https://www.youtube.com/watch?v=3oUSrHsw1Ug",
+      "view_count": 30000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "UMG0jPM4t6c",
+      "title": "These 3 Websites gives you access to over 100+ Free AI API Keys",
+      "url": "https://www.youtube.com/watch?v=UMG0jPM4t6c",
+      "view_count": 71000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "GkIEZHBzRNo",
+      "title": "This AI Skill lets you scrape anything off the internet even the gated sites like Linkedin, X and IG",
+      "url": "https://www.youtube.com/watch?v=GkIEZHBzRNo",
+      "view_count": 72000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "gTMFKLnC0So",
+      "title": "Google has silently released 15 AI tools that are completely free and can save you $1000 every month",
+      "url": "https://www.youtube.com/watch?v=gTMFKLnC0So",
+      "view_count": 188000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "iatJ8U39pqA",
+      "title": "This website is basically Pinterest for AI Prompts and with over 30,000 AI image and video prompts",
+      "url": "https://www.youtube.com/watch?v=iatJ8U39pqA",
+      "view_count": 17000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "DTzZ9Ttd_5w",
+      "title": "This GitHub repo gives you access to over 100+ Free AI Key from various Free API providers",
+      "url": "https://www.youtube.com/watch?v=DTzZ9Ttd_5w",
+      "view_count": 27000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "IkqnQPjr_Fc",
+      "title": "Run Codex + Claude Code Together with this Free Plugin",
+      "url": "https://www.youtube.com/watch?v=IkqnQPjr_Fc",
+      "view_count": 30000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "5jFhQ_Yfx5k",
+      "title": "Use these 4 Plugins to Fix your Claude Code Usage Limit",
+      "url": "https://www.youtube.com/watch?v=5jFhQ_Yfx5k",
+      "view_count": 44000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "bwsDHdnL7zY",
+      "title": "This Claude Code Plugins cuts your Token usage in half (Ponytail)",
+      "url": "https://www.youtube.com/watch?v=bwsDHdnL7zY",
+      "view_count": 22000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "fZIBK_4fKq8",
+      "title": "Use Claude Code for free with unlimited usage using Omniroute",
+      "url": "https://www.youtube.com/watch?v=fZIBK_4fKq8",
+      "view_count": 369000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "ruDw4HfIuYE",
+      "title": "Someone just open-sourced Claude Design and made it 100% free",
+      "url": "https://www.youtube.com/watch?v=ruDw4HfIuYE",
+      "view_count": 68000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "JscSoSLiAes",
+      "title": "Here is how you can build and lunch a Full Mobile App using Claude Code",
+      "url": "https://www.youtube.com/watch?v=JscSoSLiAes",
+      "view_count": 84000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "A1NrAlw1lHw",
+      "title": "These are the Only 5 Claude Code Plugins You Actually Need",
+      "url": "https://www.youtube.com/watch?v=A1NrAlw1lHw",
+      "view_count": 42000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "mtr2ad2ps-0",
+      "title": "This Chrome extension gives you Unlimited AI Context and helps you switch between Models instantly",
+      "url": "https://www.youtube.com/watch?v=mtr2ad2ps-0",
+      "view_count": 12000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "R7CShvIxlGQ",
+      "title": "Use these 4 Claude Code Skills to improve your Designs and avoid AI Slop",
+      "url": "https://www.youtube.com/watch?v=R7CShvIxlGQ",
+      "view_count": 49000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "FJ3RKWQ-6Fg",
+      "title": "VoiceBox AI is a Free, Open-Source AI Voice Generator",
+      "url": "https://www.youtube.com/watch?v=FJ3RKWQ-6Fg",
+      "view_count": 31000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "-5y30aQ5EVI",
+      "title": "This Free Claude Code Plugin Fixes your Setup automaticallu",
+      "url": "https://www.youtube.com/watch?v=-5y30aQ5EVI",
+      "view_count": 18000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "72AAFZzzRo4",
+      "title": "This secret GitHub repo called Public APIs gives you access to over 1,400+ Free APIs.",
+      "url": "https://www.youtube.com/watch?v=72AAFZzzRo4",
+      "view_count": 21000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "WquS9XuZ-Dc",
+      "title": "Claude Fable 5's Full System Prompt just got leaked online",
+      "url": "https://www.youtube.com/watch?v=WquS9XuZ-Dc",
+      "view_count": 346000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "hu3fjVm4sB4",
+      "title": "You can now vibe-code full mobile apps using Google's new free feature inside AI Studio",
+      "url": "https://www.youtube.com/watch?v=hu3fjVm4sB4",
+      "view_count": 28000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "-JAWiHM_frk",
+      "title": "Vercel's \"Find Skill\" is the only Claude Skill you'll ever need",
+      "url": "https://www.youtube.com/watch?v=-JAWiHM_frk",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "lipJRiztOgM",
+      "title": "Top 5 Claude Skills That can save 10x Your AI Sessions",
+      "url": "https://www.youtube.com/watch?v=lipJRiztOgM",
+      "view_count": 475000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Bg5qZXxGa9E",
+      "title": "Forget Heygen, because China just open sourced an AI avatar generator called Long-Cat Avatar",
+      "url": "https://www.youtube.com/watch?v=Bg5qZXxGa9E",
+      "view_count": 13000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "4Fx-3_6sgKw",
+      "title": "Google just launched AI Pointer that puts an AI Agent behind your mouse cursor",
+      "url": "https://www.youtube.com/watch?v=4Fx-3_6sgKw",
+      "view_count": 12000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "1YLwZQAfzjE",
+      "title": "Nvidia is now offering 80+ AI API Key for Completely Free with generous limits",
+      "url": "https://www.youtube.com/watch?v=1YLwZQAfzjE",
+      "view_count": 69000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "PsXdgRuai5U",
+      "title": "You don't need to build your own AI agents from scratch, use Lindy AI instead",
+      "url": "https://www.youtube.com/watch?v=PsXdgRuai5U",
+      "view_count": 3300,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "rGfD7jpAy-I",
+      "title": "Create $10,000 Animated Websites with Claude Code + MotionSites.AI",
+      "url": "https://www.youtube.com/watch?v=rGfD7jpAy-I",
+      "view_count": 7000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Whz-uOirlGw",
+      "title": "Here are 3 Simple Tricks to Fix your Claude Usage",
+      "url": "https://www.youtube.com/watch?v=Whz-uOirlGw",
+      "view_count": 7600,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "9z-iwVo8L8Y",
+      "title": "Skills.sh has over 100,000+ Free Claude Skills you can use",
+      "url": "https://www.youtube.com/watch?v=9z-iwVo8L8Y",
+      "view_count": 23000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "-bwH1mv9gHo",
+      "title": "Vidrush AI lets you create Entire Youtube Videos In minutes in any sty;e you want",
+      "url": "https://www.youtube.com/watch?v=-bwH1mv9gHo",
+      "view_count": 25000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "NVk_pY-JYDs",
+      "title": "How to Build Premium 3D Animated Websites using Claude Code + MotionSites AI",
+      "url": "https://www.youtube.com/watch?v=NVk_pY-JYDs",
+      "view_count": 23000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "y6Jo7lq3i8s",
+      "title": "How to Run Claude Code Completely Free forever (2026)",
+      "url": "https://www.youtube.com/watch?v=y6Jo7lq3i8s",
+      "view_count": 347000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "pzORaD4r83o",
+      "title": "Open Design is a Free and Open-source alternative to Claude Design that can run on any AI Model",
+      "url": "https://www.youtube.com/watch?v=pzORaD4r83o",
+      "view_count": 29000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "dpv4KiWgXH4",
+      "title": "Vayne AI lets you scrapes 15000+ Leads from Linkedin using Sales Navigator",
+      "url": "https://www.youtube.com/watch?v=dpv4KiWgXH4",
+      "view_count": 14000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "sko781GfOOc",
+      "title": "Claude Code + Google Stitch + MotionSites = $15K Animated Sites",
+      "url": "https://www.youtube.com/watch?v=sko781GfOOc",
+      "view_count": 225000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "8BZupIIVhjs",
+      "title": "Use these 3 tricks to reduce your Claude code token usage.",
+      "url": "https://www.youtube.com/watch?v=8BZupIIVhjs",
+      "view_count": 118000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "FCniWObMubg",
+      "title": "Skills.Sh is a Free Claude Skills library from Vercel with over 90,000+ Free AI Skills to try from",
+      "url": "https://www.youtube.com/watch?v=FCniWObMubg",
+      "view_count": 49000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "onBnLb9p2t8",
+      "title": "Lovart AI builds complete brand campaigns from a single prompt",
+      "url": "https://www.youtube.com/watch?v=onBnLb9p2t8",
+      "view_count": 8000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "hEw3ZYQY5pk",
+      "title": "LTX 2.3 is a New Free and Open Source AI Video Model that can generatre 4k Qaultity AI Videos",
+      "url": "https://www.youtube.com/watch?v=hEw3ZYQY5pk",
+      "view_count": 45000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "KIu8pCuKiVs",
+      "title": "Rork Max is the first AI Coder that build Real iPhone Apps using Swift Native",
+      "url": "https://www.youtube.com/watch?v=KIu8pCuKiVs",
+      "view_count": 44000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "MSzFK0dOWj4",
+      "title": "Google is working on Disco, thier new AI Browser that combines Googling with Vibe-Coding",
+      "url": "https://www.youtube.com/watch?v=MSzFK0dOWj4",
+      "view_count": 29000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "1C_0WaKKCPw",
+      "title": "OpenCode is a free and opensource Alternative to Claude Code perfect for Vibe Coding full stack Apps",
+      "url": "https://www.youtube.com/watch?v=1C_0WaKKCPw",
+      "view_count": 368000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "wjFqXabD6nQ",
+      "title": "Use this Advanced Claude Code Prompt to get 10x Better Results from your AI Agent",
+      "url": "https://www.youtube.com/watch?v=wjFqXabD6nQ",
+      "view_count": 20000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "f42KWEofHCY",
+      "title": "You can now run Entire Faceless Youtube Channels using VidRush AI",
+      "url": "https://www.youtube.com/watch?v=f42KWEofHCY",
+      "view_count": 87000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "d1Dk8MaR2uc",
+      "title": "You don't need to pay for Sora,, Veo, or other AI video tools anymore, instead use HiggsField AI",
+      "url": "https://www.youtube.com/watch?v=d1Dk8MaR2uc",
+      "view_count": 18000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "QyL4lYURFdQ",
+      "title": "Google Just released a Free Duolingo alternative from where you can learn more than 40+ languages",
+      "url": "https://www.youtube.com/watch?v=QyL4lYURFdQ",
+      "view_count": 50000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "rC-51wLsse8",
+      "title": "Here is how you can access Seedance 2.0 for 100% Free",
+      "url": "https://www.youtube.com/watch?v=rC-51wLsse8",
+      "view_count": 90000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "7CmPrRvzUsw",
+      "title": "LTX-2 is a new open-source AI video generator that can run locally on your PC with just 8 GB of VRAM",
+      "url": "https://www.youtube.com/watch?v=7CmPrRvzUsw",
+      "view_count": 75000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "UmPQt1sg6gc",
+      "title": "RTRVR AI is a Free AI Web Agent that you can use to Automate Basically Anything on your Browser",
+      "url": "https://www.youtube.com/watch?v=UmPQt1sg6gc",
+      "view_count": 30000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "6mSvuK6qqrA",
+      "title": "Microsoft just dropped TRELLIS 2, their new Free and Opensource AI 3D Model Generator",
+      "url": "https://www.youtube.com/watch?v=6mSvuK6qqrA",
+      "view_count": 206000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "vQ9AFOoZCRQ",
+      "title": "Lindy AI is the easiet way to build Production-level AI Agents fast",
+      "url": "https://www.youtube.com/watch?v=vQ9AFOoZCRQ",
+      "view_count": 26000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "QP0LyihE3-0",
+      "title": "Someone just leaked the full system prompts that Claude uses across all their AI products",
+      "url": "https://www.youtube.com/watch?v=QP0LyihE3-0",
+      "view_count": 151000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "RS8ajyH1iPU",
+      "title": "Napkin AI turns your boring text documents into high-quality Visuals and infographics",
+      "url": "https://www.youtube.com/watch?v=RS8ajyH1iPU",
+      "view_count": 13000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "InSp6mTZAbc",
+      "title": "NotebookLM just added a new feature that turns any Youtube Video into infographics and Slide Decks",
+      "url": "https://www.youtube.com/watch?v=InSp6mTZAbc",
+      "view_count": 20000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Qk5MsWCEa-8",
+      "title": "Replit New Design lets you design Pro-level websites using simple text prompts",
+      "url": "https://www.youtube.com/watch?v=Qk5MsWCEa-8",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "lllkfxD6LEk",
+      "title": "Forget Cursor cause Google just released Jules, their new Free AI coding agent",
+      "url": "https://www.youtube.com/watch?v=lllkfxD6LEk",
+      "view_count": 16000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "owzVQYGO2V8",
+      "title": "These are the Top 3 Best AI Browsers currently available in the market",
+      "url": "https://www.youtube.com/watch?v=owzVQYGO2V8",
+      "view_count": 37000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "dlXycAZKAZo",
+      "title": "Waver 1.0 is a new AI Video Generator that anyone can use for 100% Free on their official discord",
+      "url": "https://www.youtube.com/watch?v=dlXycAZKAZo",
+      "view_count": 16000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "ic6EgoZAWbo",
+      "title": "This Video Prompt Library has over 2000+ High-Quality Veo 3 prompts",
+      "url": "https://www.youtube.com/watch?v=ic6EgoZAWbo",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "8dfemKSoLcM",
+      "title": "Google just dropped Disco, their new AI Browser that turns your messy browser tabs into custom apps.",
+      "url": "https://www.youtube.com/watch?v=8dfemKSoLcM",
+      "view_count": 255000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "hndkOLOeDBY",
+      "title": "Higgsfield Cinema Studio is a new way of creating AI Visuals where you build your own camera rig",
+      "url": "https://www.youtube.com/watch?v=hndkOLOeDBY",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Qt4631PVO1s",
+      "title": "With this AI Tool you can create interactive 3d Worlds and explore them like a video game",
+      "url": "https://www.youtube.com/watch?v=Qt4631PVO1s",
+      "view_count": 54000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "_axtKLz0Q08",
+      "title": "Did you Google has silently relased over 10+ Vibe Coding Tools and most of them are Completely Free",
+      "url": "https://www.youtube.com/watch?v=_axtKLz0Q08",
+      "view_count": 885000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "ZSMMnh5SVek",
+      "title": "This Nano Banana Pro Prompt Library is packed with over 1000+ High Quality Prompts",
+      "url": "https://www.youtube.com/watch?v=ZSMMnh5SVek",
+      "view_count": 40000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "E5KQ71nofds",
+      "title": "China just dropped Wan 2.6, A New AI Video Model built specifically for Cinematic Storytelling",
+      "url": "https://www.youtube.com/watch?v=E5KQ71nofds",
+      "view_count": 14000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Ljjg6nvf_aI",
+      "title": "Google just dropped Antigravity their new AI coder that's powerwd by Gemini 3 and is completely Free",
+      "url": "https://www.youtube.com/watch?v=Ljjg6nvf_aI",
+      "view_count": 22000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "UHvJfNOmqhA",
+      "title": "Dyad AI is a free, Open-source Alternative to Lovable and Bolt that runs on Local AI Models",
+      "url": "https://www.youtube.com/watch?v=UHvJfNOmqhA",
+      "view_count": 69000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "jT3B7Bx1fKs",
+      "title": "Manus AI just dropped a Browser extension that turns any Regular browser into an AI Browser",
+      "url": "https://www.youtube.com/watch?v=jT3B7Bx1fKs",
+      "view_count": 18000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "oWifBjOUKTc",
+      "title": "Google just dropped Google Skills, their New AI Learning platform with over 3000+ AI Courses",
+      "url": "https://www.youtube.com/watch?v=oWifBjOUKTc",
+      "view_count": 77000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "IFleEGI2Y0k",
+      "title": "Google just launched CodeWiki, a Free AI tool that turns Github Repos into interactive dashboards",
+      "url": "https://www.youtube.com/watch?v=IFleEGI2Y0k",
+      "view_count": 309000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Yi4cYc3vpNM",
+      "title": "Google just dropped Nano Banana Pro along with an Official guide on how to master it",
+      "url": "https://www.youtube.com/watch?v=Yi4cYc3vpNM",
+      "view_count": 17000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "80o6iYZ4UGM",
+      "title": "Anything AI is a new AI App Builder that lets you build full-stack apps uisng Simple text prompts",
+      "url": "https://www.youtube.com/watch?v=80o6iYZ4UGM",
+      "view_count": 32000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "UgYvcNmw3YI",
+      "title": "Google just released Pomelli, a new AI tool that automates your entire marketing, and it’s 100% free",
+      "url": "https://www.youtube.com/watch?v=UgYvcNmw3YI",
+      "view_count": 29000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "9ZiLTz1Whp0",
+      "title": "AI is coming for our Browsers and these three are the best of all of them",
+      "url": "https://www.youtube.com/watch?v=9ZiLTz1Whp0",
+      "view_count": 23000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "KtclD9Prt_E",
+      "title": "How to create Pro-level AI Images using this secret AI Image Prompts library",
+      "url": "https://www.youtube.com/watch?v=KtclD9Prt_E",
+      "view_count": 11000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "MpR2kqQUFWs",
+      "title": "Google new Vibe Coding platform lets you build a fully working app from a single prompt",
+      "url": "https://www.youtube.com/watch?v=MpR2kqQUFWs",
+      "view_count": 86000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "su1Rga6lNXs",
+      "title": "OVI 1.1 AI is the World's First Opensource VIdoe Model that can create AI Vidoes with audio for Free",
+      "url": "https://www.youtube.com/watch?v=su1Rga6lNXs",
+      "view_count": 20000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "xoX4a1Xccj0",
+      "title": "Arcads AI lets you create hyper realistic AI UGC Ads in seconds witb full emotion control",
+      "url": "https://www.youtube.com/watch?v=xoX4a1Xccj0",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "AzfqtNiXmG0",
+      "title": "Here are Three websites with over 3000+ n8n Automations and Agents that are ready-to-plug and use.",
+      "url": "https://www.youtube.com/watch?v=AzfqtNiXmG0",
+      "view_count": 26000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "tukaZg8VGvc",
+      "title": "Gemini Code Assist is a Free AI Coding Extension which works just as Cursor's AI Agent",
+      "url": "https://www.youtube.com/watch?v=tukaZg8VGvc",
+      "view_count": 58000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "_5jMG7lMKWQ",
+      "title": "n8nchat is a Free AI Chrome extension that lets you build Full n8n Automations using Text Prompts",
+      "url": "https://www.youtube.com/watch?v=_5jMG7lMKWQ",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "HMHZ6vkYMmk",
+      "title": "This prompt library is packed with over 1000+ Ready-to-Use VEO 3 JSON Prompts",
+      "url": "https://www.youtube.com/watch?v=HMHZ6vkYMmk",
+      "view_count": 17000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "mKymO-TQsf4",
+      "title": "These 3 AI Browsers will change how you use the internet, forever.",
+      "url": "https://www.youtube.com/watch?v=mKymO-TQsf4",
+      "view_count": 69000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "eLYCUqIn88s",
+      "title": "Waver 1.0 is a new Free AI Video Generator availbale for Free on their Discord",
+      "url": "https://www.youtube.com/watch?v=eLYCUqIn88s",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "uaY6ZnYPFrE",
+      "title": "Here’s how you can vibe code any app or website without writing a single line of code.",
+      "url": "https://www.youtube.com/watch?v=uaY6ZnYPFrE",
+      "view_count": 17000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "M56oHaf6PwA",
+      "title": "21st Dev is a AI UI Component library that gives you AI prompts to level-up your website designs",
+      "url": "https://www.youtube.com/watch?v=M56oHaf6PwA",
+      "view_count": 33000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "avWzrrht_1M",
+      "title": "Poppy AI Lets you automate your entire Content Stratergy and Script writing in seconds",
+      "url": "https://www.youtube.com/watch?v=avWzrrht_1M",
+      "view_count": 21000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "ZE3URKfdvfM",
+      "title": "Wan 2.2 Animate lets you swap characters in your videos with consistent motions and perfect lip sync",
+      "url": "https://www.youtube.com/watch?v=ZE3URKfdvfM",
+      "view_count": 51000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "wcgpv88rFNc",
+      "title": "Kimi Slides is new Free AI Slides Generator that creates better presentations than Gamma",
+      "url": "https://www.youtube.com/watch?v=wcgpv88rFNc",
+      "view_count": 46000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "d6n03Yw5nd0",
+      "title": "Notion just added AI Agents that handles your tasks, projects and automates your whole workspace",
+      "url": "https://www.youtube.com/watch?v=d6n03Yw5nd0",
+      "view_count": 31000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "0bzJetAefBw",
+      "title": "ChatGPT just dropped Prompt Packs that have over 300+ High-quality prompts for various Job Roles",
+      "url": "https://www.youtube.com/watch?v=0bzJetAefBw",
+      "view_count": 39000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "l8oYOpzkJEE",
+      "title": "ChatGPT just dropped their New AI Agent Builder that works similar to n8n and Make.com",
+      "url": "https://www.youtube.com/watch?v=l8oYOpzkJEE",
+      "view_count": 107000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "h5yu0XxM1OQ",
+      "title": "The system prompts from Cusror, Lovavle, Manus and more has been leaked online",
+      "url": "https://www.youtube.com/watch?v=h5yu0XxM1OQ",
+      "view_count": 2900,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "kvPmJG6_kms",
+      "title": "21st Dev lets you create Stunning Websites with mind blowing AI UI Prompts.",
+      "url": "https://www.youtube.com/watch?v=kvPmJG6_kms",
+      "view_count": 21000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "7QbIwt8UAWY",
+      "title": "Rork's New Mobile App lets you vibecode Full Mobile Apps directly from your phone",
+      "url": "https://www.youtube.com/watch?v=7QbIwt8UAWY",
+      "view_count": 20000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "PGH09nwB4kM",
+      "title": "Waver 1.0 is a New Free Opensource AI Video Model from Bytedance the company behind Tiktok",
+      "url": "https://www.youtube.com/watch?v=PGH09nwB4kM",
+      "view_count": 20000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "DejhQfMwzFo",
+      "title": "Manychat lets you automate your replies across Instagram, Whatsapp, Facebook and on Messanger",
+      "url": "https://www.youtube.com/watch?v=DejhQfMwzFo",
+      "view_count": 12000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "V_kzgut2Jxc",
+      "title": "Pinokio lets you run some of the Top Opensource AI Models directly on your PC for free and unlimited",
+      "url": "https://www.youtube.com/watch?v=V_kzgut2Jxc",
+      "view_count": 38000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "WNNa87xCY3k",
+      "title": "This AI literally pays just for talking to AI",
+      "url": "https://www.youtube.com/watch?v=WNNa87xCY3k",
+      "view_count": 24000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "9bIUDufiqEA",
+      "title": "VEED Fabric 1.0 is the world's First AI talking Video Model",
+      "url": "https://www.youtube.com/watch?v=9bIUDufiqEA",
+      "view_count": 19000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "GJ--bbXtFqk",
+      "title": "This VEO 3 Prompt Library gives you 1000+ Ready-to-use VEO 3 JSON Prompts",
+      "url": "https://www.youtube.com/watch?v=GJ--bbXtFqk",
+      "view_count": 63000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Ls8R57hQngs",
+      "title": "Genspark AI Designer is a new new AI Design Agent that can do the work of an entire design team",
+      "url": "https://www.youtube.com/watch?v=Ls8R57hQngs",
+      "view_count": 60000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "cNz4ePYO3pE",
+      "title": "Mindy is a Slack AI Assistant that lets you create AI Videos directly inside Slack",
+      "url": "https://www.youtube.com/watch?v=cNz4ePYO3pE",
+      "view_count": 17000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "79BWfgqNo7U",
+      "title": "Abacus AI's DeepAgent is All-in-One AI tool that can code, search web, build websites, and much more",
+      "url": "https://www.youtube.com/watch?v=79BWfgqNo7U",
+      "view_count": 53000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "mymiaUKuuG4",
+      "title": "You don’t need to pay for pricey marketing software anymore, Manychat replaces them all",
+      "url": "https://www.youtube.com/watch?v=mymiaUKuuG4",
+      "view_count": 18000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "85BjBxTMgHU",
+      "title": "These 3 Websites gives you Free AI API Keys with access to models like Gemini 2.5, DeepSeek and More",
+      "url": "https://www.youtube.com/watch?v=85BjBxTMgHU",
+      "view_count": 233000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "G7biW9T3GEo",
+      "title": "OpenAI Just dropped its Official Prompt Optimizer",
+      "url": "https://www.youtube.com/watch?v=G7biW9T3GEo",
+      "view_count": 410000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Ytjkg2SRoos",
+      "title": "Cluely is an undetectable Invisible AI Assistant that answers everything for you",
+      "url": "https://www.youtube.com/watch?v=Ytjkg2SRoos",
+      "view_count": 147000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "DphMKhRR0fk",
+      "title": "n8nChat is a New AI Chrome Extension that lets you build n8n Automation just by chatting with it",
+      "url": "https://www.youtube.com/watch?v=DphMKhRR0fk",
+      "view_count": 46000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "pqDxElXLZE4",
+      "title": "Google Just dropped Opal AI, their no-code AI Automation builder",
+      "url": "https://www.youtube.com/watch?v=pqDxElXLZE4",
+      "view_count": 1900000,
+      "evidence_level": "sampled_frames",
+      "inspected_intervals": ["whole-duration contact sheet"],
+      "listening_review": "not_performed"
+    },
+    {
+      "id": "BY-V9W3c-GU",
+      "title": "Mindy AI is a new AI that can create videos, images, documents directly inside your Slack",
+      "url": "https://www.youtube.com/watch?v=BY-V9W3c-GU",
+      "view_count": 21000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "O4Jq9Tw-xxQ",
+      "title": "Rocket.New is a New AI Coder that builds full stack complete applications all on its own.",
+      "url": "https://www.youtube.com/watch?v=O4Jq9Tw-xxQ",
+      "view_count": 145000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "gIgpY5wc7x0",
+      "title": "Emergent AI is a new powerful AI Coder that can build entire websites, games, and mobile apps too.",
+      "url": "https://www.youtube.com/watch?v=gIgpY5wc7x0",
+      "view_count": 183000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "oct5il3xBjI",
+      "title": "Base44 AI Lets you build Full Stack Apps in minutes with Zero Coding SKills required.",
+      "url": "https://www.youtube.com/watch?v=oct5il3xBjI",
+      "view_count": 121000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "zkBYhnsNAP0",
+      "title": "Google Just dropped Stitch AI, their new Free AI UI Designer",
+      "url": "https://www.youtube.com/watch?v=zkBYhnsNAP0",
+      "view_count": 132000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "NUlWY2btJiA",
+      "title": "OpenAI just dropped its official prompt optimizer for ChatGPT, and it’s free.",
+      "url": "https://www.youtube.com/watch?v=NUlWY2btJiA",
+      "view_count": 38000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "nBe2kjCWKfo",
+      "title": "You don’t need to pay for Photoshop or ChatGPT anymore, insteas use this AI Image Editing Model.",
+      "url": "https://www.youtube.com/watch?v=nBe2kjCWKfo",
+      "view_count": 12000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "RqzgfF3AS9Y",
+      "title": "Here are three simple automation systems you can sell to YouTubers, coaches, or agency owners.",
+      "url": "https://www.youtube.com/watch?v=RqzgfF3AS9Y",
+      "view_count": 15000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "lEqKQT699qY",
+      "title": "DeepSite is a free, opensource AI Coder powered by the DeepSeek AI Models.",
+      "url": "https://www.youtube.com/watch?v=lEqKQT699qY",
+      "view_count": 4800,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "717tKE1HdPs",
+      "title": "These 3 websites give out Free AI API Keys from Gemini, Deepseek, Qwen and a bunch more.",
+      "url": "https://www.youtube.com/watch?v=717tKE1HdPs",
+      "view_count": 221000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "30qY-d3T-X8",
+      "title": "SkyReels V2 is the best opensource AI Video Model out there with unlimited duration AI videos.",
+      "url": "https://www.youtube.com/watch?v=30qY-d3T-X8",
+      "view_count": 25000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "7oFR-vQGeU0",
+      "title": "Here is how you can grab 3000+ n8n Automations",
+      "url": "https://www.youtube.com/watch?v=7oFR-vQGeU0",
+      "view_count": 81000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "t_5lFbjK2nU",
+      "title": "Qwen 3 Coder is the Best Opensource AI Coding Model.",
+      "url": "https://www.youtube.com/watch?v=t_5lFbjK2nU",
+      "view_count": 152000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "Z3oqLs2Boz0",
+      "title": "Someone just leaked the full system prompts from Cursor, Perplexity, Manus, Lovable, v0 and more.",
+      "url": "https://www.youtube.com/watch?v=Z3oqLs2Boz0",
+      "view_count": 2400,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "RtaNa7KIQtk",
+      "title": "Emergent AI is a new AI Coder that can build entire apps and websites all on its own.",
+      "url": "https://www.youtube.com/watch?v=RtaNa7KIQtk",
+      "view_count": 12000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "7r-xIvYBm_A",
+      "title": "There’s a new free AI coder called DeepSite V2. It’s open-source and hosted on the Hugging Face",
+      "url": "https://www.youtube.com/watch?v=7r-xIvYBm_A",
+      "view_count": 6800,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "4fBm_GHmoJs",
+      "title": "ChatLLM is your All in One AI Platform",
+      "url": "https://www.youtube.com/watch?v=4fBm_GHmoJs",
+      "view_count": 1500,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "d_uKxamWY8w",
+      "title": "China just launched a new Free AI 3D tool called Hunyuan 3D 2.1",
+      "url": "https://www.youtube.com/watch?v=d_uKxamWY8w",
+      "view_count": 4300,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "bwctFbS010w",
+      "title": "There’s a new free tool that lets you build apps and websites in minutes, called DeepSite V2",
+      "url": "https://www.youtube.com/watch?v=bwctFbS010w",
+      "view_count": 292000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "C9lTkFbeE7Y",
+      "title": "Seedance 1.0 and Hailuo 02 just destroyed VEO 3",
+      "url": "https://www.youtube.com/watch?v=C9lTkFbeE7Y",
+      "view_count": 3900,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "bQWhk7Xjmb8",
+      "title": "Vapi AI - AI Calling Agent for Automating your Outbound Calling Campaigns",
+      "url": "https://www.youtube.com/watch?v=bQWhk7Xjmb8",
+      "view_count": 48000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "RJjQLbzPQQ0",
+      "title": "AI Browsers are the next big trend and GenSpark and Dia Browsers are first of their kind",
+      "url": "https://www.youtube.com/watch?v=RJjQLbzPQQ0",
+      "view_count": 62000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "laQ_F_vw0s0",
+      "title": "You don’t need to pay for Veo 3 anymore, SkyReels is here to offer you a better way to create videos",
+      "url": "https://www.youtube.com/watch?v=laQ_F_vw0s0",
+      "view_count": 2000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "f8873OVRqno",
+      "title": "Rocket.New is a New AI Coder that can build entire Apps and Websites on its own.",
+      "url": "https://www.youtube.com/watch?v=f8873OVRqno",
+      "view_count": 20000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "C7591EeyxiY",
+      "title": "Forget Cursor. Think about a new way to build apps and websites.",
+      "url": "https://www.youtube.com/watch?v=C7591EeyxiY",
+      "view_count": 1800,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "HdA1KnnRgtU",
+      "title": "How this one Client Deal can change your Business",
+      "url": "https://www.youtube.com/watch?v=HdA1KnnRgtU",
+      "view_count": 1600,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "iRSdnkFvTMc",
+      "title": "How to handle your Client Messages",
+      "url": "https://www.youtube.com/watch?v=iRSdnkFvTMc",
+      "view_count": 956,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "3mtfEkzaIhM",
+      "title": "This is How You Onboard Clients for Your Automation Agency",
+      "url": "https://www.youtube.com/watch?v=3mtfEkzaIhM",
+      "view_count": 1400,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "XXAJIEsnDR0",
+      "title": "AI Agency vs SaaS, Which is better? The Honest Truth",
+      "url": "https://www.youtube.com/watch?v=XXAJIEsnDR0",
+      "view_count": 4400,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "msLZGnrlKiM",
+      "title": "How to deal with Tricky Clients",
+      "url": "https://www.youtube.com/watch?v=msLZGnrlKiM",
+      "view_count": 1200,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "iJQBu_nWGxc",
+      "title": "This is the REAL Definition of a Closed Client.",
+      "url": "https://www.youtube.com/watch?v=iJQBu_nWGxc",
+      "view_count": 1100,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "5e_6hNAHdL8",
+      "title": "How to Start your Own AI Automation Agency in 2025",
+      "url": "https://www.youtube.com/watch?v=5e_6hNAHdL8",
+      "view_count": 13000,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "27Oo3MmDBRg",
+      "title": "Your AI Cold Emails Should Sound Like This",
+      "url": "https://www.youtube.com/watch?v=27Oo3MmDBRg",
+      "view_count": 2100,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "6N4VI4HQzto",
+      "title": "Podcast Hack to land more Clients and Leads",
+      "url": "https://www.youtube.com/watch?v=6N4VI4HQzto",
+      "view_count": 1400,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "SP_Fv-s5Gcg",
+      "title": "Is Coding still worth Learning in 2025 in the AI Era",
+      "url": "https://www.youtube.com/watch?v=SP_Fv-s5Gcg",
+      "view_count": 1800,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "xIR3_fT66Cg",
+      "title": "Upwork Hack for Freelancers",
+      "url": "https://www.youtube.com/watch?v=xIR3_fT66Cg",
+      "view_count": 2900,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "RR_qMIPpXp8",
+      "title": "How to get things done fast and be productive",
+      "url": "https://www.youtube.com/watch?v=RR_qMIPpXp8",
+      "view_count": 2200,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "qPAo6BGSwMQ",
+      "title": "This Client type can 30x Your Income",
+      "url": "https://www.youtube.com/watch?v=qPAo6BGSwMQ",
+      "view_count": 1900,
+      "evidence_level": "metadata_only"
+    },
+    {
+      "id": "w0LzvQ_bTnw",
+      "title": "Should you add AI in your business",
+      "url": "https://www.youtube.com/watch?v=w0LzvQ_bTnw",
+      "view_count": 2300,
+      "evidence_level": "metadata_only"
+    }
+  ]
+}

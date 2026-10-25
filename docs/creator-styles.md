@@ -1,12 +1,12 @@
 # Creator-style Shorts
 
-Cutline can lay out a vertical Short in three styles measured from popular creators' videos. The structure, timing and look follow those references. The artwork does not: every Short shows your own footage, your words, and the real logos and pages your script names.
+Cutline can lay out a vertical Short from a timed beat plan. The three styles are composition starting points. Choose the actual visual action, timing and treatment for the story. Start with the [motion reference library](motion-reference-library/README.md), including the Jack Roberts, Nick Automates and Aasil Khan studies. Keep your own footage, words and verified product evidence.
 
-| Style          | Inspired by    | What it looks like                                                                                                                                         |
-| -------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `split`        | Jack Roberts   | Graphic on top, speaker below, with full-screen graphics and face punch-ins on hard cuts every 1.5 to 2.5 s. Pastel sunburst, pop-ins with a ring ripple, grey pill captions on the seam. |
-| `cards`        | sebintel       | You on camera for the hook and the close; in between, a warm grid canvas with soft cards that drift slowly closer. Clean bold captions, dark on the canvas.  |
-| `locked-split` | Matthew Berman | Real screens and recordings fill the top half for the whole video, changing with each topic; speaker below; heavy outlined captions on the seam.            |
+| Style          | Inspired by    | What it looks like                                                                                                                                                                 |
+| -------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `split`        | Jack Roberts   | Graphic above the speaker, with full-screen evidence and selected face emphasis. Author the entrance, backdrop and emphasis per beat; older omitted options retain pastel pop-ins. |
+| `cards`        | sebintel       | You on camera for the hook and the close; in between, a warm grid canvas with soft cards that drift slowly closer. Clean bold captions, dark on the canvas.                        |
+| `locked-split` | Matthew Berman | Real screens and recordings fill the top half for the whole video, changing with each topic; speaker below; heavy outlined captions on the seam.                                   |
 
 ## Make one
 
@@ -18,20 +18,19 @@ Everything stays editable: the speaker is cut at each layout change on its own t
 
 ## For assistants: `cutline_style_reel`
 
-`style` is `split`, `cards` or `locked-split`. `beats` is a list of up to 80 beats in timeline seconds:
+`style` is `split`, `cards` or `locked-split`. `beats` is a list of up to 200 beats in timeline seconds:
 
-| Field                     | Meaning                                                                                                     |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `from`, `to`              | Timeline seconds. Cut on phrase boundaries from the transcript's word times.                                 |
-| `layout`                  | `split`, `full`, `face` (punch-in on the speaker) or `speaker`. Defaults to the style's usual choice.       |
-| `kind` + `show`           | `logo` + product name or website, `page` + address, `asset` + an imported asset ID, `text` + 2 to 5 words, or `draw` + a short description of an original illustration (drawn by the signed-in Claude or ChatGPT, 15 to 30 s each). |
-| `selector`                | For a page: a CSS selector to capture one part, such as `article.markdown-body` for a GitHub README.        |
+| Field           | Meaning                                                                                                                                                                                                                             |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `from`, `to`    | Timeline seconds. Cut on phrase boundaries from the transcript's word times.                                                                                                                                                        |
+| `layout`        | `split`, `full`, `face` (punch-in on the speaker) or `speaker`. Defaults to the style's usual choice.                                                                                                                               |
+| `kind` + `show` | `logo` + product name or website, `page` + address, `asset` + an imported asset ID, `text` + 2 to 5 words, or `draw` + a short description of an original illustration (drawn by the signed-in Claude or ChatGPT, 15 to 30 s each). |
+| `selector`      | For a page: a CSS selector to capture one part, such as `article.markdown-body` for a GitHub README.                                                                                                                                |
 
 Captions on the speaker take the style's look (Pill, Clean or Heavy), are re-split into one to three words, and move to the seam during splits. Between beats the speaker fills the frame. A locked split holds each page until the next one replaces it.
 
-Planning rules that match each reference:
+Direction follows the spoken idea and visible action. A full-screen proof shot earns its place when a control or result needs attention; a speaker may continue through a sustained demonstration or personal thought. Do not force a cut interval or a full beat every N scenes. Use real named products and actual operation recordings; a label or screenshot alone does not prove an operation. Review returned `directionReview` notes and the actual rendered sequence.
 
-- **split:** change what is on screen every 1.5 to 2.5 s. Most beats are splits with a visual; use a full beat for the key reveal every few beats, and `face` for short emphasis lines under 1.5 s ("it's free", "for you").
-- **cards:** the speaker only for the opening hook and the closing call to action. Everything between is `full`, with a new page, logo or line every 1.3 to 2.5 s.
-- **locked-split:** one page or recording per topic, changing every 5 to 8 s.
-- Every product, site or repo named gets its real logo or page on the words that name it. Ideas with no product get a `draw` illustration on the 2 to 5 key beats; text beats use the speaker's own words; never invent claims.
+Optional beat controls are `entrance` (`cut`, `fade`, `rise`, `slide-left`, `pop`), `backdrop` (`plain`, `sunburst`, `grid`), `background` (`#RRGGBB`), `emphasis` (`none`, `ripple`), `framing` (`contain`, `fill`), and `sourceIn` (proof-video seconds). Explicit entrance choices suppress automatic ripples and card drift. Omission preserves older output. Use `contain` for an intact readable screen and select its actual source passage.
+
+Read [effects and native tools](motion-reference-library/effects.md) for mapping and a sample plan structure. Assistants can fetch the same structured direction with `cutline_editing_schema {section:"motionReferences"}` or `cutline_director_guide`. Choose voice, music, physical accents and silence as part of the beat plan. Openverse photos and audio are available in Stock.

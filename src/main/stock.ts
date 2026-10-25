@@ -38,7 +38,16 @@ export function stockUrl(
       ((!provider || provider === "commons") &&
         u.hostname === "commons.wikimedia.org") ||
       ((!provider || provider === "pexels") &&
-        ["www.pexels.com", "pexels.com"].includes(u.hostname));
+        ["www.pexels.com", "pexels.com"].includes(u.hostname)) ||
+      ((!provider || provider === "openverse") &&
+        [
+          "openverse.org",
+          "www.flickr.com",
+          "flickr.com",
+          "commons.wikimedia.org",
+          "freesound.org",
+          "www.freesound.org",
+        ].includes(u.hostname));
   else
     allowed =
       ((!provider || provider === "commons") &&
@@ -47,7 +56,25 @@ export function stockUrl(
         (pexelsHosts.includes(u.hostname) ||
           (u.hostname === "player.vimeo.com" &&
             u.pathname.startsWith("/external/")) ||
-          u.hostname.endsWith(".vimeocdn.com")));
+          u.hostname.endsWith(".vimeocdn.com"))) ||
+      ((!provider || provider === "openverse") &&
+        ([
+          "live.staticflickr.com",
+          "farm1.staticflickr.com",
+          "farm2.staticflickr.com",
+          "farm3.staticflickr.com",
+          "farm4.staticflickr.com",
+          "farm5.staticflickr.com",
+          "farm6.staticflickr.com",
+          "farm7.staticflickr.com",
+          "farm8.staticflickr.com",
+          "farm9.staticflickr.com",
+          "upload.wikimedia.org",
+          "thumb.wikimedia.org",
+          "cdn.freesound.org",
+        ].includes(u.hostname) ||
+          (u.hostname === "api.openverse.org" &&
+            /^\/v1\/images\/[0-9a-f-]{36}\/thumb\/$/i.test(u.pathname))));
   if (u.protocol !== "https:" || !allowed || u.username || u.password || u.port)
     throw Error("Unexpected stock media address");
   return u.toString();
@@ -61,8 +88,11 @@ export const plain = (text: unknown) =>
     .replace(/&nbsp;/g, " ")
     .trim()
     .slice(0, 1000);
-const itemKey = (provider: StockProvider, kind: StockKind, id: number) =>
-  `${provider}:${kind}:${id}`;
+const itemKey = (
+  provider: StockProvider,
+  kind: StockKind,
+  id: number | string,
+) => `${provider}:${kind}:${id}`;
 const positive = (value: unknown) =>
   typeof value === "number" && Number.isFinite(value) && value > 0;
 export function matchesOrientation(
@@ -87,11 +117,17 @@ export function normalizeStockSearch(
     throw Error("Invalid search page.");
   const { provider = "commons", kind = "video", orientation = "all" } = options;
   if (
-    !["commons", "pexels"].includes(provider) ||
-    !["image", "video"].includes(kind) ||
+    !["commons", "pexels", "openverse"].includes(provider) ||
+    !["image", "video", "audio"].includes(kind) ||
     !["all", "portrait", "landscape", "square"].includes(orientation)
   )
     throw Error("Invalid stock search filters.");
+  if (provider === "openverse" && kind === "video")
+    throw Error(
+      "Openverse provides photos and audio. Choose one of those types.",
+    );
+  if (provider !== "openverse" && kind === "audio")
+    throw Error("Choose Openverse to search audio.");
   return { query: query.trim(), offset, provider, kind, orientation };
 }
 
@@ -155,7 +191,9 @@ export class StockLibrary {
     const request = (
       provider === "commons"
         ? this.searchCommons(filters.query, offset, kind, orientation)
-        : this.searchPexels(filters.query, offset, kind, orientation, apiKey!)
+        : provider === "openverse"
+          ? this.searchOpenverse(filters.query, offset, kind, orientation)
+          : this.searchPexels(filters.query, offset, kind, orientation, apiKey!)
     )
       .then((result) => {
         for (const item of result.items) this.remember(item);
@@ -267,7 +305,10 @@ export class StockLibrary {
           title: plain(
             metadata.ObjectName?.value || page.title.replace(/^File:/, ""),
           ),
-          description: plain(metadata.ImageDescription?.value || "").slice(0, 2400),
+          description: plain(metadata.ImageDescription?.value || "").slice(
+            0,
+            2400,
+          ),
           creator: plain(metadata.Artist?.value || "See source page"),
           license: plain(
             metadata.LicenseShortName?.value || "Review source license",
@@ -472,6 +513,110 @@ export class StockLibrary {
     };
   }
 
+  /** Openverse indexes images and audio, not stock video. Only vetted source hosts are used. */
+  private async searchOpenverse(
+    query: string,
+    offset: number,
+    kind: StockKind,
+    orientation: StockOrientation,
+  ): Promise<StockResults> {
+    const endpoint = kind === "audio" ? "audio" : "images";
+    const url = new URL(`https://api.openverse.org/v1/${endpoint}/`);
+    url.search = new URLSearchParams({
+      q: query,
+      page: String(offset + 1),
+      page_size: String(pageSize),
+      license_type: "commercial,modification",
+      source: kind === "audio" ? "freesound" : "flickr,wikimedia",
+      mature: "false",
+    }).toString();
+    const response = await fetch(url, {
+      headers: agent,
+      signal: AbortSignal.timeout(30000),
+      redirect: "error",
+    });
+    if (!response.ok)
+      throw Error(
+        response.status === 429
+          ? "Openverse request limit reached. Wait a minute and try again."
+          : `Openverse search unavailable (${response.status}). Try again shortly.`,
+      );
+    const data = (await response.json()) as any;
+    const items: StockItem[] = [];
+    for (const entry of Array.isArray(data.results) ? data.results : []) {
+      // Recheck the license even if the API's filters change or return a malformed result.
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          entry.id ?? "",
+        ) ||
+        !["cc0", "pdm", "by", "by-sa"].includes(entry.license) ||
+        entry.mature === true
+      )
+        continue;
+      if (
+        kind === "image" &&
+        (!positive(entry.width) ||
+          !positive(entry.height) ||
+          !matchesOrientation(entry.width, entry.height, orientation))
+      )
+        continue;
+      if (kind === "audio" && !positive(entry.duration)) continue;
+      try {
+        const media = stockUrl(entry.url, "media", "openverse");
+        const license = new URL(entry.license_url);
+        if (
+          license.protocol !== "https:" ||
+          license.hostname !== "creativecommons.org" ||
+          license.username ||
+          license.password ||
+          license.port
+        )
+          continue;
+        const thumbnail =
+          kind === "image"
+            ? stockUrl(entry.thumbnail || media, "media", "openverse")
+            : "";
+        const title = plain(entry.title) || "Untitled Openverse media";
+        items.push({
+          id: entry.id,
+          key: itemKey("openverse", kind, entry.id),
+          provider: "openverse",
+          kind,
+          title,
+          description: plain(entry.description || ""),
+          creator: plain(entry.creator) || "See source page",
+          attribution: plain(entry.attribution),
+          license:
+            entry.license === "cc0"
+              ? "CC0"
+              : entry.license === "pdm"
+                ? "Public Domain Mark"
+                : `CC ${entry.license.toUpperCase()} ${plain(entry.license_version)}`.trim(),
+          licenseUrl: license.toString(),
+          page: stockUrl(entry.foreign_landing_url, "page", "openverse"),
+          thumbnail,
+          url: media,
+          preview: media,
+          duration: kind === "audio" ? entry.duration / 1000 : 4,
+          width: kind === "audio" ? 0 : entry.width,
+          height: kind === "audio" ? 0 : entry.height,
+          size: positive(entry.filesize) ? entry.filesize : 0,
+        });
+      } catch {
+        /* Unsupported source hosts never become requests. */
+      }
+    }
+    return {
+      items,
+      videos: items,
+      provider: "openverse",
+      kind,
+      ...(Number.isInteger(data.page_count) && offset + 1 < data.page_count
+        ? { next: offset + 1 }
+        : {}),
+    };
+  }
+
   private quotaMessage() {
     const reset = this.quota?.resetAt;
     return `Pexels request limit reached.${reset && reset > Date.now() ? ` Your quota resets ${new Date(reset).toLocaleString()}.` : " Wait a little before trying again."} You can continue searching Wikimedia Commons.`;
@@ -511,7 +656,7 @@ export class StockLibrary {
   }
 
   async download(
-    id: number,
+    id: number | string,
     provider: StockProvider = "commons",
     kind: StockKind = "video",
   ): Promise<Asset> {
@@ -527,12 +672,16 @@ export class StockLibrary {
       .toLowerCase();
     const extension = (kind === "image"
       ? [".jpg", ".jpeg", ".png", ".webp", ".gif"]
-      : [".mp4", ".webm", ".ogv", ".ogg", ".mov"]
+      : kind === "audio"
+        ? [".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac"]
+        : [".mp4", ".webm", ".ogv", ".ogg", ".mov"]
     ).includes(sourceExtension)
       ? sourceExtension
       : kind === "image"
         ? ".jpg"
-        : ".mp4";
+        : kind === "audio"
+          ? ".mp3"
+          : ".mp4";
     const file = path.join(
         this.folder,
         `${provider}-${kind}-${id}-${randomUUID()}${extension}`,
@@ -540,7 +689,7 @@ export class StockLibrary {
       temporary = file + ".part";
     return this.jobs.run(
       "stock",
-      `Downloading ${kind === "image" ? "stock photo" : "B-roll"}…`,
+      `Downloading ${kind === "image" ? "stock photo" : kind === "audio" ? "stock audio" : "B-roll"}…`,
       async (job) => {
         // The time limit covers the network download only. Preparing a large
         // clip for editing afterwards can take minutes and is cancellable.
@@ -566,7 +715,9 @@ export class StockLibrary {
             !(
               kind === "image"
                 ? /^image\/(jpeg|png|webp|gif)$/
-                : /^(video\/(mp4|webm|ogg|quicktime)|application\/ogg)$/
+                : kind === "audio"
+                  ? /^(audio\/(mpeg|mp3|wav|x-wav|wave|ogg|flac|x-flac|mp4|aac)|application\/ogg)$/
+                  : /^(video\/(mp4|webm|ogg|quicktime)|application\/ogg)$/
             ).test(contentType)
           )
             throw Error(
@@ -613,7 +764,12 @@ export class StockLibrary {
             );
           asset.name = item.title + extension;
           asset.origin = {
-            provider: provider === "pexels" ? "Pexels" : "Wikimedia Commons",
+            provider:
+              provider === "pexels"
+                ? "Pexels"
+                : provider === "openverse"
+                  ? "Openverse"
+                  : "Wikimedia Commons",
             page: item.page,
             creator: item.creator,
             license: item.license,
@@ -622,7 +778,7 @@ export class StockLibrary {
           };
           await writeFile(
             file + ".credits.txt",
-            `${item.title}\nCreator: ${item.creator}\nProvider: ${asset.origin.provider}\nSource: ${item.page}\nLicense: ${item.license}\n${item.licenseUrl}\n`,
+            `${item.title}\nCreator: ${item.creator}\nProvider: ${asset.origin.provider}\nSource: ${item.page}\nLicense: ${item.license}\n${item.licenseUrl}\n${item.attribution ? `Attribution: ${item.attribution}\n` : ""}`,
           );
           return asset;
         } catch (error) {

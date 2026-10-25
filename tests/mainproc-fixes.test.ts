@@ -479,7 +479,11 @@ describe("project files changed or moved outside Cutline", () => {
     const relaunched = new Store(recovery);
     writeFileSync(
       file,
-      JSON.stringify({ ...theirs, session: "another-session", project: { ...theirs.project, name: "Theirs" } }),
+      JSON.stringify({
+        ...theirs,
+        session: "another-session",
+        project: { ...theirs.project, name: "Theirs" },
+      }),
     );
     expect(relaunched.fileProblem()).toContain("changed outside this session");
     work(relaunched, "Mine, edited", 2);
@@ -1386,7 +1390,7 @@ describe("content security policy", () => {
   it("reaches the packaged app's file:// page, not only the dev server", () => {
     const html = readFileSync(path.resolve("index.html"), "utf8");
     const meta = html.match(
-      /<meta http-equiv="Content-Security-Policy" content="([^"]+)"/,
+      /<meta\s+http-equiv="Content-Security-Policy"\s+content="([^"]+)"/,
     );
     expect(meta?.[1]).toBe(contentSecurityPolicy);
     // It comes before any script, so it governs all of them.

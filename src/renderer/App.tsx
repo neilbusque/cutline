@@ -807,9 +807,54 @@ export function App() {
     const current: Project = (await api.invoke("state")).snapshot.project;
     if (current.id !== p.id)
       throw Error(
-        "Project changed before B-roll placement. Select it again from the library.",
+        "Project changed before media placement. Select it again from the library.",
       );
-    if (asset.kind === "audio") return;
+    if (asset.kind === "audio") {
+      const start = playhead.get();
+      const duration = Math.max(1, Math.floor(asset.duration * current.fps));
+      const track = current.tracks.find(
+        (item) =>
+          item.name === "Sound effects" &&
+          item.kind === "audio" &&
+          !item.muted &&
+          !item.hidden &&
+          !current.clips.some(
+            (clip) =>
+              clip.trackId === item.id &&
+              clip.start < start + duration &&
+              clip.start + clip.duration > start,
+          ),
+      );
+      const trackId = track?.id ?? uid();
+      const clip = {
+        ...makeClip(current, "audio", trackId, start, asset),
+        duration,
+        volume: 0.5,
+        fadeIn: Math.min(2, Math.floor(duration / 4)),
+        fadeOut: Math.min(3, Math.floor(duration / 4)),
+      };
+      const commands: Command[] = [];
+      if (!track)
+        commands.push({
+          type: "track.add",
+          track: {
+            id: trackId,
+            name: "Sound effects",
+            kind: "audio",
+            muted: false,
+            hidden: false,
+          },
+        });
+      commands.push({ type: "clip.add", clip });
+      await sendEdit({
+        projectId: current.id,
+        revision: current.revision,
+        label: "Add sound effect",
+        commands,
+      });
+      select(clip.id);
+      return;
+    }
     const track = current.tracks.find(
       (t) => t.name === "B-roll" && t.kind === "video",
     );
@@ -1481,7 +1526,10 @@ export function App() {
                               e.dataTransfer.setData(ASSET_DRAG, a.id);
                               // The kind lets tracks that refuse it say so
                               // while dragging; data is unreadable until drop.
-                              e.dataTransfer.setData(assetKindDrag(a.kind), a.kind);
+                              e.dataTransfer.setData(
+                                assetKindDrag(a.kind),
+                                a.kind,
+                              );
                               e.dataTransfer.effectAllowed = "copy";
                             }}
                             title="Double-click to add, or drag onto a track"
@@ -1608,7 +1656,9 @@ export function App() {
               </button>
             </nav>
             <div
-              style={{ display: generateMode === "graphic" ? "contents" : "none" }}
+              style={{
+                display: generateMode === "graphic" ? "contents" : "none",
+              }}
             >
               <GraphicStudio
                 p={p}
@@ -1620,7 +1670,9 @@ export function App() {
               />
             </div>
             <div
-              style={{ display: generateMode === "video" ? "contents" : "none" }}
+              style={{
+                display: generateMode === "video" ? "contents" : "none",
+              }}
             >
               <GenerateLibrary
                 openSettings={() => setSettingsOpen(true)}
@@ -1853,7 +1905,7 @@ export function App() {
           </div>
         </section>
         {/* Hidden, not removed: the assistant's conversation must survive. */}
-        {(
+        {
           <aside
             className="right-panel"
             style={sidebar ? undefined : { display: "none" }}
@@ -1909,7 +1961,7 @@ export function App() {
               />
             </div>
           </aside>
-        )}
+        }
       </main>
       <Timeline
         beats={beats}

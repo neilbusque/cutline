@@ -2287,3 +2287,22 @@ details[open] > :not(summary) {
   width: 100%;
   margin: 0;
 }
+
+.stock-preview.stock-audio {
+  aspect-ratio: auto;
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+}
+.stock-preview.stock-audio > button:not(.stock-close) {
+  min-height: 60px;
+}
+.stock-preview.stock-audio audio {
+  width: 100%;
+  min-width: 0;
+}
+.stock-kind-tabs {
+  flex-wrap: wrap;
+}

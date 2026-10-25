@@ -26,6 +26,10 @@ export function effectsGuideResult() {
     .shape as Record<string, z.ZodType>;
   return {
     ...effectsGuide,
+    motionReferences: {
+      section: "motionReferences",
+      read: "Read cutline_editing_schema section motionReferences or cutline_director_guide for dated creator studies, varied visual mechanisms, effects, color and sound. Plan the visible action and payoff before choosing a recipe.",
+    },
     values: {
       layerTypes: enumOptions(layer.type),
       textAnimations: enumOptions(layer.textAnimation),

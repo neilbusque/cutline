@@ -56,9 +56,9 @@ type Time = z.infer<typeof AgentTimeSchema>;
 export const StockImportArgsSchema = z
   .strictObject({
     ...guard,
-    id: z.number().int().positive(),
-    provider: z.enum(["commons", "pexels"]).default("commons"),
-    kind: z.enum(["video", "image"]).default("video"),
+    id: z.union([z.number().int().positive(), z.string().uuid()]),
+    provider: z.enum(["commons", "pexels", "openverse"]).default("commons"),
+    kind: z.enum(["video", "image", "audio"]).default("video"),
     at: AgentTimeSchema.optional(),
     duration: AgentTimeSchema.optional(),
     trackId: id.optional(),
@@ -107,21 +107,36 @@ export const ReferenceArgsSchema = z.strictObject({
   color: z.enum(["brand", "white", "black"]).optional(),
   at: AgentTimeSchema.optional(),
 });
-/** A three-minute creator-style Short changes shot about every 1 to 2 s. */
+/** Enough room for a three-minute Short; cadence follows the idea and speech. */
 export const STYLE_REEL_BEAT_LIMIT = 200;
 export const StyleReelArgsSchema = z.strictObject({
   ...guard,
   style: z.enum(["split", "cards", "locked-split"]),
   beats: z
     .array(
-      z.strictObject({
-        from: z.number().min(0),
-        to: z.number().min(0),
-        layout: z.enum(["split", "full", "face", "speaker"]).optional(),
-        kind: z.enum(["logo", "page", "asset", "text", "draw"]).optional(),
-        show: z.string().trim().min(1).max(2000).optional(),
-        selector: z.string().max(300).optional(),
-      }),
+      z
+        .strictObject({
+          from: z.number().min(0),
+          to: z.number().min(0),
+          layout: z.enum(["split", "full", "face", "speaker"]).optional(),
+          kind: z.enum(["logo", "page", "asset", "text", "draw"]).optional(),
+          show: z.string().trim().min(1).max(2000).optional(),
+          selector: z.string().max(300).optional(),
+          entrance: z
+            .enum(["cut", "fade", "rise", "slide-left", "pop"])
+            .optional(),
+          backdrop: z.enum(["plain", "sunburst", "grid"]).optional(),
+          background: z
+            .string()
+            .regex(/^#[0-9a-f]{6}$/iu, "Use a six-digit hex background.")
+            .optional(),
+          emphasis: z.enum(["none", "ripple"]).optional(),
+          framing: z.enum(["contain", "fill"]).optional(),
+          sourceIn: z.number().finite().min(0).max(86400).optional(),
+        })
+        .refine((beat) => beat.to > beat.from, {
+          message: "A beat must end after it starts.",
+        }),
     )
     .min(1)
     .max(STYLE_REEL_BEAT_LIMIT),
@@ -154,7 +169,7 @@ const schemas = {
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   cutline_stock_import:
-    "Import stock with credits. at places muted B-roll (video up to 5s, photo 4s zoom); duration/trackId override. Undoable; may return job.",
+    "Import stock with credits. Use returned numeric ID or Openverse UUID. at places muted B-roll (video up to 5s, photo 4s zoom) or audible audio on Sound effects at 50% volume with short fades; duration/trackId override. Undoable; may return job.",
   cutline_voiceover:
     "Generate free local Kokoro speech (af_heart, 1.08x). Omit at to import only; at adds audio. Undoable; wait on jobs. Duck music with audio.duck.",
   cutline_auto_edit:
@@ -214,7 +229,7 @@ export type AgentMediaDeps = {
   };
   stock: {
     download: (
-      id: number,
+      id: number | string,
       provider: StockProvider,
       kind: StockKind,
     ) => Promise<Asset>;
@@ -289,7 +304,7 @@ function placement(
   project: Project,
   asset: Asset,
   request: { at: Time; duration?: Time; trackId?: string },
-  role: "broll" | "voice",
+  role: "broll" | "voice" | "sfx",
 ) {
   const fps = project.fps;
   const start = toFrame(request.at, fps);
@@ -298,7 +313,7 @@ function placement(
       ? Infinity
       : Math.max(1, Math.floor(asset.duration * fps + 1e-7));
   const natural =
-    role === "voice"
+    role !== "broll"
       ? available
       : asset.kind === "image"
         ? fps * 4
@@ -312,8 +327,13 @@ function placement(
     warnings.push(
       `${asset.name} is ${(available / fps).toFixed(1)} seconds long, so it plays for that long.`,
     );
-  const kind = role === "voice" ? "audio" : "video";
-  const name = role === "voice" ? "Voiceover" : "B-roll";
+  const kind = role === "broll" ? "video" : "audio";
+  const name =
+    role === "voice"
+      ? "Voiceover"
+      : role === "sfx"
+        ? "Sound effects"
+        : "B-roll";
   const free = (track: Track) =>
     !project.clips.some(
       (clip) =>
@@ -324,7 +344,7 @@ function placement(
   // A track that would not play the new clip: a muted track silences
   // narration in preview and export, and a hidden track hides B-roll.
   const silenced = (track: Track) =>
-    role === "voice" ? track.muted : track.hidden;
+    role !== "broll" ? track.muted : track.hidden;
   const commands: Command[] = [];
   let track: Track | undefined;
   if (request.trackId) {
@@ -335,8 +355,8 @@ function placement(
       );
     if (silenced(track))
       warnings.push(
-        role === "voice"
-          ? `Track "${track.name}" is muted, so this narration stays silent until the track is unmuted.`
+        role !== "broll"
+          ? `Track "${track.name}" is muted, so this audio stays silent until the track is unmuted.`
           : `Track "${track.name}" is hidden, so this B-roll stays out of view until the track is shown.`,
       );
   } else
@@ -357,12 +377,19 @@ function placement(
   const clip: Clip = {
     ...makeClip(
       project,
-      asset.kind === "image" ? "image" : role === "voice" ? "audio" : "video",
+      asset.kind === "image" ? "image" : role !== "broll" ? "audio" : "video",
       track.id,
       start,
       asset,
     ),
     duration: frames,
+    ...(role === "sfx"
+      ? {
+          volume: 0.5,
+          fadeIn: Math.min(2, Math.floor(frames / 4)),
+          fadeOut: Math.min(3, Math.floor(frames / 4)),
+        }
+      : {}),
     ...(role === "broll"
       ? {
           volume: 0,
@@ -488,7 +515,12 @@ export function createAgentMedia(deps: AgentMediaDeps) {
   async function stockImport(raw: unknown) {
     const args = StockImportArgsSchema.parse(raw ?? {});
     assertRevision(args);
-    if (args.trackId) checkTrack(store.project, args.trackId, "video");
+    if (args.trackId)
+      checkTrack(
+        store.project,
+        args.trackId,
+        args.kind === "audio" ? "audio" : "video",
+      );
     const opening = store.openSession;
     const asset = await deps.stock.download(args.id, args.provider, args.kind);
     if (store.openSession !== opening)
@@ -498,14 +530,18 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     const at = args.at;
     const landed = land(
       asset,
-      at ? "Agent stock B-roll" : "Agent import stock",
+      at
+        ? args.kind === "audio"
+          ? "Agent stock audio"
+          : "Agent stock B-roll"
+        : "Agent import stock",
       at
         ? (project) =>
             placement(
               project,
               asset,
               { at, duration: args.duration, trackId: args.trackId },
-              "broll",
+              args.kind === "audio" ? "sfx" : "broll",
             )
         : undefined,
     );
@@ -680,8 +716,9 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     if (args.kind === "logo") {
       // "Node.js" and "Next.js" are library names, not web addresses.
       const site =
-        /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/iu.test(args.target) &&
-        !(await deps.references.inLibrary?.(args.target));
+        /^(https?:\/\/)?[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/iu.test(
+          args.target,
+        ) && !(await deps.references.inLibrary?.(args.target));
       const at = args.at;
       let logo: BrandLogo;
       try {
@@ -835,7 +872,9 @@ export function createAgentMedia(deps: AgentMediaDeps) {
           `Drawing ${queue.length === 1 ? "1 illustration" : `${queue.length} illustrations`}`,
           async (job) => {
             deps.jobs.cancellers?.set(job.id, () => stop.abort());
-            const lanes: Promise<void>[] = [0, 1, 2].map(() => Promise.resolve());
+            const lanes: Promise<void>[] = [0, 1, 2].map(() =>
+              Promise.resolve(),
+            );
             queue.forEach(({ beat, index }, i) => {
               const lane = i % 3;
               const made = lanes[lane].then(() =>
@@ -857,7 +896,17 @@ export function createAgentMedia(deps: AgentMediaDeps) {
       : Promise.resolve();
     await drawing;
     for (const [index, beat] of args.beats.entries()) {
-      const base = { from: beat.from, to: beat.to, layout: beat.layout };
+      const base = {
+        from: beat.from,
+        to: beat.to,
+        layout: beat.layout,
+        entrance: beat.entrance,
+        backdrop: beat.backdrop,
+        background: beat.background,
+        emphasis: beat.emphasis,
+        framing: beat.framing,
+        sourceIn: beat.sourceIn,
+      };
       const kind =
         beat.kind ??
         (!beat.show

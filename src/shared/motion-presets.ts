@@ -44,6 +44,20 @@ import {
   promoClipKeyframes,
   type PromoSceneId,
 } from "./promo-presets";
+import {
+  isEditorialScene,
+  editorialSceneIds,
+  editorialScenes,
+  editorialSceneLayers,
+  type EditorialSceneId,
+} from "./editorial-presets";
+import {
+  isCreatorStudioScene,
+  creatorStudioSceneIds,
+  creatorStudioScenes,
+  creatorStudioSceneLayers,
+  type CreatorStudioSceneId,
+} from "./creator-studio-presets";
 export {
   studioSceneIds,
   studioScenes,
@@ -57,6 +71,11 @@ export {
 } from "./signature-presets";
 export { logoSceneIds, logoScenes, logoPalette } from "./logo-presets";
 export { promoSceneIds, promoScenes } from "./promo-presets";
+export { editorialSceneIds, editorialScenes } from "./editorial-presets";
+export {
+  creatorStudioSceneIds,
+  creatorStudioScenes,
+} from "./creator-studio-presets";
 
 export const shapeTypes = [
   "rectangle",
@@ -67,6 +86,8 @@ export const shapeTypes = [
 ] as const;
 export type ShapeType = (typeof shapeTypes)[number];
 export const motionSceneIds = [
+  ...creatorStudioSceneIds,
+  ...editorialSceneIds,
   ...promoSceneIds,
   ...logoSceneIds,
   ...signatureSceneIds,
@@ -88,6 +109,8 @@ export const motionScenes: ReadonlyArray<{
   category: string;
   color: string;
 }> = [
+  ...creatorStudioScenes,
+  ...editorialScenes,
   ...promoScenes,
   ...logoScenes,
   ...signatureScenes,
@@ -185,7 +208,12 @@ function sceneLayers(
   p: Project,
   id: Exclude<
     MotionSceneId,
-    StudioSceneId | SignatureSceneId | LogoSceneId | PromoSceneId
+    | StudioSceneId
+    | SignatureSceneId
+    | LogoSceneId
+    | PromoSceneId
+    | EditorialSceneId
+    | CreatorStudioSceneId
   >,
 ): Layer[] {
   const w = p.width,
@@ -837,7 +865,9 @@ export function packageMotion(
     (isStudioScene(source) ||
       isSignatureScene(source) ||
       isLogoScene(source) ||
-      isPromoScene(source))
+      isPromoScene(source) ||
+      isEditorialScene(source) ||
+      isCreatorStudioScene(source))
       ? { fontFamily: "Helvetica" as const }
       : {}),
   };
@@ -1043,15 +1073,19 @@ export function createMotionScene(
   const frames = options.durationFrames ?? p.fps * 4;
   if (!Number.isInteger(frames) || frames < 2 || frames > 18000)
     throw Error("Choose a scene duration from 2 to 18,000 whole frames.");
-  const layers = isPromoScene(id)
-    ? promoSceneLayers(p, id)
-    : isLogoScene(id)
-      ? logoSceneLayers(p, id)
-      : isSignatureScene(id)
-        ? signatureSceneLayers(p, id)
-        : isStudioScene(id)
-          ? studioSceneLayers(p, id)
-          : sceneLayers(p, id);
+  const layers = isCreatorStudioScene(id)
+    ? creatorStudioSceneLayers(p, id)
+    : isEditorialScene(id)
+      ? editorialSceneLayers(p, id)
+      : isPromoScene(id)
+        ? promoSceneLayers(p, id)
+        : isLogoScene(id)
+          ? logoSceneLayers(p, id)
+          : isSignatureScene(id)
+            ? signatureSceneLayers(p, id)
+            : isStudioScene(id)
+              ? studioSceneLayers(p, id)
+              : sceneLayers(p, id);
   const created = packageMotion(
     p,
     start,

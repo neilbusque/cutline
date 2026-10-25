@@ -10,6 +10,9 @@ const propertyNames: Record<AnimatedProperty, string> = {
   y: "Position Y",
   scale: "Scale",
   rotation: "Rotation",
+  rotateX: "Tilt X",
+  rotateY: "Tilt Y",
+  perspective: "Perspective",
   opacity: "Opacity",
   brightness: "Brightness",
   contrast: "Contrast",
@@ -93,7 +96,10 @@ export function formatKeyValue(property: string, value: number) {
     case "scale":
       return `${Math.round(value * 100) / 100}×`;
     case "rotation":
+    case "rotateX":
+    case "rotateY":
       return `${Math.round(value * 10) / 10}°`;
+    case "perspective":
     case "x":
     case "y":
       return `${Math.round(value)} px`;

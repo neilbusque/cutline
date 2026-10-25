@@ -1,5 +1,6 @@
 import type React from "react";
 import type { Clip } from "../shared/model";
+import { planeTransform } from "../shared/plane-transform";
 import { cameraTransform, filterFor } from "../shared/effects";
 import { transitionProgress, smoothProgress } from "../shared/transitions";
 import type { AnimationSpan } from "../shared/text-presets";
@@ -109,7 +110,12 @@ export function clipBoxStyle(
     width: c.width,
     height: c.height,
     opacity,
-    transform: `rotate(${c.rotation}deg) scale(${c.scale * reactiveScale})`,
+    transform: [
+      planeTransform(c),
+      `rotate(${c.rotation}deg) scale(${c.scale * reactiveScale})`,
+    ]
+      .filter(Boolean)
+      .join(" "),
     clipPath: clipShape(c),
   };
 }

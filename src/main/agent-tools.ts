@@ -75,7 +75,7 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_explainer",
     description:
-      "Create/save an editable explainer outline from authored script. Styles: kinetic, screen, diagram, editorial. Replaces saved plan, keeps timeline; screen needs real media. No paid generation. Read schema section explainer.",
+      "Save authored script as an editable explainer plan; keeps timeline. Screen needs real media. No paid generation. Read section explainer.",
     inputSchema: readableSchema(
       z.object({
         projectId: z.string(),
@@ -89,7 +89,7 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_story_produce",
     description:
-      "Generate/reuse all local narration and measured captions, then build editable scenes. Default rebuild replaces only the prior story; unrelated clips stay. Cancelling keeps finished voices. Wait on jobs; no paid generation.",
+      "Build local narration, aligned captions and editable scenes. Rebuild replaces only prior story. Cancel keeps voices. Wait on jobs; no paid generation.",
     inputSchema: readableSchema(StoryProduceSchema, true),
     annotations: edit(false),
   },
@@ -185,13 +185,13 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_stock_search",
     description:
-      "Search photos/B-roll. Commons: no key; Pexels: connect in Settings. Returns previews/creator/license. Query goes to provider.",
+      "Search photos/B-roll/audio with credits. Openverse photos/audio and Commons need no key; Pexels key in Settings. Query goes to provider.",
     inputSchema: {
       type: "object",
       properties: {
         query: { type: "string" },
-        kind: { type: "string", enum: ["video", "image"] },
-        provider: { type: "string", enum: ["commons", "pexels"] },
+        kind: { type: "string", enum: ["video", "image", "audio"] },
+        provider: { type: "string", enum: ["commons", "pexels", "openverse"] },
         orientation: {
           type: "string",
           enum: ["all", "portrait", "landscape", "square"],
@@ -230,7 +230,7 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_apply_edits",
     description:
-      "Raw undoable edit. Prefer cutline_edit. Read schema command:<type> for fields. Returns revision/changes.",
+      "Raw undoable commands; prefer cutline_edit. Fields: schema command:<type>.",
     inputSchema: {
       type: "object",
       properties: {
@@ -261,7 +261,7 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_transcribe",
     description:
-      "Captions from local speech. If pauses are also to be cut, cut them first. Long work returns jobs; wait with cutline_jobs.",
+      "Local speech captions. Cut requested pauses first. Wait with cutline_jobs.",
     inputSchema: {
       type: "object",
       properties: { ...guarded, clipId: { type: "string" } },
@@ -283,7 +283,7 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_search_transcript",
     description:
-      "Find speech with clip, timeline frames (end exclusive), source seconds/context. Split/trim hits are partial; removed hits have clipId null.",
+      "Find speech with timeline frames (end exclusive) and source seconds. Trimmed hits are partial; removed clipId is null.",
     inputSchema: describe(readableSchema(TranscriptSearchSchema, true), {
       query: "Words to find; case and punctuation are ignored.",
       clipId: "Only hits inside this clip.",
@@ -300,7 +300,7 @@ export const cutlineTools: Tool[] = [
   {
     name: "cutline_export",
     description:
-      "Export MP4 to optional absolute path, default unique local file. Current projectId/revision required; cannot overwrite existing files. Wait with cutline_jobs.",
+      "Export MP4 to optional absolute path; defaults unique. No overwrites. Current projectId/revision; wait with cutline_jobs.",
     inputSchema: readableSchema(
       z
         .object({

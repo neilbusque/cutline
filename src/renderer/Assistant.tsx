@@ -18,12 +18,17 @@ type Message = {
 };
 const names: Record<Provider, string> = { claude: "Claude", codex: "Codex" };
 const styleShort = (style: string, name: string) =>
-  `Make my speaker video on the timeline into a ${name}-inspired Short with cutline_style_reel style ${style}. Transcribe first if there are no captions. Read the transcript with timings, plan the beats by the style's rules (real logos and pages for every product, site or repo I name, short lines only from my actual words), build it, then preview the checkFrames it returns (the opening, each beat and the ending) and fix what looks wrong. Keep my voice.`;
+  `Make my speaker video on the timeline into a ${name}-inspired Short with cutline_style_reel style ${style}. Transcribe first if there are no captions. Read motionReferences with cutline_editing_schema and the transcript with timings. Plan distinct visible actions and a payoff, choose explicit entrance/backdrop/emphasis/framing options for the beats (real logos and pages for every product, site or repo I name, short lines only from my actual words), build it, then preview the checkFrames it returns (the opening, each beat and the ending) and fix what looks wrong. Keep my voice.`;
 /**
  * The chat shows the label; the assistant gets the detailed recipe. Recipes
  * that work on speaker footage are offered once the timeline has video.
  */
 const suggestions: { label: string; prompt: string; needsVideo?: boolean }[] = [
+  {
+    label: "Aasil-inspired motion film",
+    prompt:
+      "Read motionReferences with cutline_editing_schema and use its Aasil Khan quality contract as the primary direction. Inspect my actual assets, script and useful edits first. Choose a coherent depth-demo, process-film or kinetic-world treatment: a large meaningful subject, bold composed type, purposeful layered perspective, a visible action and its payoff. Use real source footage for presenter/process/product proof; when there is no presenter, make an original faceless motion film. Discover Creator studio scenes and current plane controls in the real schema. Vary the visual mechanism with the idea, fit timing to speech, correct shots before a shared grade, and use sound accents only for meaningful events. Preserve editable layers. Build and inspect a representative moving passage, compare its hierarchy and action to the reference, fix it, then finish and preview the full sequence. Keep existing narration unless I ask for new voice. No generic heading/card montage and no paid generation without my request.",
+  },
   {
     label: "Jack Roberts-style Short",
     prompt: styleShort("split", "Jack Roberts"),
@@ -339,12 +344,14 @@ export function Assistant({
         if (e.type === "note" && p === providerRef.current)
           setStep(String(e.text).split("\n")[0].slice(0, 160));
         // Something the person should read in the chat, not a progress step.
-        if (e.type === "notice") addTo(p, { role: "note", text: String(e.text) });
+        if (e.type === "notice")
+          addTo(p, { role: "note", text: String(e.text) });
         if (e.type === "connecting")
           setFor(setStatus, p, `Connecting to ${label}…`);
         if (e.type === "warning") {
           // A final error arrives with the turn's end, in the chat.
-          if (e.retry !== false) setFor(setStatus, p, `${label} is recovering…`);
+          if (e.retry !== false)
+            setFor(setStatus, p, `${label} is recovering…`);
           if (e.message && p === "claude") report(e.message);
         }
         if (e.type === "tool" && p === providerRef.current)
@@ -362,9 +369,7 @@ export function Assistant({
           setFor(
             setStatus,
             p,
-            e.status === "interrupted"
-              ? "Stopped"
-              : `Connected to ${label}`,
+            e.status === "interrupted" ? "Stopped" : `Connected to ${label}`,
           );
           setFor(setBusy, p, false);
           if (p === providerRef.current) setActivity("");
@@ -373,14 +378,23 @@ export function Assistant({
               role: "note",
               text: "Stopped. Changes made before you pressed Stop are kept.",
             });
-          else if (e.error) addTo(p, { role: "error", text: e.error, retry: lastAsk.current[p] });
+          else if (e.error)
+            addTo(p, {
+              role: "error",
+              text: e.error,
+              retry: lastAsk.current[p],
+            });
         }
         if (e.type === "error") {
           flush();
           setFor(setBusy, p, false);
           setFor(setStatus, p, "Connection issue");
           if (p === providerRef.current) setActivity("");
-          addTo(p, { role: "error", text: e.message, retry: lastAsk.current[p] });
+          addTo(p, {
+            role: "error",
+            text: e.message,
+            retry: lastAsk.current[p],
+          });
         }
         if (e.type === "login")
           setFor(setStatus, p, e.success ? "Signed in" : "Sign-in failed");
@@ -397,7 +411,9 @@ export function Assistant({
     return () => clearInterval(timer);
   }, [working]);
   const elapsed = () => {
-    const seconds = started ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0;
+    const seconds = started
+      ? Math.max(0, Math.floor((Date.now() - started) / 1000))
+      : 0;
     return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
   };
   const choose = async (next: Provider) => {
@@ -582,30 +598,34 @@ export function Assistant({
               <span>{m.text}</span>
             </div>
           ) : (
-          <div className={"message " + m.role} key={i}>
-            {/* The bubble shows who spoke; screen readers still hear it. */}
-            <span className="sr-only">
-              {m.role === "user" ? "You:" : m.role === "assistant" ? `${name}:` : ""}
-            </span>
-            {m.role === "user" || m.role === "note" ? (
-              <p>{m.text}</p>
-            ) : m.role === "error" ? (
-              <>
+            <div className={"message " + m.role} key={i}>
+              {/* The bubble shows who spoke; screen readers still hear it. */}
+              <span className="sr-only">
+                {m.role === "user"
+                  ? "You:"
+                  : m.role === "assistant"
+                    ? `${name}:`
+                    : ""}
+              </span>
+              {m.role === "user" || m.role === "note" ? (
                 <p>{m.text}</p>
-                {m.retry && i === messages.length - 1 && (
-                  <button
-                    className="message-retry"
-                    disabled={working}
-                    onClick={() => void send(m.retry!, "Try again")}
-                  >
-                    Try again
-                  </button>
-                )}
-              </>
-            ) : (
-              <MessageText text={m.text} />
-            )}
-          </div>
+              ) : m.role === "error" ? (
+                <>
+                  <p>{m.text}</p>
+                  {m.retry && i === messages.length - 1 && (
+                    <button
+                      className="message-retry"
+                      disabled={working}
+                      onClick={() => void send(m.retry!, "Try again")}
+                    >
+                      Try again
+                    </button>
+                  )}
+                </>
+              ) : (
+                <MessageText text={m.text} />
+              )}
+            </div>
           ),
         )}
         {working && (

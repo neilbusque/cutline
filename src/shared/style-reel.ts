@@ -15,6 +15,7 @@ import {
 import { parseEditableSvg } from "./vector-path";
 import { createVectorScene } from "./vector-scenes";
 import { checkFrames } from "./check-frames";
+import { reviewStyleBeats } from "./reel-direction";
 
 /**
  * Creator-style Shorts laid out from a beat plan: the speaker's framing
@@ -29,7 +30,7 @@ export const styleReelStyles = [
     name: "Split explainer",
     inspiredBy: "Jack Roberts",
     description:
-      "Graphic on top, speaker below, full-screen graphics and face punch-ins on hard cuts; pastel sunburst, pop-ins with a ring ripple, grey pill captions on the seam.",
+      "Proof above the speaker, with full-screen detail and selected face emphasis. Author entrances, backgrounds and accents per idea; grey pill captions follow the layout.",
   },
   {
     id: "cards",
@@ -48,6 +49,15 @@ export const styleReelStyles = [
 ] as const;
 export type StyleReelStyle = (typeof styleReelStyles)[number]["id"];
 export type StyleLayout = "split" | "full" | "face" | "speaker";
+export const styleEntrances = [
+  "cut",
+  "fade",
+  "rise",
+  "slide-left",
+  "pop",
+] as const;
+export type StyleEntrance = (typeof styleEntrances)[number];
+export type StyleBackdrop = "plain" | "sunburst" | "grid";
 
 export type StyleVisual =
   | {
@@ -71,6 +81,14 @@ export type StyleBeat = {
   from: number;
   to: number;
   layout?: StyleLayout;
+  /** Omitted fields preserve older projects' treatment; author these per idea. */
+  entrance?: StyleEntrance;
+  backdrop?: StyleBackdrop;
+  background?: string;
+  emphasis?: "none" | "ripple";
+  framing?: "contain" | "fill";
+  /** Seconds into a proof video, independent of the speaker's timeline. */
+  sourceIn?: number;
   visual?: StyleVisual;
 };
 
@@ -331,22 +349,28 @@ function backdropMotion(
   index: number,
   frames: number,
   fps: number,
+  treatment?: StyleBackdrop,
+  color?: string,
 ): Motion {
+  const pattern =
+    treatment ??
+    (style === "split" ? "sunburst" : style === "cards" ? "grid" : "plain");
   const base = {
     name: "Backdrop",
     type: "rectangle" as const,
     ...area,
     background:
-      style === "split"
+      color ??
+      (style === "split"
         ? pastels[index % pastels.length]
         : style === "cards"
           ? canvas
-          : "#0f0f12",
+          : "#0f0f12"),
   };
   const layers: unknown[] = [base];
   const cx = area.x + area.width / 2,
     cy = area.y + area.height / 2;
-  if (style === "split") {
+  if (pattern === "sunburst") {
     // A soft sunburst: 14 thin wedges from the centre, barely lighter,
     // clipped to the panel so no ray crosses into the speaker's half.
     const r = Math.hypot(area.width, area.height);
@@ -409,7 +433,7 @@ function backdropMotion(
         ],
       });
     }
-  } else if (style === "cards") {
+  } else if (pattern === "grid") {
     const step = Math.round(area.width / 12);
     let d = "";
     for (let x = area.x + step; x < area.x + area.width; x += step)
@@ -437,9 +461,48 @@ function backdropMotion(
 }
 
 /** Entrance for a graphic, in the style's own rhythm. */
-function entrance(style: StyleReelStyle, fps: number) {
-  const f = (seconds: number) => Math.max(1, Math.round(seconds * fps));
-  if (style === "split")
+function entrance(
+  style: StyleReelStyle,
+  fps: number,
+  choice?: StyleEntrance,
+  frames = Infinity,
+): {
+  frame: number;
+  scale: number;
+  opacity: number;
+  easing: "ease-out" | "hold";
+  offsetX?: number;
+  offsetY?: number;
+}[] {
+  const f = (seconds: number) =>
+    Math.min(Math.max(1, frames - 1), Math.max(1, Math.round(seconds * fps)));
+  if (choice === "cut" || frames <= 1) return [];
+  if (choice === "fade" || choice === "rise" || choice === "slide-left")
+    return [
+      {
+        frame: 0,
+        scale: 1,
+        opacity: 0,
+        easing: "ease-out",
+        ...(choice === "rise"
+          ? { offsetY: 32 }
+          : choice === "slide-left"
+            ? { offsetX: 48 }
+            : {}),
+      },
+      {
+        frame: f(0.24),
+        scale: 1,
+        opacity: 1,
+        easing: "ease-out",
+        ...(choice === "rise"
+          ? { offsetY: 0 }
+          : choice === "slide-left"
+            ? { offsetX: 0 }
+            : {}),
+      },
+    ];
+  if (choice === "pop" || style === "split")
     return [
       { frame: 0, scale: 0.85, opacity: 0, easing: "ease-out" as const },
       { frame: f(0.1), scale: 1.04, opacity: 1, easing: "ease-out" as const },
@@ -554,7 +617,12 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
     reelEnd = Math.max(...speaker.map(clipEnd));
 
   // Beats in frames, ordered, clipped to the speaker and never overlapping.
-  const beats = input.beats
+  type PlannedBeat = StyleBeat & {
+    start: number;
+    end: number;
+    proofFallback?: boolean;
+  };
+  let beats: PlannedBeat[] = input.beats
     .map((beat) => ({
       ...beat,
       start: Math.max(reelStart, Math.round(beat.from * fps)),
@@ -576,9 +644,54 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
     beats.forEach((beat, i) => {
       if (beat.visual) beat.end = beats[i + 1]?.start ?? reelEnd;
     });
+  const assets = new Map(p.assets.map((asset) => [asset.id, asset]));
+  // Validate proof coverage before cutting or hiding the speaker. A missing
+  // source or an exhausted passage returns to the original speaker, including
+  // the tail of a locked split, instead of leaving only an empty backdrop.
+  beats = beats.flatMap((beat): PlannedBeat[] => {
+    if (beat.end <= beat.start) return [];
+    if (beat.visual?.kind !== "asset") return [beat];
+    const asset = assets.get(beat.visual.assetId);
+    const fallback = (start = beat.start): PlannedBeat => ({
+      ...beat,
+      start,
+      from: start / fps,
+      to: beat.end / fps,
+      layout: "speaker",
+      visual: undefined,
+      proofFallback: true,
+    });
+    if (!asset || asset.kind === "audio") {
+      warnings.push(
+        `Beat at ${beat.from.toFixed(1)}s: that media is not in the project. The speaker stays visible.`,
+      );
+      return [fallback()];
+    }
+    if (asset.kind !== "video") return [beat];
+    const sourceIn = beat.sourceIn ?? 0;
+    const available =
+      Number.isFinite(sourceIn) && sourceIn >= 0
+        ? Math.max(0, Math.floor((asset.duration - sourceIn) * fps + 1e-7))
+        : 0;
+    if (available < 1) {
+      warnings.push(
+        `Beat at ${beat.from.toFixed(1)}s: the proof video's sourceIn is past its end or invalid, so it was skipped. The speaker stays visible.`,
+      );
+      return [fallback()];
+    }
+    if (available >= beat.end - beat.start) return [beat];
+    const end = beat.start + available;
+    warnings.push(
+      `Beat at ${beat.from.toFixed(1)}s: the proof video ends before the beat. The speaker returns for the remaining time; choose a longer source passage or shorten the beat.`,
+    );
+    return [{ ...beat, end, to: end / fps }, fallback(end)];
+  });
   const beatAt = (frame: number) =>
     beats.find((beat) => frame >= beat.start && frame < beat.end);
-  const layoutAt = (frame: number) => layoutFor(style, beatAt(frame));
+  const layoutAt = (frame: number): StyleLayout => {
+    const beat = beatAt(frame);
+    return beat?.proofFallback ? "speaker" : layoutFor(style, beat);
+  };
   const edges = [...new Set(beats.flatMap((b) => [b.start, b.end]))].sort(
     (a, b) => a - b,
   );
@@ -612,7 +725,6 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
   const at = p.tracks.findIndex((t) => t.id === speakerTrack.id);
   p.tracks.splice(at, 0, graphics, media, backdrop);
 
-  const assets = new Map(p.assets.map((a) => [a.id, a]));
   const add = (clip: Clip, motion?: Motion) => {
     if (motion) p.motions.push(motion);
     p.clips.push(clip);
@@ -620,14 +732,33 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
   let windowIndex = 0;
   // Backdrops cover each run of one layout, so cuts between two visuals on
   // the same layout keep one continuous background, as the references do.
-  const windows: { start: number; end: number; layout: StyleLayout }[] = [];
+  const windows: {
+    start: number;
+    end: number;
+    layout: StyleLayout;
+    backdrop?: StyleBackdrop;
+    background?: string;
+  }[] = [];
   for (const beat of beats) {
-    const layout = layoutFor(style, beat);
+    const layout = layoutAt(beat.start);
     if (!panelFor(style, layout, W, H)) continue;
     const last = windows.at(-1);
-    if (last && last.layout === layout && last.end === beat.start)
+    if (
+      last &&
+      last.layout === layout &&
+      last.end === beat.start &&
+      last.backdrop === beat.backdrop &&
+      last.background === beat.background
+    )
       last.end = beat.end;
-    else windows.push({ start: beat.start, end: beat.end, layout });
+    else
+      windows.push({
+        start: beat.start,
+        end: beat.end,
+        layout,
+        backdrop: beat.backdrop,
+        background: beat.background,
+      });
   }
   for (const w of windows) {
     const area = panelFor(style, w.layout, W, H)!;
@@ -637,6 +768,8 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
       windowIndex++,
       w.end - w.start,
       fps,
+      w.backdrop,
+      w.background,
     );
     add(
       {
@@ -657,7 +790,7 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
   for (const beat of beats) {
     const visual = beat.visual;
     if (!visual) continue;
-    const layout = layoutFor(style, beat);
+    const layout = layoutAt(beat.start);
     // On the card canvas, a visual over the speaker sits on a white card
     // across the upper part of the frame, as the reference does.
     const fullPanel = panelFor(style, layout, W, H);
@@ -684,20 +817,27 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
         continue;
       }
       const aspect = (asset.width ?? 16) / (asset.height ?? 9);
-      const fill = style === "locked-split" && !visual.logo && !visual.drawing;
-      const box = fill
-        ? area
-        : rectFit(
-            aspect,
-            area,
-            visual.logo
-              ? 0.4
-              : visual.drawing
-                ? 0.72
-                : style === "cards"
-                  ? 0.84
-                  : 0.82,
-          );
+      const fill =
+        beat.framing === "fill" ||
+        (beat.framing === undefined &&
+          style === "locked-split" &&
+          !visual.logo &&
+          !visual.drawing);
+      const box =
+        fill || beat.framing === "contain"
+          ? area
+          : rectFit(
+              aspect,
+              area,
+              visual.logo
+                ? 0.4
+                : visual.drawing
+                  ? 0.72
+                  : style === "cards"
+                    ? 0.84
+                    : 0.82,
+            );
+      const sourceIn = asset.kind === "video" ? (beat.sourceIn ?? 0) : 0;
       const clip: Clip = {
         ...makeClip(
           p,
@@ -706,15 +846,13 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
           beat.start,
           asset,
         ),
-        duration:
-          asset.kind === "video"
-            ? Math.min(frames, Math.max(1, Math.floor(asset.duration * fps)))
-            : frames,
+        duration: frames,
+        sourceIn,
         volume: 0,
         ...box,
-        fit: "cover",
+        fit: beat.framing === "contain" ? "contain" : "cover",
         cameraMotion: "none",
-        ...(fill || visual.drawing
+        ...(fill || beat.framing === "contain" || visual.drawing
           ? {}
           : {
               mask: "rounded" as const,
@@ -728,7 +866,7 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
               shadowColor: style === "cards" ? "#0000001f" : "#00000033",
             }),
         keyframes: [
-          ...entrance(style, fps).flatMap((key) => [
+          ...entrance(style, fps, beat.entrance, frames).flatMap((key) => [
             {
               property: "scale" as const,
               frame: key.frame,
@@ -741,9 +879,29 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
               value: key.opacity,
               easing: key.easing,
             },
+            ...(key.offsetX === undefined
+              ? []
+              : [
+                  {
+                    property: "x" as const,
+                    frame: key.frame,
+                    value: box.x + (key.offsetX * W) / 1080,
+                    easing: key.easing,
+                  },
+                ]),
+            ...(key.offsetY === undefined
+              ? []
+              : [
+                  {
+                    property: "y" as const,
+                    frame: key.frame,
+                    value: box.y + (key.offsetY * H) / 1920,
+                    easing: key.easing,
+                  },
+                ]),
           ]),
           // The card canvas keeps every still drifting slowly closer.
-          ...(style === "cards" && frames > fps
+          ...(style === "cards" && beat.entrance === undefined && frames > fps
             ? [
                 {
                   property: "scale" as const,
@@ -766,7 +924,10 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
       const layers =
         visual.kind === "svg"
           ? (() => {
-              const color = readableOn(visual.color, backdropColor(style));
+              const color = readableOn(
+                visual.color,
+                beat.background ?? backdropColor(style),
+              );
               const parsed = parseEditableSvg(
                 color && !/\bfill=/u.test(visual.svg)
                   ? visual.svg.replace(/<svg\b/u, `<svg fill="${color}"`)
@@ -800,7 +961,10 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
                 ),
                 fontWeight: 800,
                 align: "center",
-                color: style === "locked-split" ? "#ffffff" : "#141418",
+                color:
+                  luminance(beat.background ?? backdropColor(style)) < 0.4
+                    ? "#ffffff"
+                    : "#141418",
               }),
             ];
       if (floating)
@@ -813,7 +977,7 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
             radius: Math.round(W * 0.035),
           }),
         );
-      const keys = entrance(style, fps);
+      const keys = entrance(style, fps, beat.entrance, frames);
       // A drawing builds in part by part, back to front, all of it landed
       // within half a second; logos, lines and the card arrive at once.
       const parts =
@@ -821,7 +985,15 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
           ? layers.filter((layer) => layer.name !== "Card").length
           : 0;
       const step =
-        parts > 1 ? Math.min(Math.round(fps * 0.07), Math.floor((fps * 0.5) / (parts - 1))) : 0;
+        parts > 1 && keys.length
+          ? Math.min(
+              Math.round(fps * 0.07),
+              Math.floor((fps * 0.5) / (parts - 1)),
+              Math.floor(
+                Math.max(0, frames - 1 - keys.at(-1)!.frame) / (parts - 1),
+              ),
+            )
+          : 0;
       let part = 0;
       const delay = (layer: (typeof layers)[number]) =>
         step && layer.name !== "Card" ? step * part++ : 0;
@@ -843,6 +1015,12 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
               scale: key.scale,
               opacity: key.opacity,
               easing: key.easing,
+              ...(key.offsetX === undefined
+                ? {}
+                : { x: (key.offsetX * W) / 1080 }),
+              ...(key.offsetY === undefined
+                ? {}
+                : { y: (key.offsetY * H) / 1920 }),
             })),
           });
         }),
@@ -862,7 +1040,12 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
         motion,
       );
     }
-    if (style === "split") {
+    if (
+      beat.emphasis === "ripple" ||
+      (beat.emphasis === undefined &&
+        beat.entrance === undefined &&
+        style === "split")
+    ) {
       const r = ripple(area, beat.start, graphics.id, p);
       add({ ...r.clip, duration: Math.min(r.clip.duration, frames) }, r.motion);
     }
@@ -929,9 +1112,16 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
                 : H * 0.68;
         caption.y = Math.round(centre - caption.height / 2);
         if (style === "cards") {
-          // Full beats and the split's caption band both sit on the canvas.
-          const light = layout === "full" || layout === "split";
-          caption.color = light ? "#141418" : "#ffffff";
+          // Full beats and the split's caption band sit on the authored
+          // canvas; speaker-only fallbacks need the white footage treatment.
+          const covering = windows.find(
+            (window) => middle >= window.start && middle < window.end,
+          );
+          const onCanvas = layout === "full" || layout === "split";
+          caption.color =
+            onCanvas && luminance(covering?.background ?? canvas) >= 0.4
+              ? "#141418"
+              : "#ffffff";
         }
       }
     }
@@ -945,13 +1135,14 @@ export function buildStyleReel(project: Project, input: StyleReelInput) {
       beats: beats.length,
       speakerPieces: reframed.length,
       graphicWindows: windows.length,
+      directionReview: reviewStyleBeats(beats, style),
       // Every beat that changes the picture, once its entrance has landed.
       checkFrames: checkFrames(
         fps,
         reelStart,
         reelEnd,
         beats
-          .filter((beat) => beat.visual || layoutFor(style, beat) !== "speaker")
+          .filter((beat) => beat.visual || layoutAt(beat.start) !== "speaker")
           .map((beat) => ({
             start: beat.start,
             duration: beat.end - beat.start,

@@ -783,9 +783,9 @@ async function runTool(
         0,
         {
           provider: z
-            .enum(["commons", "pexels"])
+            .enum(["commons", "pexels", "openverse"])
             .parse(args.provider ?? "commons"),
-          kind: z.enum(["video", "image"]).parse(args.kind ?? "video"),
+          kind: z.enum(["video", "image", "audio"]).parse(args.kind ?? "video"),
           orientation: z
             .enum(["all", "portrait", "landscape", "square"])
             .parse(args.orientation ?? "all"),
@@ -1580,9 +1580,9 @@ function register() {
           .parse(args.offset ?? 0),
         {
           provider: z
-            .enum(["commons", "pexels"])
+            .enum(["commons", "pexels", "openverse"])
             .parse(args.provider ?? "commons"),
-          kind: z.enum(["video", "image"]).parse(args.kind ?? "video"),
+          kind: z.enum(["video", "image", "audio"]).parse(args.kind ?? "video"),
           orientation: z
             .enum(["all", "portrait", "landscape", "square"])
             .parse(args.orientation ?? "all"),
@@ -1591,9 +1591,9 @@ function register() {
     "stock.download": async (args) => {
       const opening = store.openSession;
       const asset = await stock.download(
-        z.number().int().positive().parse(args.id),
-        z.enum(["commons", "pexels"]).parse(args.provider ?? "commons"),
-        z.enum(["video", "image"]).parse(args.kind ?? "video"),
+        z.union([z.number().int().positive(), z.string().uuid()]).parse(args.id),
+        z.enum(["commons", "pexels", "openverse"]).parse(args.provider ?? "commons"),
+        z.enum(["video", "image", "audio"]).parse(args.kind ?? "video"),
       );
       if (store.openSession !== opening)
         throw Error(

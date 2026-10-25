@@ -1,6 +1,7 @@
 import React from "react";
 import { useCurrentFrame, useVideoConfig } from "remotion";
 import type { Clip, Motion, MotionLayer } from "../shared/model";
+import { planeTransform } from "../shared/plane-transform";
 import {
   evaluatedMotionLayer,
   motionShapePath,
@@ -53,7 +54,8 @@ function MotionText({
               ? "flex-end"
               : "center",
         textAlign: align,
-        fontFamily: clip.fontFamily,
+        fontFamily: layer.fontFamily ?? clip.fontFamily,
+        fontStyle: layer.fontStyle,
         fontWeight: layer.fontWeight ?? clip.fontWeight,
         fontSize: layer.fontSize,
         lineHeight: layer.lineHeight ?? 1.18,
@@ -173,7 +175,7 @@ function MotionTokens({
       ? gradientSlices(
           tokens.map((token) => token.text),
           {
-            family: clip.fontFamily,
+            family: layer.fontFamily ?? clip.fontFamily,
             weight: layer.fontWeight ?? clip.fontWeight,
             size: layer.fontSize,
             tracking: layer.letterSpacing ?? 0,
@@ -437,7 +439,12 @@ export function MotionGraphicAtFrame({
               width: layer.width,
               height: layer.height,
               opacity: layer.opacity,
-              transform: `scale(${scale}) rotate(${layer.rotate}deg)`,
+              transform: [
+                planeTransform(layer),
+                `scale(${scale}) rotate(${layer.rotate}deg)`,
+              ]
+                .filter(Boolean)
+                .join(" "),
               transformOrigin: `${layer.anchorX * 100}% ${layer.anchorY * 100}%`,
               filter: filters || undefined,
             }}

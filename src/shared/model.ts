@@ -8,6 +8,12 @@ import {
 } from "./vector-path";
 import { StoryPlanSchema } from "./story-schema";
 export const uid = () => crypto.randomUUID();
+export const fontFamilies = [
+  "Arial",
+  "Helvetica",
+  "Georgia",
+  "Courier New",
+] as const;
 const finite = z.number().finite();
 /** The last timeline frame: 8 hours at 30 fps, 4 hours at 60. */
 export const MAX_FRAME = 30 * 60 * 60 * 8;
@@ -130,6 +136,9 @@ export const KeyframeSchema = z.object({
   opacity: finite.min(0).max(1).optional(),
   scale: finite.min(0).max(10).optional(),
   rotate: finite.min(-3600).max(3600).optional(),
+  rotateX: finite.min(-85).max(85).optional(),
+  rotateY: finite.min(-85).max(85).optional(),
+  perspective: finite.min(200).max(8000).optional(),
   blur: finite.min(0).max(100).optional(),
   trim: finite.min(0).max(1).optional(),
   strokeWidth: finite.min(0).max(100).optional(),
@@ -217,6 +226,8 @@ export const MotionLayerSchema = z
     background: color.default("transparent"),
     fontSize: finite.min(8).max(500).default(64),
     fontWeight: finite.int().min(100).max(900).optional(),
+    fontFamily: z.enum(fontFamilies).optional(),
+    fontStyle: z.enum(["normal", "italic"]).optional(),
     align: z.enum(["left", "center", "right"]).optional(),
     letterSpacing: finite.min(-30).max(100).default(0),
     lineHeight: finite.min(0.8).max(2.4).default(1.18),
@@ -226,6 +237,11 @@ export const MotionLayerSchema = z
     fillOpacity: finite.min(0).max(1).default(1),
     scale: finite.min(0).max(10).default(1),
     rotate: finite.min(-3600).max(3600).default(0),
+    /** Editable 2.5D plane tilt, in degrees, around the layer anchor. */
+    rotateX: finite.min(-85).max(85).default(0),
+    rotateY: finite.min(-85).max(85).default(0),
+    /** Perspective distance in authored canvas pixels. */
+    perspective: finite.min(200).max(8000).default(1000),
     stroke: color.default("#ffffff"),
     strokeWidth: finite.min(0).max(100).default(0),
     fillStyle: z.enum(["solid", "gradient"]).default("solid"),
@@ -303,6 +319,11 @@ export const ClipSchema = z.object({
   keyframes: z.array(PropertyKeyframeSchema).max(2000).default([]),
   animationOffset: frame.default(0),
   scale: finite.min(0.01).max(10).default(1),
+  /** Editable 2.5D plane tilt around the clip center, in degrees. */
+  rotateX: finite.min(-85).max(85).default(0),
+  rotateY: finite.min(-85).max(85).default(0),
+  /** Perspective distance in authored canvas pixels. */
+  perspective: finite.min(200).max(8000).default(1000),
   blendMode: z
     .enum(["normal", "multiply", "screen", "overlay", "lighten", "darken"])
     .default("normal"),
@@ -355,9 +376,7 @@ export const ClipSchema = z.object({
     .default({ top: 0, right: 0, bottom: 0, left: 0 }),
   text: z.string().max(10000).default(""),
   fontSize: finite.min(8).max(500).default(72),
-  fontFamily: z
-    .enum(["Arial", "Helvetica", "Georgia", "Courier New"])
-    .default("Arial"),
+  fontFamily: z.enum(fontFamilies).default("Arial"),
   fontWeight: z.enum(["400", "600", "800"]).default("800"),
   color: color.default("#ffffff"),
   background: color.default("transparent"),
@@ -406,6 +425,9 @@ export const ClipSchema = z.object({
       "sunset",
       "teal-orange",
       "bleach",
+      "studio",
+      "soft-film",
+      "crisp-mono",
     ])
     .default("none"),
   effectAmount: finite.min(0).max(1).default(1),

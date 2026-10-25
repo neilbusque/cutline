@@ -1,5 +1,6 @@
 /** Shared direction for the built-in assistant and connected editing agents. */
 import { reelFormats } from "./reel-formats";
+import { motionReferenceGuide } from "./motion-reference";
 
 export const directorStyles = [
   "cinematic",
@@ -215,6 +216,7 @@ export function getDirectorGuide(style: DirectorStyle = "cinematic") {
     purpose:
       "Use this guide to direct, build and review an original editable film. These are starting points, not fixed templates. Honor the user's explicit style and changes over defaults.",
     direction: directions[style],
+    motionReferences: motionReferenceGuide,
     ...(style === "social" ? { reelFormats } : {}),
     planning: [
       "Inspect the project and run cutline_quality_check before changing an existing film. Record the requested improvement, existing duration, useful assets, manual edits and any reported issues. A narrow style request does not authorize rebuilding the whole timeline.",

@@ -1,5 +1,5 @@
-export type StockProvider = "commons" | "pexels";
-export type StockKind = "video" | "image";
+export type StockProvider = "commons" | "pexels" | "openverse";
+export type StockKind = "video" | "image" | "audio";
 export type StockOrientation = "all" | "portrait" | "landscape" | "square";
 export type StockSearchOptions = {
   provider?: StockProvider;
@@ -9,7 +9,7 @@ export type StockSearchOptions = {
 
 /** StockVideo is retained as an alias for projects built before photo search. */
 export type StockItem = {
-  id: number;
+  id: number | string;
   key: string;
   provider: StockProvider;
   kind: StockKind;
@@ -17,6 +17,8 @@ export type StockItem = {
   /** Plain provider description; never synthesized from the search query. */
   description?: string;
   creator: string;
+  /** Provider-supplied attribution, retained with downloaded credits. */
+  attribution?: string;
   license: string;
   licenseUrl: string;
   page: string;

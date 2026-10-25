@@ -10,6 +10,9 @@ export const animatedProperties = [
   "y",
   "scale",
   "rotation",
+  "rotateX",
+  "rotateY",
+  "perspective",
   "opacity",
   "brightness",
   "contrast",
@@ -25,6 +28,9 @@ export const propertyBounds: Record<AnimatedProperty, [number, number]> = {
   y: [-8000, 8000],
   scale: [0.01, 10],
   rotation: [-3600, 3600],
+  rotateX: [-85, 85],
+  rotateY: [-85, 85],
+  perspective: [200, 8000],
   opacity: [0, 1],
   brightness: [0.2, 2],
   contrast: [0.2, 2],
@@ -41,6 +47,7 @@ const amountProperties = new Set<AnimatedProperty>([
   "blur",
   "rgbSplit",
   "invert",
+  "perspective",
 ]);
 export function eased(t: number, easing: string, bezier?: MotionBezier) {
   switch (easing) {

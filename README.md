@@ -53,24 +53,26 @@ Adding media to a local project does not submit it for cloud generation. Review 
 
 ## Documentation
 
-| Task                                 | Guide                                                                                                                     |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| Make and save a first video          | [Getting started](docs/getting-started.md)                                                                                |
-| Choose a Reel structure              | [Reel formats](docs/reel-formats.md)                                                                                      |
-| Build speaker and screen-demo Shorts | [Creator shorts](docs/creator-shorts.md)                                                                                  |
-| Make a narrated explainer            | [Explainer guide](docs/explainer-guide.md)                                                                                |
-| Choose an explainer direction        | [Styles and references](docs/explainer-styles.md)                                                                         |
-| Build an educational Reel            | [Creator education](docs/creator-education-style.md)                                                                      |
-| Edit motion layers and timing        | [Motion controls](docs/motion-controls.md)                                                                                |
-| Create vectors and logo reveals      | [Vector and logo workflow](docs/vector-logo.md)                                                                           |
-| Make Jack Roberts, sebintel or Matthew Berman-style Shorts | [Creator-style Shorts](docs/creator-styles.md) |
-| Direct a sequence                    | [AI director](docs/ai-director.md)                                                                                        |
-| Explore motion collections           | [Studio](docs/studio-motion.md), [professional motion](docs/professional-motion.md), [promo motion](docs/promo-motion.md) |
-| Use narration and music              | [Local voiceover](docs/kokoro-tts.md), [music sync](docs/music-sync.md)                                                   |
-| Connect an editing assistant         | [Agent control](docs/agent-control.md)                                                                                    |
-| Build and test                       | [Development](docs/development.md)                                                                                        |
-| Resolve a problem                    | [Troubleshooting](docs/troubleshooting.md)                                                                                |
-| Review the current source release    | [Changes in 0.33.4](docs/release-0.33.md)                                                                                 |
+| Task                                                       | Guide                                                                                                                     |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Make and save a first video                                | [Getting started](docs/getting-started.md)                                                                                |
+| Choose a Reel structure                                    | [Reel formats](docs/reel-formats.md)                                                                                      |
+| Build speaker and screen-demo Shorts                       | [Creator shorts](docs/creator-shorts.md)                                                                                  |
+| Make a narrated explainer                                  | [Explainer guide](docs/explainer-guide.md)                                                                                |
+| Choose an explainer direction                              | [Styles and references](docs/explainer-styles.md)                                                                         |
+| Build an educational Reel                                  | [Creator education](docs/creator-education-style.md)                                                                      |
+| Edit motion layers and timing                              | [Motion controls](docs/motion-controls.md)                                                                                |
+| Create vectors and logo reveals                            | [Vector and logo workflow](docs/vector-logo.md)                                                                           |
+| Make Jack Roberts, sebintel or Matthew Berman-style Shorts | [Creator-style Shorts](docs/creator-styles.md)                                                                            |
+| Direct a sequence                                          | [AI director](docs/ai-director.md)                                                                                        |
+| Plan varied motion, effects and color                      | [Motion reference library](docs/motion-reference-library/README.md)                                                       |
+| Find photos and sound effects                              | [Openverse](docs/openverse.md)                                                                                            |
+| Explore motion collections                                 | [Studio](docs/studio-motion.md), [professional motion](docs/professional-motion.md), [promo motion](docs/promo-motion.md) |
+| Use narration and music                                    | [Local voiceover](docs/kokoro-tts.md), [music sync](docs/music-sync.md)                                                   |
+| Connect an editing assistant                               | [Agent control](docs/agent-control.md)                                                                                    |
+| Build and test                                             | [Development](docs/development.md)                                                                                        |
+| Resolve a problem                                          | [Troubleshooting](docs/troubleshooting.md)                                                                                |
+| Review the current source release                          | [Changes in 0.34](docs/release-0.34.md)                                                                                   |
 
 ## Contribute
 
