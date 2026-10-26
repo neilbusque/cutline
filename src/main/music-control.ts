@@ -75,15 +75,15 @@ const schemas = {
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   analyze:
-    "Analyze local beats/confidence/energy, first 20 minutes. Saves editable source timing; grid corrects tempo/phase. Undoable.",
+    "Analyze local beats/energy, first 20 minutes. Saves timing; grid corrects tempo/phase. Undoable.",
   grid: "Set source BPM/first-beat offset; anchors four-beat bars, preserves measured energy. Undoable.",
-  sync: "Align visual starts/cuts to beats/bars; keeps edges/source bounds/linked captions. Max shift defaults to 0.4s; audible video requires allowance. Remove transitions first; use dryRun before editing.",
+  sync: "Align cuts to beats/bars; preserves bounds/captions. Default shift <=0.4s. Audible video needs allowance; remove transitions, dryRun first.",
   reactive:
-    "Pulse selected clips to music. accents requires native motion, preserves text/backgrounds; clip pulses all. Omitted scope/decay stay unchanged. Follows trims/speed/mute/fades; remove clears. Undoable.",
+    "Pulse clips to music. accents needs native motion; clip pulses all. Omitted scope/decay preserved. Follows source timing; remove clears. Undoable.",
   create:
     "Compose/place local instrumental with BPM/energy. No external service or samples. Undoable.",
   inspect:
-    "Read placed music tempo/confidence/source beats/timeline frames. Page with offset/limit (default 500, max 1000). Omits raw audio/energy.",
+    "Read music tempo, source beats and timeline frames. offset/limit paginate (500 default, 1000 max). No raw audio.",
 };
 export const musicTools = Object.entries(schemas).map(([action, schema]) => ({
   name: `cutline_music_${action}`,
@@ -157,6 +157,7 @@ export function createMusicControl({
         ) ?? newTrack(now, "audio");
       const clip = {
         ...makeClip(now, "audio", track.id, a.startFrame, asset),
+        audioRole: "music" as const,
         duration: Math.round(asset.duration * now.fps),
         volume: 0.45,
       };

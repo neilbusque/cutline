@@ -19,6 +19,7 @@ Cutline turns footage, screenshots and scripts into videos you can keep editing.
 - **Custom animated scenes:** import HyperFrames HTML or start with titles, charts and Three.js scenes. Edit the source in Cutline, render locally, and keep earlier versions in Undo. [Editable HTML scenes](docs/hyperframes.md).
 - **3D models:** drop a GLB or glTF file into Media, choose the camera and animation, and render it as an editable scene. Models, textures and embedded animation stay together. Claude and Codex can import and update these scenes directly. [3D model workflow](docs/model-3d.md).
 - **Voiceover and music:** generate English narration locally with Kokoro, import audio, compose an instrumental bed, and lower music under speech. [Voiceover](docs/kokoro-tts.md) and [music sync](docs/music-sync.md).
+- **Listening review:** optionally review every exported soundtrack with an audio model, check findings against local evidence, and apply supported undoable fixes followed by a full second review. [Listening review](docs/listening-review.md).
 - **Assisted editing:** connect Claude or Codex, or use a compatible MCP client to inspect, edit, preview and export the current project. Assistant accounts are optional. [Agent control](docs/agent-control.md).
 
 ## Get started
@@ -50,6 +51,7 @@ Manual editing, transcription, voiceover and export run locally once their tools
 | Claude, Codex or another assistant | Chat messages, requested project details, transcripts, and preview images requested by the assistant           |
 | Stock search and download          | Search terms and requests to the selected stock provider; imported assets retain source and license credits    |
 | Higgsfield generation              | The submitted prompt and selected reference images; generation uses the connected provider account and credits |
+| Listening review                   | The exported soundtrack in bounded sections goes to the hosted Qwen audio model when enabled; off on a fresh install |
 
 Adding media to a local project does not submit it for cloud generation. Review provider access before using a connected feature. See [security and privacy](SECURITY.md) and [Higgsfield setup](docs/higgsfield.md).
 
@@ -75,7 +77,8 @@ Adding media to a local project does not submit it for cloud generation. Review 
 | Build and test                                             | [Development](docs/development.md)                                                                                        |
 | Resolve a problem                                          | [Troubleshooting](docs/troubleshooting.md)                                                                                |
 | Import and animate a 3D model                              | [3D models](docs/model-3d.md)                                                                                             |
-| Review the current source release                          | [Changes in 0.36](docs/release-0.36.md)                                                                                   |
+| Review sound and caption timing                            | [Listening review](docs/listening-review.md)                                                                              |
+| Review the current source release                          | [Changes in 0.37](docs/release-0.37.md)                                                                                   |
 
 ## Contribute
 

@@ -398,6 +398,7 @@ export function buildStoryTimeline(
     if (voice && voiceTrack) {
       const clip = {
         ...makeClip(next, "audio", voiceTrack, cursor, voice),
+        audioRole: "voice" as const,
         duration: Math.max(1, Math.ceil(voice.duration * project.fps)),
       };
       push(clip);
@@ -434,6 +435,7 @@ export function buildStoryTimeline(
     if (loopMedia(music, musicTrack, startFrame, durationFrames, 0.12))
       warnings.push("The music bed loops to fill the story.");
     const musicClips = clips.slice(first);
+    for (const clip of musicClips) clip.audioRole = "music";
     musicClips[0].fadeIn = Math.min(
       Math.round(project.fps * 0.25),
       musicClips[0].duration,

@@ -363,6 +363,8 @@ export const ClipSchema = z.object({
   /** Holds the clip's first frame for its whole duration, silently. */
   freeze: z.boolean().default(false),
   volume: finite.min(0).max(2).default(1),
+  /** Explicit sound role for review; unlabelled legacy clips stay unclassified. */
+  audioRole: z.enum(["voice", "music", "sfx", "mixed"]).optional(),
   transition: z
     .object({
       kind: z.enum(["crossfade", "black", "slide-left", "slide-right", "wipe"]),
@@ -521,6 +523,12 @@ export type Job = {
   progress: number;
   message: string;
   output?: string;
+  listening?: {
+    status: "passed" | "needs-review" | "incomplete" | "no-audio";
+    fixes: number;
+    reportPath: string;
+    summary: string;
+  };
 };
 export function newProject(): Project {
   return {

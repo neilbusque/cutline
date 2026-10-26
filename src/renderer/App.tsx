@@ -1,5 +1,6 @@
 import { snapOnStage, resizeOnStage } from "../shared/stage-layout";
 import { HiggsfieldSettings } from "./HiggsfieldSettings";
+import { ListeningSettings } from "./ListeningSettings";
 import "./stage-controls.css";
 import { evaluatedClip } from "../shared/animation";
 import { musicBindings, reactiveClipVisual } from "../shared/music-reactive";
@@ -225,6 +226,24 @@ export function JobStatus({
       (a, b) => Number(a.kind === "preview") - Number(b.kind === "preview"),
     );
   const latest = jobs.filter((j) => j.kind !== "preview").at(-1) ?? jobs.at(-1);
+  const listening = latest?.listening;
+  const reviewLabel = listening
+    ? {
+        passed: "Audio reviewed",
+        "needs-review": "Audio needs review",
+        incomplete: "Audio review incomplete",
+        "no-audio": "No audio to review",
+      }[listening.status]
+    : "Export complete";
+  const reviewButton = listening?.reportPath ? (
+    <button
+      onClick={() =>
+        void run("listening.report.open", { id: latest!.id }).catch(report)
+      }
+    >
+      Review report
+    </button>
+  ) : null;
   return active.length ? (
     <div className="status-job">
       <LoaderCircle size={12} className="spin" />
@@ -235,14 +254,27 @@ export function JobStatus({
       </button>
     </div>
   ) : latest?.state === "done" && latest.output ? (
-    <button onClick={() => run("reveal", { id: latest.id })}>
-      <Check size={12} />
-      Export complete · Show in Finder
-    </button>
+    <div className="status-export">
+      <span className="export-review-label" title={listening?.summary}>
+        {(!listening || listening.status === "passed") && (
+          <Check size={12} aria-hidden="true" />
+        )}
+        <span>{reviewLabel}</span>
+      </span>
+      {reviewButton}
+      <button
+        onClick={() => void run("reveal", { id: latest.id }).catch(report)}
+      >
+        Show in Finder
+      </button>
+    </div>
   ) : latest?.state === "error" ? (
-    <button className="status-error" onClick={() => report(latest.message)}>
-      Job failed · View details
-    </button>
+    <div className="status-export">
+      <button className="status-error" onClick={() => report(latest.message)}>
+        Job failed · View details
+      </button>
+      {reviewButton}
+    </div>
   ) : (
     <span />
   );
@@ -781,7 +813,12 @@ export function App() {
         <span>Opening Cutline…</span>
       </div>
     );
-  const addAsset = (a: Asset, targetTrack?: string, at?: number) => {
+  const addAsset = (
+    a: Asset,
+    targetTrack?: string,
+    at?: number,
+    audioRole?: Clip["audioRole"],
+  ) => {
     const kind = a.kind === "audio" ? "audio" : "video";
     const track = (
       targetTrack
@@ -798,6 +835,7 @@ export function App() {
           .map((c) => c.start + c.duration),
       );
     const c = makeClip(p, a.kind, track.id, end, a);
+    if (audioRole) c.audioRole = audioRole;
     edit("Add media", [{ type: "clip.add", clip: c }]);
     setSelected(c.id);
     pendingSeek.current = { id: c.id, frame: end };
@@ -1410,7 +1448,7 @@ export function App() {
                       report={report}
                     />
                   }
-                  addAudio={(a) => {
+                  addAudio={(a, role) => {
                     const frame = playhead.get();
                     const empty = p.tracks.find(
                       (t) =>
@@ -1420,10 +1458,14 @@ export function App() {
                         !p.clips.some((c) => c.trackId === t.id),
                     );
                     if (empty) {
-                      addAsset(a, empty.id, frame);
+                      addAsset(a, empty.id, frame, role);
                       return;
                     }
                     const commands = stackAssets(p, [a], frame);
+                    if (role)
+                      for (const command of commands)
+                        if (command.type === "clip.add")
+                          command.clip.audioRole = role;
                     edit("Add audio layer", commands);
                     const added = commands.find((c) => c.type === "clip.add");
                     if (added?.type === "clip.add") {
@@ -2248,6 +2290,7 @@ export function App() {
                 ? "Whisper base multilingual model is installed. Speech stays on this Mac."
                 : "Speech tools are missing from this install. Reinstall Cutline to transcribe."}
             </p>
+            <ListeningSettings />
             <HiggsfieldSettings report={report} />
             <AgentConnections
               settings={settings}

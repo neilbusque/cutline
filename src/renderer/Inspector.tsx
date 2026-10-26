@@ -181,6 +181,30 @@ export function Inspector({
   const audioSection = (open: boolean) => (
     <details open={open}>
       <summary>{text ? "Fades" : "Audio & fades"}</summary>
+      {(c.kind === "audio" || asset?.hasAudio) && (
+        <label className="field">
+          <span>Audio role</span>
+          <select
+            aria-label="Audio role"
+            value={c.audioRole ?? ""}
+            onChange={(event) =>
+              patch(
+                {
+                  audioRole: (event.target.value ||
+                    undefined) as Clip["audioRole"],
+                },
+                "Set audio role",
+              )
+            }
+          >
+            <option value="">Unspecified</option>
+            <option value="voice">Voice</option>
+            <option value="music">Music</option>
+            <option value="sfx">Sound effects</option>
+            <option value="mixed">Mixed</option>
+          </select>
+        </label>
+      )}
       {asset?.hasAudio && (
         <NumberField
           label="Volume"

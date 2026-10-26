@@ -93,7 +93,7 @@ const toolDefinitions: Tool[] = [
   {
     name: "cutline_story_produce",
     description:
-      "Build local narration, aligned captions and editable scenes. Rebuild replaces only prior story. Cancel keeps voices. Wait on jobs; no paid generation.",
+      "Build local narration/captions/scenes; replaces prior story only. Cancel keeps voices. Wait on jobs; no paid generation.",
     inputSchema: readableSchema(StoryProduceSchema, true),
     annotations: edit(false),
   },
@@ -152,7 +152,7 @@ const toolDefinitions: Tool[] = [
   {
     name: "cutline_story_assemble",
     description:
-      "Assemble story/voice/captions/music. Requires layout assets/current voice. append keeps clips; rebuild replaces last story. Returns timing/warnings.",
+      "Assemble story with its media/voice. append keeps clips; rebuild replaces prior story. Returns timing/warnings.",
     inputSchema: readableSchema(
       z.object({
         projectId: z.string(),
@@ -175,7 +175,7 @@ const toolDefinitions: Tool[] = [
   {
     name: "cutline_create_reel",
     description:
-      "Build Reel; read cutline_effects_guide first. Omit beats for transcript cards; [] disables. Inspect first: append keeps work, replace requires requested rebuild. One Undo; may return job.",
+      "Build Reel; read cutline_effects_guide. Omitted beats use speech; [] disables. append preserves work; replace needs requested rebuild. Undoable job.",
     inputSchema: readableSchema(
       z.object({
         projectId: z.string(),
@@ -304,9 +304,26 @@ const toolDefinitions: Tool[] = [
     annotations: read,
   },
   {
+    name: "cutline_listening_review",
+    description:
+      "Automatic export listening settings/report. Enabling sends audio to hosted Qwen; supported fixes are undoable. See workflow.",
+    inputSchema: readableSchema(
+      z
+        .object({
+          action: z.enum(["settings", "configure", "report"]),
+          enabled: z.boolean().optional(),
+          autoFix: z.boolean().optional(),
+          jobId: z.string().optional(),
+        })
+        .strict(),
+      true,
+    ),
+    annotations: edit(false),
+  },
+  {
     name: "cutline_export",
     description:
-      "Export MP4 to optional absolute path; defaults unique. No overwrites. Current projectId/revision; wait with cutline_jobs.",
+      "Export MP4 with shared listening settings. Current projectId/revision; no overwrites. Wait on jobs, check listening report.",
     inputSchema: readableSchema(
       z
         .object({
@@ -317,7 +334,7 @@ const toolDefinitions: Tool[] = [
         .strict(),
       true,
     ),
-    annotations: edit(false),
+    annotations: { ...edit(false), openWorldHint: true },
   },
   {
     name: "cutline_jobs",

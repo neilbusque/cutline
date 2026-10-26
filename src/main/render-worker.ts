@@ -192,7 +192,67 @@ process.on("message", async (message: any) => {
             ),
       );
     });
-    process.send?.({ type: "done", output: outputLocation, repairedFrames });
+    // Exact isolated native mixes: use the same source timing, envelopes,
+    // transitions and track mutes as the delivered movie. No role guessing.
+    const stemFailures: string[] = [];
+    const completedStems: string[] = [];
+    for (const role of ["voice", "music", "sfx"] as const) {
+      const stemPath = message.audioStems?.[role];
+      if (!stemPath) continue;
+      if (cancelled) throw Error("Cancelled");
+      process.send?.({
+        type: "status",
+        message: `Preparing ${role === "sfx" ? "sound effects" : role} for listening`,
+      });
+      const stemProject = {
+        ...inputProps.project,
+        clips: inputProps.project.clips.map((clip: any) =>
+          clip.audioRole === role
+            ? clip
+            : {
+                ...clip,
+                volume: 0,
+                keyframes: clip.keyframes?.map((key: any) =>
+                  key.property === "volume" ? { ...key, value: 0 } : key,
+                ),
+              },
+        ),
+      };
+      try {
+        await renderMedia({
+          serveUrl,
+          composition,
+          inputProps: { ...inputProps, project: stemProject },
+          codec: "wav",
+          outputLocation: stemPath,
+          enforceAudioTrack: true,
+          browserExecutable,
+          ...browserOptions,
+          puppeteerInstance: browser,
+          offthreadVideoCacheSizeInBytes: frameCache,
+          offthreadVideoThreads: 2,
+          port,
+          concurrency: 1,
+          timeoutInMilliseconds: 30000,
+          cancelSignal: signal.cancelSignal,
+        });
+        completedStems.push(role);
+      } catch (error) {
+        if (cancelled) throw Error("Cancelled");
+        rmSync(stemPath, { force: true });
+        stemFailures.push(
+          `The isolated ${role} mix could not be rendered. Automatic corrections requiring it were withheld.`,
+        );
+      }
+    }
+    if (cancelled) throw Error("Cancelled");
+    process.send?.({
+      type: "done",
+      output: outputLocation,
+      repairedFrames,
+      completedStems,
+      stemFailures,
+    });
   } catch (e) {
     process.send?.({ type: "error", message: (e as Error).message });
   } finally {

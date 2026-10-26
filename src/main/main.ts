@@ -8,11 +8,7 @@ import { buildAutoReel, AutoReelOptionsSchema } from "./auto-reel";
 import { Speech } from "./tts";
 import { StockCredentials } from "./stock-credentials";
 import { GenerationCredentials } from "./generation-credentials";
-import {
-  GenerationLibrary,
-  higgsfieldCall,
-  ProviderError,
-} from "./generation";
+import { GenerationLibrary, higgsfieldCall, ProviderError } from "./generation";
 import { StoryControl } from "./story-control";
 import { StoryProduction } from "./story-production";
 import { StoryBatchProduction } from "./story-batch";
@@ -87,6 +83,15 @@ import {
 import { effectsGuideResult } from "../shared/agent-guide";
 import { directorStyles, getDirectorGuide } from "../shared/director-guide";
 import { analyzeVideoQuality } from "../shared/video-quality";
+import {
+  runListeningReview,
+  type ListeningRender,
+  type ListeningReport,
+} from "./listening-review";
+import {
+  readListeningSettings,
+  writeListeningSettings,
+} from "./listening-settings";
 import {
   changeSummary,
   conflictMessage,
@@ -257,7 +262,10 @@ async function makeGraphic(
     options.fit === false ? Promise.resolve(svg) : fitSvg(svg).catch(() => svg);
   if (made.kind === "vector") return { ...made, svg: await fit(made.svg) };
   return made.drawing
-    ? { ...made, drawing: { ...made.drawing, svg: await fit(made.drawing.svg) } }
+    ? {
+        ...made,
+        drawing: { ...made.drawing, svg: await fit(made.drawing.svg) },
+      }
     : made;
 }
 /**
@@ -289,7 +297,21 @@ const previewRequests = new Map<
   { resolve: (value: any) => void; reject: (error: Error) => void }
 >();
 let renderChild: ReturnType<typeof fork> | undefined;
-/** True while an export makes reversed copies, before its render starts. */
+let exportAbort: AbortController | undefined;
+const unsavedListeningReports = new Map<string, ListeningReport>();
+function readListeningReport(job: Job | undefined) {
+  if (!job?.listening)
+    throw Error("No listening report for that export in this session.");
+  if (job.listening.reportPath)
+    return JSON.parse(readFileSync(job.listening.reportPath, "utf8"));
+  const report = unsavedListeningReports.get(job.id);
+  if (!report)
+    throw Error(
+      "The listening report could not be saved and is no longer in memory.",
+    );
+  return report;
+}
+/** Holds the export lifecycle through rendering, listening and any correction. */
 let exportPreparing = false;
 /** Files a running export writes beside its output, removed if Cutline quits. */
 const exportPartials = new Set<string>();
@@ -491,114 +513,243 @@ async function exportVideo(output?: string) {
     throw Error(job.message);
   }
   const frozen = structuredClone(store.project);
+  const opening = store.openSession;
+  const settings = readListeningSettings(
+    path.join(sessionContext.rootData, "listening-settings.json"),
+  );
+  const controller = new AbortController();
+  exportAbort = controller;
   exportPreparing = true;
-  void (async () => {
-    let releaseSlot: (() => void) | undefined;
+  jobs.cancellers.set(job.id, () => {
+    controller.abort();
+    const process = jobs.processes.get(job.id);
+    if (process && process !== renderChild) process.kill("SIGTERM");
+  });
+  const check = () => {
+    if (job.state !== "running" || controller.signal.aborted)
+      throw Error("Cancelled");
+  };
+  const paths = new Set(partials);
+  const addPartial = (file: string) => {
+    paths.add(file);
+    exportPartials.add(file);
+  };
+  let passIndex = 0;
+  const render = async (project: Project): Promise<ListeningRender> => {
+    check();
+    const candidate = passIndex++ > 0;
+    const target = candidate ? temporary + ".reviewed.mp4" : temporary;
+    const stems: ListeningRender["stems"] = {};
+    let repairedFrames: number[] = [];
+    let stemFailures: string[] = [];
+    if (settings.enabled) {
+      for (const role of ["voice", "music", "sfx"] as const) {
+        if (
+          project.clips.some((clip) => clip.audioRole === role && clip.assetId)
+        ) {
+          stems[role] = target + `.${role}.wav`;
+          addPartial(stems[role]!);
+        }
+      }
+    }
+    for (const suffix of ["", ".audio.wav", ".video.mp4"])
+      addPartial(target + suffix);
+    const releaseSlot = await leases.exportSlot(() => job.state !== "running");
     let exportBridge: Awaited<ReturnType<typeof startBridge>> | undefined;
-    let launched = false;
-    const release = () => {
-      releaseSlot?.();
-      releaseOutput();
-    };
     try {
-      releaseSlot = await leases.exportSlot(() => job.state !== "running");
-      if (job.state !== "running") return;
-      await prepareReversed(frozen, job);
-      if (job.state !== "running") return;
+      check();
+      await prepareReversed(project, job);
+      check();
       exportBridge = await startBridge(
-        { project: frozen } as Store,
+        { project } as Store,
         null,
         async () => null,
         [],
       );
-      const inputProps = {
-        project: frozen,
-        mediaBase: exportBridge.base,
-        preview: false,
-      };
       const child = fork(path.join(__dirname, "render-worker.cjs"), [], {
         env: { ...process.env, ELECTRON_RUN_AS_NODE: "1" },
         stdio: ["ignore", "pipe", "pipe", "ipc"],
         detached: true,
       });
       renderChild = child;
-      launched = true;
-      exportPreparing = false;
       jobs.processes.set(job.id, child);
-      jobs.cancellers.set(job.id, () => {
-        if (child.connected) child.send({ type: "cancel" });
-        const timer = setTimeout(() => {
-          if (child.exitCode === null && child.pid) {
-            try {
-              process.kill(-child.pid, "SIGTERM");
-            } catch {}
-          }
-        }, 5000);
-        timer.unref();
-      });
-      let stderr = "";
-      child.stderr?.on("data", (d) => (stderr = (stderr + d).slice(-2000)));
-      child.on("message", (m: any) => {
-        if (job.state === "cancelled") return;
-        if (m.type === "progress")
-          jobs.update(job, {
-            progress: m.progress,
-            message: `Exporting · ${Math.round(m.progress * 100)}%`,
-          });
-        if (m.type === "done") {
-          try {
-            renameSync(temporary, output!);
-            const repaired: number[] = m.repairedFrames ?? [];
+      await new Promise<void>((resolve, reject) => {
+        let stderr = "",
+          failure: Error | undefined,
+          completed = false;
+        let killTimer: ReturnType<typeof setTimeout> | undefined;
+        const cancelChild = () => {
+          if (child.connected) child.send({ type: "cancel" });
+          killTimer = setTimeout(() => {
+            if (child.exitCode === null && child.pid) {
+              try {
+                process.kill(-child.pid, "SIGTERM");
+              } catch {}
+            }
+          }, 5000);
+          killTimer.unref();
+        };
+        controller.signal.addEventListener("abort", cancelChild, {
+          once: true,
+        });
+        child.stderr?.on("data", (data) => {
+          stderr = (stderr + data).slice(-2000);
+        });
+        child.on("message", (message: any) => {
+          if (controller.signal.aborted) return;
+          if (message.type === "progress")
             jobs.update(job, {
-              state: "done",
-              progress: 1,
-              message: repaired.length
-                ? `Video exported · re-rendered ${plural(repaired.length, "damaged frame")}`
-                : "Video exported",
-              output,
+              progress: settings.enabled
+                ? (candidate ? 0.72 : 0) +
+                  message.progress * (candidate ? 0.15 : 0.65)
+                : message.progress,
+              message: `${candidate ? "Exporting corrections" : "Exporting"} · ${Math.round(message.progress * 100)}%`,
             });
-          } catch (e) {
-            jobs.update(job, { state: "error", message: (e as Error).message });
+          if (message.type === "status")
+            jobs.update(job, { message: String(message.message) });
+          if (message.type === "done") {
+            completed = true;
+            repairedFrames = Array.isArray(message.repairedFrames)
+              ? message.repairedFrames
+              : [];
+            stemFailures = Array.isArray(message.stemFailures)
+              ? message.stemFailures
+              : [];
+            for (const role of ["voice", "music", "sfx"] as const) {
+              if (!message.completedStems?.includes(role)) delete stems[role];
+            }
           }
+          if (message.type === "error") failure = Error(message.message);
+        });
+        child.once("error", (error) => {
+          failure = error;
+        });
+        child.once("close", () => {
+          clearTimeout(killTimer);
+          controller.signal.removeEventListener("abort", cancelChild);
+          renderChild = undefined;
+          jobs.processes.delete(job.id);
+          sweepBrowsersSoon();
+          if (controller.signal.aborted) reject(Error("Cancelled"));
+          else if (failure) reject(failure);
+          else if (!completed)
+            reject(Error(stderr || "Export stopped unexpectedly"));
+          else resolve();
+        });
+        child.send({
+          serveUrl: path.join(root, "dist/composition"),
+          inputProps: {
+            project,
+            mediaBase: exportBridge!.base,
+            preview: false,
+          },
+          outputLocation: target,
+          browserExecutable: chromium,
+          ffmpeg: bin.ffmpeg,
+          audioStems: stems,
+        });
+        if (controller.signal.aborted) cancelChild();
+      });
+      check();
+      return { path: target, stems, repairedFrames, stemFailures };
+    } finally {
+      exportBridge?.close();
+      releaseSlot();
+    }
+  };
+  void (async () => {
+    try {
+      let rendered = await render(frozen);
+      check();
+      if (settings.enabled) {
+        const reviewed = await runListeningReview({
+          project: frozen,
+          initial: rendered,
+          ffmpeg: bin.ffmpeg,
+          whisperPath: bin.whisper,
+          whisperModelPath: bin.model,
+          autoFix: settings.autoFix,
+          signal: controller.signal,
+          onProgress: (message) => {
+            check();
+            jobs.update(job, { message });
+          },
+          render,
+          commit: (next) => {
+            check();
+            if (
+              store.openSession !== opening ||
+              store.project.id !== frozen.id ||
+              store.project.revision !== frozen.revision
+            )
+              throw Error(
+                "The project was edited or reopened during listening. No automatic changes were applied.",
+              );
+            store.commit(next, "Apply listening review fixes");
+            return structuredClone(store.project);
+          },
+        });
+        check();
+        rendered = reviewed.render;
+        let reportPath = output! + ".listening.json";
+        if (existsSync(reportPath))
+          reportPath = output! + `.${job.id}.listening.json`;
+        try {
+          writeFileSync(
+            reportPath,
+            JSON.stringify(reviewed.report, null, 2) + "\n",
+            { mode: 0o600 },
+          );
+        } catch {
+          // An optional sidecar must never discard a successfully rendered movie.
+          reviewed.report.status = "needs-review";
+          reviewed.report.summary =
+            "Video exported; the listening report could not be saved";
+          reviewed.report.unresolved.push(
+            "The report is only available in this session. Check free space and save it from Review report.",
+          );
+          reportPath = "";
+          unsavedListeningReports.set(job.id, reviewed.report);
+          while (unsavedListeningReports.size > 3)
+            unsavedListeningReports.delete(
+              unsavedListeningReports.keys().next().value!,
+            );
         }
-        if (m.type === "error")
-          jobs.update(job, { state: "error", message: m.message });
-      });
-      child.on("error", (e) =>
-        jobs.update(job, { state: "error", message: e.message }),
-      );
-      child.on("close", () => {
-        exportBridge?.close();
-        release();
-        renderChild = undefined;
-        sweepBrowsersSoon();
-        jobs.processes.delete(job.id);
-        jobs.cancellers.delete(job.id);
-        if (job.state === "running")
-          jobs.update(job, {
-            state: "error",
-            message: stderr || "Export stopped unexpectedly",
-          });
-        for (const file of partials) if (existsSync(file)) unlinkSync(file);
-        forgetPartials();
-      });
-      child.send({
-        serveUrl: path.join(root, "dist/composition"),
-        inputProps,
-        outputLocation: temporary,
-        browserExecutable: chromium,
-        ffmpeg: bin.ffmpeg,
+        jobs.update(job, {
+          listening: {
+            status: reviewed.report.status,
+            fixes: reviewed.report.fixes.length,
+            reportPath,
+            summary: reviewed.report.summary,
+          },
+        });
+      }
+      check();
+      renameSync(rendered.path, output!);
+      jobs.update(job, {
+        state: "done",
+        progress: 1,
+        output,
+        message:
+          job.listening?.summary ??
+          (rendered.repairedFrames?.length
+            ? `Video exported · re-rendered ${plural(rendered.repairedFrames.length, "damaged frame")}`
+            : "Video exported"),
       });
     } catch (error) {
       if (job.state === "running")
         jobs.update(job, { state: "error", message: (error as Error).message });
     } finally {
-      if (!launched) {
-        exportPreparing = false;
-        exportBridge?.close();
-        release();
-        forgetPartials();
+      exportPreparing = false;
+      if (exportAbort === controller) exportAbort = undefined;
+      jobs.cancellers.delete(job.id);
+      jobs.processes.delete(job.id);
+      releaseOutput();
+      for (const file of paths) {
+        rmSync(file, { force: true });
+        exportPartials.delete(file);
       }
+      forgetPartials();
     }
   })();
   return job;
@@ -848,6 +999,35 @@ async function runTool(
       if (!job) return null;
       const { output: _output, ...visible } = job;
       return { ...visible, exportPath: target };
+    }
+    case "cutline_listening_review": {
+      const request = z
+        .object({
+          action: z.enum(["settings", "configure", "report"]),
+          enabled: z.boolean().optional(),
+          autoFix: z.boolean().optional(),
+          jobId: z.string().optional(),
+        })
+        .strict()
+        .parse(args);
+      const file = path.join(
+        sessionContext.rootData,
+        "listening-settings.json",
+      );
+      if (request.action === "configure")
+        return writeListeningSettings(file, {
+          ...(request.enabled === undefined
+            ? {}
+            : { enabled: request.enabled }),
+          ...(request.autoFix === undefined
+            ? {}
+            : { autoFix: request.autoFix }),
+        });
+      if (request.action === "settings") return readListeningSettings(file);
+      const job = request.jobId
+        ? jobs.jobs.get(request.jobId)
+        : [...jobs.jobs.values()].filter((j) => j.listening).at(-1);
+      return readListeningReport(job);
     }
     case "cutline_jobs":
       return agentTasks.list(args);
@@ -1600,8 +1780,12 @@ function register() {
     "stock.download": async (args) => {
       const opening = store.openSession;
       const asset = await stock.download(
-        z.union([z.number().int().positive(), z.string().uuid()]).parse(args.id),
-        z.enum(["commons", "pexels", "openverse"]).parse(args.provider ?? "commons"),
+        z
+          .union([z.number().int().positive(), z.string().uuid()])
+          .parse(args.id),
+        z
+          .enum(["commons", "pexels", "openverse"])
+          .parse(args.provider ?? "commons"),
         z.enum(["video", "image", "audio"]).parse(args.kind ?? "video"),
       );
       if (store.openSession !== opening)
@@ -1814,7 +1998,11 @@ function register() {
             style: "flat",
             provider: drawingProvider(),
             aspect:
-              p.width > p.height ? "wide" : p.height > p.width ? "tall" : "square",
+              p.width > p.height
+                ? "wide"
+                : p.height > p.width
+                  ? "tall"
+                  : "square",
             route: "vector",
             fill: true,
           }),
@@ -1822,7 +2010,9 @@ function register() {
         );
         if (made.kind !== "vector") throw Error("The shot could not be drawn.");
         if (store.openSession !== opening)
-          throw Error("A different project was opened meanwhile. Draw the shot again.");
+          throw Error(
+            "A different project was opened meanwhile. Draw the shot again.",
+          );
         const folder = path.join(data, "generated-media", "drawings");
         mkdirSync(folder, { recursive: true });
         const file = path.join(folder, `${randomUUID()}.png`);
@@ -1950,9 +2140,10 @@ function register() {
         args = { ...args, path: selected.filePaths[0] };
       }
       const { requestId: rawRequestId, ...input } = args;
-      const requestId = rawRequestId === undefined
-        ? undefined
-        : z.string().uuid().parse(rawRequestId);
+      const requestId =
+        rawRequestId === undefined
+          ? undefined
+          : z.string().uuid().parse(rawRequestId);
       if (!requestId) return hyperframesControl(input);
       if (uiSceneRequests.has(requestId))
         throw Error("This scene render is already running.");
@@ -1966,7 +2157,10 @@ function register() {
       }
     },
     "hyperframes.cancel": (args) => {
-      const { requestId } = z.object({ requestId: z.string().uuid() }).strict().parse(args);
+      const { requestId } = z
+        .object({ requestId: z.string().uuid() })
+        .strict()
+        .parse(args);
       const parent = uiSceneRequests.get(requestId);
       if (parent) jobs.cancel(parent);
       return { cancelled: !!parent };
@@ -2022,7 +2216,9 @@ function register() {
         files = d.filePaths;
       }
       if (store.openSession !== opening)
-        throw Error("Project changed while choosing media. Import into the current project again.");
+        throw Error(
+          "Project changed while choosing media. Import into the current project again.",
+        );
       const failures: string[] = [];
       const modelPaths = files.filter((file) => /\.(?:glb|gltf)$/i.test(file));
       files = files.filter((file) => !/\.(?:glb|gltf)$/i.test(file));
@@ -2098,6 +2294,35 @@ function register() {
         );
     },
     export: () => exportVideo(),
+    "listening.settings": () =>
+      readListeningSettings(
+        path.join(sessionContext.rootData, "listening-settings.json"),
+      ),
+    "listening.settings.set": (args) =>
+      writeListeningSettings(
+        path.join(sessionContext.rootData, "listening-settings.json"),
+        args,
+      ),
+    "listening.report.open": async (args) => {
+      const job = jobs.jobs.get(z.string().parse(args.id));
+      if (!job?.listening) throw Error("No listening report for this export.");
+      if (!job.listening.reportPath) {
+        const report = readListeningReport(job);
+        const choice = await dialog.showSaveDialog(win, {
+          title: "Save listening report",
+          defaultPath: (job.output ?? "Cutline") + ".listening.json",
+          filters: [{ name: "JSON report", extensions: ["json"] }],
+        });
+        if (choice.canceled || !choice.filePath) return;
+        writeFileSync(choice.filePath, JSON.stringify(report, null, 2) + "\n", {
+          mode: 0o600,
+        });
+        job.listening.reportPath = choice.filePath;
+        unsavedListeningReports.delete(job.id);
+      }
+      const error = await shell.openPath(job.listening.reportPath);
+      if (error) throw Error(error);
+    },
     "job.cancel": (args) => jobs.cancel(args.id),
     reveal: (args) => {
       const j = jobs.jobs.get(args.id);
@@ -2171,415 +2396,431 @@ function register() {
     return handler(args);
   });
 }
-app.whenReady().then(async () => {
-  if (!primary) return;
-  if (startupError) throw startupError;
-  // Chrome left running by workers of an earlier run that crashed.
-  void sweepOrphanedBrowsers(path.join(vendor, browserDirectory));
-  sessions.register();
-  store = new Store(path.join(data, "recovery.cutline"), (file) =>
-    leases.claimFile(file),
-  );
-  library = new ProjectLibrary(
-    projectsFolder,
-    path.join(data, "recent-projects.json"),
-  );
-  store.on("save-status", (error: string | null) => {
-    if (error) void warnSaveFailed(error);
-  });
-  if (pendingProject) await openFromFinder(pendingProject);
-  // Startup opens happen before the change listener below is attached.
-  sessions.updateProject(store.project);
-  // An agent call's own job only groups the work it starts; the editor
-  // shows that work.
-  jobs = new Jobs((j) => {
-    if (j.kind !== "agent") send("job", j);
-  });
-  // A cancelled agent call never lands an edit, whatever it was waiting on.
-  store.beforeCommit = () => jobs.assertActive();
-  media = new Media(path.join(data, "media-cache"), bin, jobs);
-  hyperframes = new Hyperframes({
-    directory: path.join(data, "scenes"),
-    media,
-    jobs,
-    browserExecutable: previewBrowser,
-    ffmpeg: bin.ffmpeg,
-    ffprobe: bin.ffprobe,
-  });
-  hyperframesControl = createHyperframesControl({
-    store,
-    renderer: hyperframes,
-  });
-  model3dControl = createModel3DControl({ store, renderer: hyperframes });
-  // Older versions left raw audio dumps behind (about 115 MB per hour of media),
-  // and preview copies of old imports pile up: keep the cache under its cap,
-  // never touching what the open project uses.
-  void media.cleanCache(
-    Date.now(),
-    store.project.assets.flatMap((asset) =>
-      [asset.proxy, asset.reversed, asset.reversedPart, asset.thumbnail].filter(
-        (file): file is string => typeof file === "string",
+app
+  .whenReady()
+  .then(async () => {
+    if (!primary) return;
+    if (startupError) throw startupError;
+    // Chrome left running by workers of an earlier run that crashed.
+    void sweepOrphanedBrowsers(path.join(vendor, browserDirectory));
+    sessions.register();
+    store = new Store(path.join(data, "recovery.cutline"), (file) =>
+      leases.claimFile(file),
+    );
+    library = new ProjectLibrary(
+      projectsFolder,
+      path.join(data, "recent-projects.json"),
+    );
+    store.on("save-status", (error: string | null) => {
+      if (error) void warnSaveFailed(error);
+    });
+    if (pendingProject) await openFromFinder(pendingProject);
+    // Startup opens happen before the change listener below is attached.
+    sessions.updateProject(store.project);
+    // An agent call's own job only groups the work it starts; the editor
+    // shows that work.
+    jobs = new Jobs((j) => {
+      if (j.kind !== "agent") send("job", j);
+    });
+    // A cancelled agent call never lands an edit, whatever it was waiting on.
+    store.beforeCommit = () => jobs.assertActive();
+    media = new Media(path.join(data, "media-cache"), bin, jobs);
+    hyperframes = new Hyperframes({
+      directory: path.join(data, "scenes"),
+      media,
+      jobs,
+      browserExecutable: previewBrowser,
+      ffmpeg: bin.ffmpeg,
+      ffprobe: bin.ffprobe,
+    });
+    hyperframesControl = createHyperframesControl({
+      store,
+      renderer: hyperframes,
+    });
+    model3dControl = createModel3DControl({ store, renderer: hyperframes });
+    // Older versions left raw audio dumps behind (about 115 MB per hour of media),
+    // and preview copies of old imports pile up: keep the cache under its cap,
+    // never touching what the open project uses.
+    void media.cleanCache(
+      Date.now(),
+      store.project.assets.flatMap((asset) =>
+        [
+          asset.proxy,
+          asset.reversed,
+          asset.reversedPart,
+          asset.thumbnail,
+        ].filter((file): file is string => typeof file === "string"),
       ),
-    ),
-  );
-  musicControl = createMusicControl({ store, media, jobs, directory: data });
-  speech = new Speech({
-    directory: path.join(data, "speech"),
-    modelDirectory: path.join(vendor, "kokoro"),
-    workerPath: path.join(__dirname, "tts-worker.cjs"),
-    voicesDirectory: path.join(
-      app.getAppPath(),
-      "node_modules",
-      "kokoro-js",
-      "voices",
-    ),
-    jobs,
-  });
-  stockCredentials = new StockCredentials(
-    path.join(sessionContext.rootData, "stock-credentials.json"),
-    safeStorage,
-  );
-  stock = new StockLibrary(path.join(data, "stock-media"), media, jobs, () =>
-    stockCredentials.getPexels(),
-  );
-  generationCredentials = new GenerationCredentials(
-    path.join(sessionContext.rootData, "higgsfield-credentials.json"),
-    safeStorage,
-  );
-  generation = new GenerationLibrary(
-    path.join(data, "generated-media"),
-    media,
-    () => generationCredentials.getKey(),
-  );
-  generation.start();
-  pictures = new HiggsfieldPictures(
-    path.join(data, "generated-media", "pictures"),
-    () => generationCredentials.getKey(),
-  );
-  loadGraphicsSettings();
-  mcpLauncher = writeAgentLauncher(
-    path.join(data, "agent"),
-    process.execPath,
-    path.join(__dirname, "mcp.cjs"),
-    path.join(data, "connection.json"),
-  );
-  agentIO = createAgentIO({
-    store,
-    media,
-    jobs,
-    directory: data,
-    library,
-    preview,
-    status: connectionStatus,
-  });
-  references = new References(path.join(data, "references"));
-  agentMedia = createAgentMedia({
-    store,
-    media,
-    jobs,
-    stock,
-    speech,
-    autoEdit: autoEditForAgent,
-    relink: (assetId, file) => relinkMedia({ store, media }, assetId, file),
-    draw: async (description, style, signal) => {
-      const input = GraphicGenerateSchema.parse({
-        prompt: description,
-        onto: `${style === "locked-split" ? "near-black" : style === "cards" ? "warm off-white" : "soft pastel"} video`,
-        style: style === "cards" ? "glyph" : "flat",
-        provider: drawingProvider(),
-        aspect: "square",
-      });
-      const key = createHash("sha256")
-        .update(JSON.stringify([input, assistantSettings.claudeModel]))
-        .digest("hex");
-      const kept = drawings.get(key);
-      if (kept) {
-        const done = await kept.catch(() => undefined);
-        if (done && (done.kind === "svg" || existsSync(done.file))) return done;
-        if (drawings.get(key) === kept) drawings.delete(key);
-      }
-      const fit = (svg: string) =>
-        fitSvg(withoutBackdrop(svg)).catch(() => svg);
-      const drawing = makeGraphic(input, { signal }).then(async (made) =>
-        made.kind === "vector"
-          ? { kind: "svg" as const, svg: await fit(made.svg) }
-          : // A picture that kept its backdrop: the drawing made first is
-            // better, when there is one.
-            !made.cutout && made.drawing
-            ? { kind: "svg" as const, svg: await fit(made.drawing.svg) }
-            : { kind: "image" as const, file: made.file, cutout: made.cutout },
-      );
-      drawings.set(key, drawing);
-      drawing.catch(() => {
-        if (drawings.get(key) === drawing) drawings.delete(key);
-      });
-      return drawing;
-    },
-    // Agents' graphics are drawn by the assistant chosen in Cutline, never
-    // by a default that may not be installed.
-    graphic: (input, signal) =>
-      makeGraphic({ ...input, provider: drawingProvider() }, { signal }),
-    references: {
-      logo: (query) => references.logo(query),
-      inLibrary: (name) => references.inLibrary(name),
-      screenshot: async (url, options) => {
-        const file = references.screenshotPath(url);
-        const shot = await capturePage(url, file, options);
-        return { file, title: shot.title };
-      },
-    },
-  });
-  agentTasks = new AgentTasks(jobs);
-  bridge = await startBridge(
-    store,
-    path.join(data, "connection.json"),
-    externalCall,
-    externalTools,
-    {
-      // The built-in Claude waits up to four minutes for a long tool, then
-      // gets a task to follow. Only its Stop ends the turn's work: its HTTP
-      // client closing a slow request must never throw finished work away.
-      localCall: (name, args) =>
-        toolCall(name, args, {
-          signal: claude?.turnSignal,
-          deadlineMs: LOCAL_CLAUDE_DEADLINE_MS,
-        }),
-      localTools: tools,
-    },
-  );
-  base = bridge.base;
-  codex = new Codex(path.join(data, "assistant"), tools, (name, args, signal) =>
-    toolCall(name, args, { signal, deadlineMs: ASSISTANT_DEADLINE_MS }),
-  );
-  codex.on("event", (e) => send("assistant", { ...e, provider: "codex" }));
-  loadAssistantSettings();
-  claude = new ClaudeAssistant(
-    path.join(data, "assistant", "claude"),
-    () => bridge.mcpUrl + "/local",
-  );
-  claude.model = assistantSettings.claudeModel;
-  claude.on("event", (e) => send("assistant", e));
-  store.on("change", (s) => {
-    sessions.updateProject(s.project);
-    if (win && !win.isDestroyed())
-      win.setTitle(`${sessions.current().name} — ${s.project.name} — Cutline`);
-    // A project with content always has a file; filing it sends its own change.
-    if (library.fileIfNeeded(store)) return;
-    rememberProject();
-    send("state", s);
-    media.ensurePreviews(s.project.assets);
-    media.ensureReversed(s.project);
-  });
-  // Preview copies of heavy video are made in the background, so imports
-  // never wait for them, and deleted ones are rebuilt.
-  media.on("preview", (ready: PreviewReady) =>
-    store.setPreview(ready.assetId, ready, ready.path),
-  );
-  media.ensurePreviews(store.project.assets);
-  media.ensureReversed(store.project);
-  // A project from before projects were files gets its file now.
-  if (!library.fileIfNeeded(store)) rememberProject();
-  register();
-  // Copilot's dark glass: a native behind-window blur under a dense tint.
-  // QA screenshots use an opaque backdrop so captures match what people see.
-  nativeTheme.themeSource = "dark";
-  const glass = process.platform === "darwin" && !process.env.CUTLINE_QA;
-  win = new BrowserWindow({
-    width: 1440,
-    height: 960,
-    minWidth: 1100,
-    minHeight: 760,
-    title: `${sessions.current().name} — ${store.project.name} — Cutline`,
-    backgroundColor: glass ? "#00000000" : "#101013",
-    ...(glass
-      ? { vibrancy: "hud" as const, visualEffectState: "active" as const }
-      : {}),
-    titleBarStyle: "hiddenInset",
-    trafficLightPosition: { x: 18, y: 20 },
-    webPreferences: {
-      preload: path.join(__dirname, "preload.cjs"),
-      contextIsolation: true,
-      backgroundThrottling: false,
-      nodeIntegration: false,
-      sandbox: true,
-    },
-  });
-  // A crashed or hung editor page comes back; the project lives here.
-  const editorWindow = keepEditorAlive(win, {
-    pending: previewRequests,
-    askReload: async () =>
-      !process.env.CUTLINE_QA &&
-      (
-        await messageBox({
-          type: "warning",
-          message: "The editor isn't responding",
-          detail:
-            "Your project is safe. Reload the editor, or wait for it to catch up.",
-          buttons: ["Reload editor", "Wait"],
-          defaultId: 1,
-          cancelId: 1,
-        })
-      ).response === 0,
-  });
-  // Closing the window quits Cutline; an export or other work asks first.
-  win.on("close", (event) => {
-    if (quitting) return;
-    event.preventDefault();
-    void confirmQuit();
-  });
-  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  win.webContents.on("will-navigate", (e, url) => {
-    if (!url.startsWith(process.env.CUTLINE_DEV_URL ?? "file:"))
-      e.preventDefault();
-  });
-  session.defaultSession.setPermissionRequestHandler(
-    (_wc, _permission, callback) => callback(false),
-  );
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        "Content-Security-Policy": [contentSecurityPolicy],
-      },
+    );
+    musicControl = createMusicControl({ store, media, jobs, directory: data });
+    speech = new Speech({
+      directory: path.join(data, "speech"),
+      modelDirectory: path.join(vendor, "kokoro"),
+      workerPath: path.join(__dirname, "tts-worker.cjs"),
+      voicesDirectory: path.join(
+        app.getAppPath(),
+        "node_modules",
+        "kokoro-js",
+        "voices",
+      ),
+      jobs,
     });
-  });
-  Menu.setApplicationMenu(
-    Menu.buildFromTemplate([
-      {
-        label: "Cutline",
-        submenu: [{ role: "about" }, { type: "separator" }, { role: "quit" }],
-      },
-      {
-        label: "File",
-        submenu: [
-          {
-            label: "New session",
-            accelerator: "Alt+CmdOrCtrl+N",
-            click: () => void fromMenu(() => sessions.create()),
-          },
-          {
-            label: "Copy Codex session prompt",
-            click: () => {
-              copySessionPrompt();
-            },
-          },
-          { type: "separator" },
-          {
-            label: "New project",
-            accelerator: "CmdOrCtrl+N",
-            click: () => void fromMenu(newProject),
-          },
-          {
-            label: "Projects…",
-            accelerator: "CmdOrCtrl+O",
-            click: () => send("ui", { show: "projects" }),
-          },
-          {
-            label: "Open file…",
-            accelerator: "Shift+CmdOrCtrl+O",
-            click: () => void fromMenu(chooseProject),
-          },
-          ...(process.platform === "darwin"
-            ? [
-                {
-                  label: "Open Recent",
-                  role: "recentDocuments" as const,
-                  submenu: [
-                    {
-                      label: "Clear Menu",
-                      role: "clearRecentDocuments" as const,
-                    },
-                  ],
+    stockCredentials = new StockCredentials(
+      path.join(sessionContext.rootData, "stock-credentials.json"),
+      safeStorage,
+    );
+    stock = new StockLibrary(path.join(data, "stock-media"), media, jobs, () =>
+      stockCredentials.getPexels(),
+    );
+    generationCredentials = new GenerationCredentials(
+      path.join(sessionContext.rootData, "higgsfield-credentials.json"),
+      safeStorage,
+    );
+    generation = new GenerationLibrary(
+      path.join(data, "generated-media"),
+      media,
+      () => generationCredentials.getKey(),
+    );
+    generation.start();
+    pictures = new HiggsfieldPictures(
+      path.join(data, "generated-media", "pictures"),
+      () => generationCredentials.getKey(),
+    );
+    loadGraphicsSettings();
+    mcpLauncher = writeAgentLauncher(
+      path.join(data, "agent"),
+      process.execPath,
+      path.join(__dirname, "mcp.cjs"),
+      path.join(data, "connection.json"),
+    );
+    agentIO = createAgentIO({
+      store,
+      media,
+      jobs,
+      directory: data,
+      library,
+      preview,
+      status: connectionStatus,
+    });
+    references = new References(path.join(data, "references"));
+    agentMedia = createAgentMedia({
+      store,
+      media,
+      jobs,
+      stock,
+      speech,
+      autoEdit: autoEditForAgent,
+      relink: (assetId, file) => relinkMedia({ store, media }, assetId, file),
+      draw: async (description, style, signal) => {
+        const input = GraphicGenerateSchema.parse({
+          prompt: description,
+          onto: `${style === "locked-split" ? "near-black" : style === "cards" ? "warm off-white" : "soft pastel"} video`,
+          style: style === "cards" ? "glyph" : "flat",
+          provider: drawingProvider(),
+          aspect: "square",
+        });
+        const key = createHash("sha256")
+          .update(JSON.stringify([input, assistantSettings.claudeModel]))
+          .digest("hex");
+        const kept = drawings.get(key);
+        if (kept) {
+          const done = await kept.catch(() => undefined);
+          if (done && (done.kind === "svg" || existsSync(done.file)))
+            return done;
+          if (drawings.get(key) === kept) drawings.delete(key);
+        }
+        const fit = (svg: string) =>
+          fitSvg(withoutBackdrop(svg)).catch(() => svg);
+        const drawing = makeGraphic(input, { signal }).then(async (made) =>
+          made.kind === "vector"
+            ? { kind: "svg" as const, svg: await fit(made.svg) }
+            : // A picture that kept its backdrop: the drawing made first is
+              // better, when there is one.
+              !made.cutout && made.drawing
+              ? { kind: "svg" as const, svg: await fit(made.drawing.svg) }
+              : {
+                  kind: "image" as const,
+                  file: made.file,
+                  cutout: made.cutout,
                 },
-              ]
-            : []),
-          {
-            label: "Open backup…",
-            click: () => void fromMenu(openBackup),
-          },
-          { type: "separator" },
-          {
-            // The editor handles ⌘S itself; the menu only shows it.
-            label: "Save",
-            accelerator: "CmdOrCtrl+S",
-            registerAccelerator: false,
-            click: () => void fromMenu(() => saveProject()),
-          },
-          {
-            label: "Save as…",
-            accelerator: "Shift+CmdOrCtrl+S",
-            click: () => void fromMenu(() => saveProject(true)),
-          },
-        ],
+        );
+        drawings.set(key, drawing);
+        drawing.catch(() => {
+          if (drawings.get(key) === drawing) drawings.delete(key);
+        });
+        return drawing;
       },
-      {
-        label: "Edit",
-        submenu: [
-          // The page decides: a text field undoes its typing, anything else
-          // undoes the last project edit. The page never handles ⌘Z itself.
-          {
-            label: "Undo",
-            accelerator: "CmdOrCtrl+Z",
-            click: () => send("ui", { edit: "undo" }),
-          },
-          {
-            label: "Redo",
-            accelerator: "Shift+CmdOrCtrl+Z",
-            click: () => send("ui", { edit: "redo" }),
-          },
-          { type: "separator" },
-          { role: "cut" },
-          { role: "copy" },
-          { role: "paste" },
-          { role: "selectAll" },
-        ],
+      // Agents' graphics are drawn by the assistant chosen in Cutline, never
+      // by a default that may not be installed.
+      graphic: (input, signal) =>
+        makeGraphic({ ...input, provider: drawingProvider() }, { signal }),
+      references: {
+        logo: (query) => references.logo(query),
+        inLibrary: (name) => references.inLibrary(name),
+        screenshot: async (url, options) => {
+          const file = references.screenshotPath(url);
+          const shot = await capturePage(url, file, options);
+          return { file, title: shot.title };
+        },
       },
-      {
-        label: "View",
-        submenu: [
-          {
-            label: "Reload editor",
-            accelerator: "CmdOrCtrl+R",
-            click: () => editorWindow.reload(),
-          },
-          { role: "togglefullscreen" },
-          ...(process.env.CUTLINE_DEV_URL
-            ? [{ role: "toggleDevTools" as const }]
-            : []),
-        ],
-      },
-    ]),
-  );
-  // A reload (Cmd+R, or the automatic one after a crash) or closing the
-  // window during this first load interrupts it; that is not a failed start.
-  try {
-    if (process.env.CUTLINE_DEV_URL)
-      await win.loadURL(process.env.CUTLINE_DEV_URL);
-    else await win.loadFile(path.join(root, "dist/ui/index.html"));
-  } catch (error) {
-    const code = (error as { code?: string }).code ?? "";
-    if (
-      !win.isDestroyed() &&
-      !/ERR_ABORTED|ERR_FAILED/u.test(code + (error as Error).message)
-    )
-      throw error;
-  }
-  // Startup problems, such as an unreadable autosave that was set aside or a
-  // project file that changed while this session was closed.
-  if (store.notices.length && !process.env.CUTLINE_QA)
-    void messageBox({
-      type: "warning",
-      message: "About your last autosave",
-      detail: store.notices.join("\n\n"),
     });
-  // Edits from last time that never reached the project file.
-  if (store.saveError) void warnSaveFailed(store.saveError);
-}).catch((error) => {
-  // Without a window there is nothing to click and no way back: say why,
-  // then quit, so opening Cutline again starts afresh.
-  dialog.showErrorBox("Cutline couldn't start", startupProblem(error));
-  app.exit(1);
-});
+    agentTasks = new AgentTasks(jobs);
+    bridge = await startBridge(
+      store,
+      path.join(data, "connection.json"),
+      externalCall,
+      externalTools,
+      {
+        // The built-in Claude waits up to four minutes for a long tool, then
+        // gets a task to follow. Only its Stop ends the turn's work: its HTTP
+        // client closing a slow request must never throw finished work away.
+        localCall: (name, args) =>
+          toolCall(name, args, {
+            signal: claude?.turnSignal,
+            deadlineMs: LOCAL_CLAUDE_DEADLINE_MS,
+          }),
+        localTools: tools,
+      },
+    );
+    base = bridge.base;
+    codex = new Codex(
+      path.join(data, "assistant"),
+      tools,
+      (name, args, signal) =>
+        toolCall(name, args, { signal, deadlineMs: ASSISTANT_DEADLINE_MS }),
+    );
+    codex.on("event", (e) => send("assistant", { ...e, provider: "codex" }));
+    loadAssistantSettings();
+    claude = new ClaudeAssistant(
+      path.join(data, "assistant", "claude"),
+      () => bridge.mcpUrl + "/local",
+    );
+    claude.model = assistantSettings.claudeModel;
+    claude.on("event", (e) => send("assistant", e));
+    store.on("change", (s) => {
+      sessions.updateProject(s.project);
+      if (win && !win.isDestroyed())
+        win.setTitle(
+          `${sessions.current().name} — ${s.project.name} — Cutline`,
+        );
+      // A project with content always has a file; filing it sends its own change.
+      if (library.fileIfNeeded(store)) return;
+      rememberProject();
+      send("state", s);
+      media.ensurePreviews(s.project.assets);
+      media.ensureReversed(s.project);
+    });
+    // Preview copies of heavy video are made in the background, so imports
+    // never wait for them, and deleted ones are rebuilt.
+    media.on("preview", (ready: PreviewReady) =>
+      store.setPreview(ready.assetId, ready, ready.path),
+    );
+    media.ensurePreviews(store.project.assets);
+    media.ensureReversed(store.project);
+    // A project from before projects were files gets its file now.
+    if (!library.fileIfNeeded(store)) rememberProject();
+    register();
+    // Copilot's dark glass: a native behind-window blur under a dense tint.
+    // QA screenshots use an opaque backdrop so captures match what people see.
+    nativeTheme.themeSource = "dark";
+    const glass = process.platform === "darwin" && !process.env.CUTLINE_QA;
+    win = new BrowserWindow({
+      width: 1440,
+      height: 960,
+      minWidth: 1100,
+      minHeight: 760,
+      title: `${sessions.current().name} — ${store.project.name} — Cutline`,
+      backgroundColor: glass ? "#00000000" : "#101013",
+      ...(glass
+        ? { vibrancy: "hud" as const, visualEffectState: "active" as const }
+        : {}),
+      titleBarStyle: "hiddenInset",
+      trafficLightPosition: { x: 18, y: 20 },
+      webPreferences: {
+        preload: path.join(__dirname, "preload.cjs"),
+        contextIsolation: true,
+        backgroundThrottling: false,
+        nodeIntegration: false,
+        sandbox: true,
+      },
+    });
+    // A crashed or hung editor page comes back; the project lives here.
+    const editorWindow = keepEditorAlive(win, {
+      pending: previewRequests,
+      askReload: async () =>
+        !process.env.CUTLINE_QA &&
+        (
+          await messageBox({
+            type: "warning",
+            message: "The editor isn't responding",
+            detail:
+              "Your project is safe. Reload the editor, or wait for it to catch up.",
+            buttons: ["Reload editor", "Wait"],
+            defaultId: 1,
+            cancelId: 1,
+          })
+        ).response === 0,
+    });
+    // Closing the window quits Cutline; an export or other work asks first.
+    win.on("close", (event) => {
+      if (quitting) return;
+      event.preventDefault();
+      void confirmQuit();
+    });
+    win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    win.webContents.on("will-navigate", (e, url) => {
+      if (!url.startsWith(process.env.CUTLINE_DEV_URL ?? "file:"))
+        e.preventDefault();
+    });
+    session.defaultSession.setPermissionRequestHandler(
+      (_wc, _permission, callback) => callback(false),
+    );
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          "Content-Security-Policy": [contentSecurityPolicy],
+        },
+      });
+    });
+    Menu.setApplicationMenu(
+      Menu.buildFromTemplate([
+        {
+          label: "Cutline",
+          submenu: [{ role: "about" }, { type: "separator" }, { role: "quit" }],
+        },
+        {
+          label: "File",
+          submenu: [
+            {
+              label: "New session",
+              accelerator: "Alt+CmdOrCtrl+N",
+              click: () => void fromMenu(() => sessions.create()),
+            },
+            {
+              label: "Copy Codex session prompt",
+              click: () => {
+                copySessionPrompt();
+              },
+            },
+            { type: "separator" },
+            {
+              label: "New project",
+              accelerator: "CmdOrCtrl+N",
+              click: () => void fromMenu(newProject),
+            },
+            {
+              label: "Projects…",
+              accelerator: "CmdOrCtrl+O",
+              click: () => send("ui", { show: "projects" }),
+            },
+            {
+              label: "Open file…",
+              accelerator: "Shift+CmdOrCtrl+O",
+              click: () => void fromMenu(chooseProject),
+            },
+            ...(process.platform === "darwin"
+              ? [
+                  {
+                    label: "Open Recent",
+                    role: "recentDocuments" as const,
+                    submenu: [
+                      {
+                        label: "Clear Menu",
+                        role: "clearRecentDocuments" as const,
+                      },
+                    ],
+                  },
+                ]
+              : []),
+            {
+              label: "Open backup…",
+              click: () => void fromMenu(openBackup),
+            },
+            { type: "separator" },
+            {
+              // The editor handles ⌘S itself; the menu only shows it.
+              label: "Save",
+              accelerator: "CmdOrCtrl+S",
+              registerAccelerator: false,
+              click: () => void fromMenu(() => saveProject()),
+            },
+            {
+              label: "Save as…",
+              accelerator: "Shift+CmdOrCtrl+S",
+              click: () => void fromMenu(() => saveProject(true)),
+            },
+          ],
+        },
+        {
+          label: "Edit",
+          submenu: [
+            // The page decides: a text field undoes its typing, anything else
+            // undoes the last project edit. The page never handles ⌘Z itself.
+            {
+              label: "Undo",
+              accelerator: "CmdOrCtrl+Z",
+              click: () => send("ui", { edit: "undo" }),
+            },
+            {
+              label: "Redo",
+              accelerator: "Shift+CmdOrCtrl+Z",
+              click: () => send("ui", { edit: "redo" }),
+            },
+            { type: "separator" },
+            { role: "cut" },
+            { role: "copy" },
+            { role: "paste" },
+            { role: "selectAll" },
+          ],
+        },
+        {
+          label: "View",
+          submenu: [
+            {
+              label: "Reload editor",
+              accelerator: "CmdOrCtrl+R",
+              click: () => editorWindow.reload(),
+            },
+            { role: "togglefullscreen" },
+            ...(process.env.CUTLINE_DEV_URL
+              ? [{ role: "toggleDevTools" as const }]
+              : []),
+          ],
+        },
+      ]),
+    );
+    // A reload (Cmd+R, or the automatic one after a crash) or closing the
+    // window during this first load interrupts it; that is not a failed start.
+    try {
+      if (process.env.CUTLINE_DEV_URL)
+        await win.loadURL(process.env.CUTLINE_DEV_URL);
+      else await win.loadFile(path.join(root, "dist/ui/index.html"));
+    } catch (error) {
+      const code = (error as { code?: string }).code ?? "";
+      if (
+        !win.isDestroyed() &&
+        !/ERR_ABORTED|ERR_FAILED/u.test(code + (error as Error).message)
+      )
+        throw error;
+    }
+    // Startup problems, such as an unreadable autosave that was set aside or a
+    // project file that changed while this session was closed.
+    if (store.notices.length && !process.env.CUTLINE_QA)
+      void messageBox({
+        type: "warning",
+        message: "About your last autosave",
+        detail: store.notices.join("\n\n"),
+      });
+    // Edits from last time that never reached the project file.
+    if (store.saveError) void warnSaveFailed(store.saveError);
+  })
+  .catch((error) => {
+    // Without a window there is nothing to click and no way back: say why,
+    // then quit, so opening Cutline again starts afresh.
+    dialog.showErrorBox("Cutline couldn't start", startupProblem(error));
+    app.exit(1);
+  });
 // Clicking the Dock icon brings the editor back.
 app.on("activate", () => {
   if (win && !win.isDestroyed()) {
@@ -2596,6 +2837,7 @@ app.on("before-quit", (event) => {
   }
   generation?.stop();
   hyperframes?.close();
+  exportAbort?.abort();
   // Drawings in progress stop with Cutline instead of running on alone.
   vectorGeneration?.abort();
   shotDrawing?.abort();

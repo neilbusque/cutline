@@ -126,7 +126,7 @@ const schemas = {
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   cutline_import_media:
-    "Import absolute local paths; returns asset IDs/failures. Valid files still import. Place with cutline_edit clip.add. One Undo.",
+    "Import absolute paths; returns IDs/failures, keeps valid imports. Place with clip.add. One Undo.",
   cutline_vector_import:
     "Import absolute SVG as editable layers at startFrame. Unsupported parts warn. One Undo.",
   cutline_save_project:
@@ -144,7 +144,7 @@ const descriptions: Record<keyof typeof schemas, string> = {
     "Add timeline SRT; one Undo. Word captions: cutline_transcribe. Style: cutline_edit.",
   cutline_get_srt: "Read timeline captions as SRT; page with offset.",
   cutline_preview:
-    "Preview timeline: image=true returns rendered images; frames/count makes a sheet. frame/seconds seek; clipId selects; playing toggles.",
+    "Preview: image returns render, frames/count a sheet. frame/seconds seek; clipId selects; playing toggles.",
   cutline_connection_status:
     "Read editor availability, transports, tool count and last agent call. Omits tokens/paths.",
 };

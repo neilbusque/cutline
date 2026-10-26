@@ -8,7 +8,7 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import type { Asset, Job, Project } from "../shared/model";
+import type { Asset, Clip, Job, Project } from "../shared/model";
 import { errorText } from "./controls";
 import { speechVoices, type SpeechVoice, type TtsStatus } from "../shared/tts";
 import "./audio.css";
@@ -26,7 +26,7 @@ export function AudioLibrary({
   project: Project;
   base: string;
   jobs: Job[];
-  addAudio: (asset: Asset) => void;
+  addAudio: (asset: Asset, role?: Clip["audioRole"]) => void;
   importAudio: () => void;
   report: (error: unknown) => void;
   active?: boolean;
@@ -356,7 +356,7 @@ export function AudioLibrary({
                     : "Add at the current playhead"
                 }
                 onClick={() => {
-                  if (!disabled && !stale) addAudio(generated);
+                  if (!disabled && !stale) addAudio(generated, "voice");
                 }}
               >
                 <Plus size={14} />

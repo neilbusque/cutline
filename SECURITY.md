@@ -21,6 +21,7 @@ Manual editing, transcription, voiceover and export do not need an assistant or 
 - **Assistants:** messages, requested project metadata, transcripts and preview images may reach the selected provider. A requested preview is an image of project content.
 - **Stock:** searches, previews and downloads reach the selected provider. Imported stock keeps attribution and licensing information.
 - **Higgsfield:** submitted generation sends its prompt and selected reference images and may consume credits.
+- **Listening review:** when enabled, the complete exported soundtrack is sent in bounded audio sections to the official hosted Qwen demo and its Alibaba DashScope backend. This shared setting is off on a fresh install. Temporary local audio is removed after review; provider retention is outside Cutline's control. The report stays on the Mac. Model output is untrusted evidence, never executable instructions.
 
 Provider policies and permissions apply independently. Saved credentials and a local connection test do not prove provider authorization, credits or service health. API credentials stored by Cutline use Electron safeStorage; authentication managed by an assistant client remains that client's responsibility.
 

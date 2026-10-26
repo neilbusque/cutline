@@ -1445,6 +1445,7 @@ export function createReelPlan(
     if (frames > 0)
       audio.push({
         ...makeClip(p, "audio", tracks.music, startFrame, music),
+        audioRole: "music",
         duration: frames,
         volume: musicVolume,
         fadeIn: Math.min(fps, Math.floor(frames / 3)),

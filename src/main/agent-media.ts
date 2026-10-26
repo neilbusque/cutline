@@ -169,19 +169,19 @@ const schemas = {
 };
 const descriptions: Record<keyof typeof schemas, string> = {
   cutline_stock_import:
-    "Import stock with credits. Use returned numeric ID or Openverse UUID. at places muted B-roll (video up to 5s, photo 4s zoom) or audible audio on Sound effects at 50% volume with short fades; duration/trackId override. Undoable; may return job.",
+    "Import stock ID/UUID with credits. at places muted B-roll or audible effects; duration/trackId override. Defaults in workflow. Undoable job.",
   cutline_voiceover:
-    "Generate free local Kokoro speech (af_heart, 1.08x). Omit at to import only; at adds audio. Undoable; wait on jobs. Duck music with audio.duck.",
+    "Local Kokoro (af_heart, 1.08x). Omit at to import; at places. Undoable job. Duck with audio.duck.",
   cutline_auto_edit:
-    "Auto-edit assetId or absolute video path: speech/pause cuts/captions, optional B-roll/music. Replaces timeline, sets 1080x1920. Undoable; wait with cutline_jobs.",
+    "Auto-edit assetId/path: speech cuts/captions, optional B-roll/music. Replaces timeline at 1080x1920. Undoable job.",
   cutline_relink:
-    "Relink asset/other missing folder files to absolute local path. Keeps credits; transcript/beats require matching length. Undoable.",
+    "Relink asset and missing neighbors. Absolute path; keeps credits, timing data only if lengths match. Undoable.",
   cutline_reference:
-    "Show what the script names: kind logo (target=product or domain) or screenshot (target=url, selector, phone view). at places it; omit at to check, changing nothing.",
+    "Fetch real logo (product/domain) or screenshot (URL, selector, phone). at places; omit at to inspect only.",
   cutline_style_reel:
     "Lay out a creator-style Short on the speaker video from timed beats; show = logo name, page url, assetId, text, or a drawing to make.",
   cutline_graphic:
-    "Make an original graphic from a sentence: an editable vector drawn and checked by Claude or ChatGPT, or a cut-out Higgsfield picture when too detailed (if allowed). at places it.",
+    "Draw/check an editable vector, or use an allowed Higgsfield cutout for detail. at places it. Workflow explains costs.",
 };
 const hints: Record<
   keyof typeof schemas,
@@ -383,6 +383,7 @@ function placement(
       asset,
     ),
     duration: frames,
+    ...(role !== "broll" ? { audioRole: role } : {}),
     ...(role === "sfx"
       ? {
           volume: 0.5,

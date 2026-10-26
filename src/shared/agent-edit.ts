@@ -1717,7 +1717,7 @@ export const agentEditTools: Tool[] = [
   {
     name: "cutline_editing_schema",
     description:
-      "Editing guide, actions, presets and keyframe bounds. Pass section (e.g. clip, motionLayer, action:clip.update) for exact fields and defaults.",
+      "Read guide/actions/presets. section clip, motionLayer or action:clip.update gives exact fields/bounds.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1738,7 +1738,7 @@ export const agentEditTools: Tool[] = [
   {
     name: "cutline_edit",
     description:
-      "Atomic undoable editing. Read cutline_editing_schema for actions/recipes. Current projectId/revision required; returns revision, IDs and summary.",
+      "Atomic Undo. Read editing schema for actions. Current projectId/revision; returns revision, IDs and summary.",
     inputSchema: agentEditInputSchema() as Tool["inputSchema"],
     annotations: {
       readOnlyHint: false,

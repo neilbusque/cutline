@@ -75,6 +75,8 @@ it("uses the reviewed full browser for both composition loading and video render
     type: "done",
     output: "/output.mp4",
     repairedFrames: [],
+    completedStems: [],
+    stemFailures: [],
   });
   // One Chrome serves composition loading and rendering, with a bounded
   // frame cache, and is closed when the export ends.
@@ -90,7 +92,8 @@ it("uses the reviewed full browser for both composition loading and video render
   const port = mocks.renderMedia.mock.calls[0][0].port;
   expect(port).toBeGreaterThan(1023);
   expect(mocks.selectComposition.mock.calls[0][0].port).toBe(port);
-  const cache = mocks.renderMedia.mock.calls[0][0].offthreadVideoCacheSizeInBytes;
+  const cache =
+    mocks.renderMedia.mock.calls[0][0].offthreadVideoCacheSizeInBytes;
   expect(cache).toBeGreaterThanOrEqual(256 * 1024 ** 2);
   expect(cache).toBeLessThanOrEqual(1024 ** 3);
   expect(mocks.browser.close).toHaveBeenCalledWith({ silent: true });
@@ -228,5 +231,177 @@ it("re-renders damaged frames with the export's own browser and composition befo
     type: "done",
     output: "/output.mp4",
     repairedFrames: [131],
+    completedStems: [],
+    stemFailures: [],
   });
+});
+
+it("isolates requested roles without removing clips or losing the selected role's gain automation", async () => {
+  const project = {
+    tracks: [
+      { id: "speech", kind: "audio", muted: false, hidden: false },
+      { id: "bed", kind: "audio", muted: true, hidden: false },
+      { id: "picture", kind: "video", muted: false, hidden: false },
+    ],
+    clips: [
+      {
+        id: "voice",
+        trackId: "speech",
+        kind: "audio",
+        audioRole: "voice",
+        start: 5,
+        duration: 45,
+        sourceIn: 2,
+        speed: 1.25,
+        volume: 0.8,
+        fadeIn: 3,
+        fadeOut: 5,
+        keyframes: [
+          { property: "volume", frame: 0, value: 0.8 },
+          { property: "volume", frame: 30, value: 0.3 },
+          { property: "opacity", frame: 10, value: 0.5 },
+        ],
+      },
+      {
+        id: "music",
+        trackId: "bed",
+        kind: "audio",
+        audioRole: "music",
+        start: 0,
+        duration: 60,
+        sourceIn: 8,
+        speed: 1,
+        // Native volume keys can make a zero-base clip audible. Muting only
+        // the base gain would leak this clip into the isolated voice mix.
+        volume: 0,
+        keyframes: [
+          { property: "volume", frame: 10, value: 0.9 },
+          { property: "scale", frame: 20, value: 1.1 },
+        ],
+      },
+      {
+        id: "mixed-camera",
+        trackId: "picture",
+        kind: "video",
+        audioRole: "mixed",
+        start: 0,
+        duration: 60,
+        volume: 1,
+        keyframes: [{ property: "volume", frame: 1, value: 1 }],
+      },
+      {
+        id: "unclassified",
+        trackId: "picture",
+        kind: "video",
+        start: 0,
+        duration: 60,
+        volume: 1,
+        keyframes: [],
+      },
+    ],
+  };
+  const original = structuredClone(project);
+  await mocks.handlers.message({
+    type: "render",
+    serveUrl: "/composition",
+    inputProps: { project, mediaBase: "/media", preview: false },
+    browserExecutable: "/reviewed/Chrome",
+    outputLocation: "/output.mp4",
+    ffmpeg: "/ffmpeg",
+    audioStems: { voice: "/voice.wav", music: "/music.wav" },
+  });
+
+  expect(mocks.renderMedia).toHaveBeenCalledTimes(3);
+  expect(project).toEqual(original);
+  const [main, voice, music] = mocks.renderMedia.mock.calls.map(
+    ([args]) => args,
+  );
+  expect(main.inputProps.project).toEqual(original);
+  for (const stem of [voice, music]) {
+    expect(stem.codec).toBe("wav");
+    expect(stem.enforceAudioTrack).toBe(true);
+    expect(stem.composition).toEqual(main.composition);
+    expect(stem.inputProps.project.tracks).toEqual(original.tracks);
+    expect(stem.inputProps.project.clips.map((clip: any) => clip.id)).toEqual(
+      original.clips.map((clip) => clip.id),
+    );
+    expect(stem.puppeteerInstance).toBe(mocks.browser);
+  }
+  expect(voice.outputLocation).toBe("/voice.wav");
+  expect(voice.inputProps.project.clips[0]).toEqual(original.clips[0]);
+  expect(voice.inputProps.project.clips[1]).toEqual({
+    ...original.clips[1],
+    volume: 0,
+    keyframes: [
+      { property: "volume", frame: 10, value: 0 },
+      { property: "scale", frame: 20, value: 1.1 },
+    ],
+  });
+  expect(voice.inputProps.project.clips[2].volume).toBe(0);
+  expect(voice.inputProps.project.clips[2].keyframes[0].value).toBe(0);
+  expect(voice.inputProps.project.clips[3].volume).toBe(0);
+  expect(music.outputLocation).toBe("/music.wav");
+  expect(music.inputProps.project.clips[1]).toEqual(original.clips[1]);
+  expect(music.inputProps.project.clips[0].volume).toBe(0);
+  expect(music.inputProps.project.clips[0].keyframes).toEqual([
+    { property: "volume", frame: 0, value: 0 },
+    { property: "volume", frame: 30, value: 0 },
+    { property: "opacity", frame: 10, value: 0.5 },
+  ]);
+  expect(mocks.process.send).toHaveBeenCalledWith({
+    type: "done",
+    output: "/output.mp4",
+    repairedFrames: [],
+    completedStems: ["voice", "music"],
+    stemFailures: [],
+  });
+  expect(mocks.openBrowser).toHaveBeenCalledTimes(1);
+  expect(mocks.browser.close).toHaveBeenCalledTimes(1);
+});
+
+it("keeps the completed MP4 and other stems when an optional stem render fails", async () => {
+  mocks.renderMedia.mockImplementation(async (args) => {
+    if (args.outputLocation === "/voice.wav")
+      throw Error("Fixture isolated voice rendering failed");
+  });
+  await mocks.handlers.message({
+    type: "render",
+    serveUrl: "/composition",
+    inputProps: {
+      project: {
+        clips: [
+          { id: "voice", audioRole: "voice", volume: 1, keyframes: [] },
+          { id: "music", audioRole: "music", volume: 0.2, keyframes: [] },
+        ],
+      },
+    },
+    browserExecutable: "/reviewed/Chrome",
+    outputLocation: "/output.mp4",
+    ffmpeg: "/ffmpeg",
+    audioStems: { voice: "/voice.wav", music: "/music.wav" },
+  });
+
+  expect(mocks.renderMedia).toHaveBeenCalledTimes(3);
+  expect(mocks.spawn).toHaveBeenCalledTimes(1);
+  expect(mocks.spawn.mock.calls[0][1].at(-1)).toBe("/output.mp4");
+  expect(mocks.spawn.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.renderMedia.mock.invocationCallOrder[1],
+  );
+  expect(mocks.rm).toHaveBeenCalledWith("/voice.wav", { force: true });
+  expect(mocks.rm).not.toHaveBeenCalledWith("/music.wav", { force: true });
+  expect(mocks.rm).not.toHaveBeenCalledWith("/output.mp4", { force: true });
+  expect(mocks.process.send).toHaveBeenCalledWith({
+    type: "done",
+    output: "/output.mp4",
+    repairedFrames: [],
+    completedStems: ["music"],
+    stemFailures: [
+      "The isolated voice mix could not be rendered. Automatic corrections requiring it were withheld.",
+    ],
+  });
+  expect(
+    mocks.process.send.mock.calls.some(([message]) => message.type === "error"),
+  ).toBe(false);
+  expect(mocks.browser.close).toHaveBeenCalledWith({ silent: true });
+  expect(mocks.process.exit).toHaveBeenCalledWith(0);
 });
