@@ -67,7 +67,7 @@ export const hyperframesTools: Tool[] = [
   {
     name: "cutline_hyperframes",
     description:
-      "Import, read or update an editable HTML/GSAP/Three.js scene. Local render becomes a video asset; source is kept. at places imports. One Undo; wait on returned jobs.",
+      "Import/read/update HTML scenes (GSAP/Three.js). Keeps source and local video. at places; wait on jobs.",
     inputSchema: readableSchema(HyperframesArgsSchema, true),
     annotations: {
       readOnlyHint: false,

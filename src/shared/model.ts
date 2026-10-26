@@ -7,6 +7,7 @@ import {
   validateVectorViewBox,
 } from "./vector-path";
 import { StoryPlanSchema } from "./story-schema";
+import { Model3DMetadataSchema } from "./model-3d";
 export const uid = () => crypto.randomUUID();
 export const fontFamilies = [
   "Arial",
@@ -113,6 +114,7 @@ export const AssetSchema = z.object({
       sourceHash: z.string().regex(/^[a-f0-9]{64}$/u),
       engineVersion: z.string().min(1).max(40),
       transparent: z.boolean(),
+      model3d: Model3DMetadataSchema.optional(),
     })
     .optional(),
   /** This Mac's cached copy that plays the media backwards, for reversed clips. */
@@ -774,6 +776,9 @@ export function publicProject(p: Project) {
                 sourceHash: composition.sourceHash,
                 engineVersion: composition.engineVersion,
                 transparent: composition.transparent,
+                ...(composition.model3d
+                  ? { model3d: composition.model3d }
+                  : {}),
               },
             }
           : {}),

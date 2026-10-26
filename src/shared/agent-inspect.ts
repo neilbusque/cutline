@@ -57,6 +57,7 @@ export function publicAsset(asset: Asset) {
             sourceHash: composition.sourceHash,
             engineVersion: composition.engineVersion,
             transparent: composition.transparent,
+            ...(composition.model3d ? { model3d: composition.model3d } : {}),
           },
         }
       : {}),

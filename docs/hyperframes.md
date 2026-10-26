@@ -2,6 +2,8 @@
 
 Cutline can keep a HyperFrames scene's HTML source alongside its video. Use a scene for custom animation, procedural diagrams, GSAP motion or Three.js objects and cameras. Keep ordinary titles and shapes as native layers when direct canvas editing is more useful.
 
+For a generated GLB or glTF model, use **Import 3D** or `cutline_model3d` instead of writing the wrapper yourself. The [3D model workflow](model-3d.md) provides camera, embedded animation and background controls with the same source snapshots and renderer.
+
 ## In the editor
 
 Open **Media → Import scene** and choose a HyperFrames HTML file. Cutline copies the project files into a managed scene folder and renders a local video. Add it to the timeline like any other video.

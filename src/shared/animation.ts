@@ -151,5 +151,5 @@ export const effectsGuide = {
       "cutline_edit action motion.recipe {recipe, at, text, subtitle?}: a finished kinetic title, lower third, callout, end card or logo sting as named, editable layers.",
   },
   limitations:
-    "Native motion uses validated layers and keyframes, with no arbitrary code or full 3D scene graph. Use cutline_hyperframes for editable HTML/GSAP/Three.js scenes rendered locally as source-backed video assets. Tracking and rotoscoping are not native tools. You see the footage only through the preview images you request. Source media stays on this Mac. Transitions ripple their own track only, so separately placed captions or music may need retiming.",
+    "Native motion uses validated layers and keyframes, with no arbitrary code or full 3D scene graph. Use cutline_model3d for generated GLB/glTF files with editable camera and animation settings, or cutline_hyperframes for custom HTML/GSAP/Three.js scenes. Both render locally as source-backed video assets. Tracking and rotoscoping are not native tools. You see the footage only through the preview images you request. Source media stays on this Mac. Transitions ripple their own track only, so separately placed captions or music may need retiming.",
 };

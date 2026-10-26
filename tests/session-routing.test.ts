@@ -17,6 +17,7 @@ import { createLauncher } from "../src/main/mcp-launcher";
 import { createMcpServer } from "../src/main/mcp-server";
 import { startBridge } from "../src/main/bridge";
 import { cutlineTools } from "../src/main/agent-tools";
+import { Model3DArgsSchema } from "../src/main/agent-model-3d";
 import { Store } from "../src/main/store";
 import { AgentTasks } from "../src/main/agent-tasks";
 import { Jobs } from "../src/main/media";
@@ -92,6 +93,7 @@ async function fixture() {
         // The editing schemas are strict; routing metadata must be stripped.
         if ("sessionId" in args)
           throw Error("Unexpected sessionId in local arguments");
+        if (name === "cutline_model3d") Model3DArgsSchema.parse(args);
         if (name === "cutline_jobs") return tasks[index].list(args);
         if (name === "cutline_cancel_job") {
           const job = state.jobs.get(String(args.id));
@@ -251,6 +253,29 @@ describe("explicit session routing", () => {
     await local.close();
     await expect(call).rejects.toThrow();
     await vi.waitFor(() => expect(seen!.aborted).toBe(true));
+  });
+
+  it("routes external 3D model calls before applying their strict local schema", async () => {
+    const { ids, states, bridges } = await fixture();
+    const client = new Client({ name: "model-import-client", version: "1.0" });
+    await client.connect(new StreamableHTTPClientTransport(new URL(`${bridges[0].base}/mcp`)));
+    cleanup.push(() => client.close());
+    const response = await client.callTool({
+      name: "cutline_model3d",
+      arguments: {
+        sessionId: ids[1],
+        projectId: `project-${ids[1]}`,
+        revision: 0,
+        action: "import",
+        path: "/generated/lens.glb",
+      },
+    });
+    expect(response.isError).not.toBe(true);
+    expect(states[0].calls).toEqual([]);
+    expect(states[1].calls).toEqual([{
+      name: "cutline_model3d",
+      args: { projectId: `project-${ids[1]}`, revision: 0, action: "import", path: "/generated/lens.glb" },
+    }]);
   });
 
   it("two independent MCP clients can interleave edits without sharing selection or project state", async () => {

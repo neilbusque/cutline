@@ -20,6 +20,7 @@ import { directorStyles } from "../shared/director-guide";
 import { ExplainerInputSchema } from "../shared/explainer";
 import { StoryProduceSchema } from "./story-batch";
 import { hyperframesTools } from "./agent-hyperframes";
+import { model3dTools } from "./agent-model-3d";
 
 /**
  * Tools whose work can outlast a client's request timeout. They answer within
@@ -42,6 +43,7 @@ export const longRunningTools = new Set([
   "cutline_style_reel",
   "cutline_graphic",
   "cutline_hyperframes",
+  "cutline_model3d",
 ]);
 
 const read = {
@@ -73,7 +75,7 @@ const describe = <T extends Record<string, any>>(
  * Every Cutline MCP tool. The app serves this list, and the stdio launcher
  * bundles it so clients still see the tools while Cutline is closed.
  */
-export const cutlineTools: Tool[] = [
+const toolDefinitions: Tool[] = [
   {
     name: "cutline_explainer",
     description:
@@ -165,9 +167,10 @@ export const cutlineTools: Tool[] = [
   ...(agentIoTools as Tool[]),
   ...agentMediaTools,
   ...hyperframesTools,
+  ...model3dTools,
   ...musicTools.map((tool) => ({
     ...tool,
-    inputSchema: tidySchema(tool.inputSchema, false),
+    inputSchema: tidySchema(tool.inputSchema, true),
   })),
   {
     name: "cutline_create_reel",
@@ -339,3 +342,10 @@ export const cutlineTools: Tool[] = [
     annotations: edit(true),
   },
 ];
+
+// Apply the same compact listing contract to hand-written and generated schemas.
+// Execution still validates each tool's complete schema, available in the guide.
+export const cutlineTools: Tool[] = toolDefinitions.map((tool) => ({
+  ...tool,
+  inputSchema: tidySchema(tool.inputSchema, true),
+}));

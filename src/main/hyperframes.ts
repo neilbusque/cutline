@@ -13,6 +13,13 @@ import {
 } from "node:fs/promises";
 import path from "node:path";
 import type { Asset, Job } from "../shared/model";
+import {
+  Model3DSettingsSchema,
+  model3DSource,
+  type Model3DMetadata,
+  type Model3DSettings,
+} from "../shared/model-3d";
+import { prepareModel3D } from "./model-3d";
 import type { Jobs, Media } from "./media";
 import { sweepOrphanedBrowsers } from "./browser-sweep";
 
@@ -33,6 +40,12 @@ const check = (signal?: AbortSignal) => {
 };
 
 export type HyperframesArgs = {
+  model3d?: {
+    path?: string;
+    width: number;
+    height: number;
+    settings?: Partial<Model3DSettings>;
+  };
   path?: string;
   html?: string;
   name?: string;
@@ -190,6 +203,16 @@ async function runtimeAssets(directory: string) {
       await writeFile(path.join(target, `three.${part}.min.js`), source);
       await writeFile(path.join(target, `three.${part}.js`), source);
     }
+    const addons = path.resolve(three, "../examples/jsm");
+    for (const file of [
+      "loaders/GLTFLoader.js",
+      "utils/BufferGeometryUtils.js",
+      "utils/SkeletonUtils.js",
+    ]) {
+      const to = path.join(target, "addons", file);
+      await mkdir(path.dirname(to), { recursive: true });
+      await copyFile(path.join(addons, file), to);
+    }
   } catch {
     // GSAP-only projects do not require Three. A requested 3D project will
     // report its missing module during compilation instead of using a CDN.
@@ -303,15 +326,33 @@ export class Hyperframes {
   ): Promise<Asset> {
     check(signal);
     this.options.jobs.assertActive();
+    if (
+      previous?.composition?.model3d &&
+      !args.model3d &&
+      !args.path &&
+      args.html === undefined
+    ) {
+      const canvas = hyperframesDimensions(previous.composition.source);
+      args = {
+        ...args,
+        model3d: { width: canvas.width, height: canvas.height },
+      };
+    }
     if (args.path && args.html !== undefined)
       throw Error("Choose a scene file or HTML source, not both.");
+    if (args.model3d && (args.path || args.html !== undefined))
+      throw Error("Choose a 3D model or HTML scene source, not both.");
     const fps = args.fps ?? previous?.fps ?? 30;
     if (![24, 25, 30, 60].includes(fps))
       throw Error("Choose 24, 25, 30 or 60 frames per second.");
-    let source: string,
+    let source = "",
       sourceRoot: string | undefined,
       entryFile = "index.html";
-    if (args.path) {
+    let model3d: Model3DMetadata | undefined;
+    if (args.model3d) {
+      if (!args.model3d.path && !previous?.composition?.model3d)
+        throw Error("Choose a local GLB or glTF model to import.");
+    } else if (args.path) {
       if (!path.isAbsolute(args.path))
         throw Error("Choose an absolute local HTML file or project folder.");
       let file = args.path;
@@ -335,7 +376,7 @@ export class Hyperframes {
         entryFile = path.basename(previous.composition.entry);
       }
     }
-    hyperframesDimensions(source);
+    if (!args.model3d) hyperframesDimensions(source);
     const transparent =
       args.transparent ?? previous?.composition?.transparent ?? false;
     const versionRoot = path.join(this.options.directory, randomUUID());
@@ -343,7 +384,31 @@ export class Hyperframes {
       output = path.join(versionRoot, `scene.${transparent ? "webm" : "mp4"}`);
     await mkdir(directory, { recursive: true });
     try {
-      if (sourceRoot) {
+      if (args.model3d) {
+        const retained = previous?.composition?.model3d;
+        const file =
+          args.model3d.path ??
+          path.join(path.dirname(previous!.composition!.entry), retained!.file);
+        const prepared = await prepareModel3D(file, directory, signal);
+        const settings = Model3DSettingsSchema.parse({
+          ...retained?.settings,
+          ...args.model3d.settings,
+        });
+        if (
+          settings.animationIndex >= prepared.animations.length &&
+          prepared.animations.length > 0
+        )
+          throw Error(
+            "Choose an available embedded animation, or choose None.",
+          );
+        model3d = { ...prepared, settings };
+        source = model3DSource(
+          model3d,
+          { width: args.model3d.width, height: args.model3d.height, fps },
+          transparent,
+        );
+        hyperframesDimensions(source);
+      } else if (sourceRoot) {
         // A missing managed source folder can still recover self-contained
         // source from the project; an explicit imported folder must exist.
         try {
@@ -395,9 +460,11 @@ export class Hyperframes {
         name:
           args.name?.trim().slice(0, 100) ||
           previous?.name ||
-          (args.path
-            ? path.basename(args.path, path.extname(args.path))
-            : "HTML scene"),
+          (args.model3d?.path
+            ? path.basename(args.model3d.path, path.extname(args.model3d.path))
+            : args.path
+              ? path.basename(args.path, path.extname(args.path))
+              : "HTML scene"),
         fps,
         composition: {
           engine: "hyperframes",
@@ -406,6 +473,11 @@ export class Hyperframes {
           sourceHash,
           engineVersion: HYPERFRAMES_VERSION,
           transparent,
+          ...(model3d
+            ? { model3d }
+            : args.html === undefined && previous?.composition?.model3d
+              ? { model3d: previous.composition.model3d }
+              : {}),
         },
       };
       this.pending.set(rendered.path, {

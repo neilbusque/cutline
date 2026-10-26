@@ -29,6 +29,7 @@ import {
 import { type Command } from "../shared/commands";
 import { Inspector } from "./Inspector";
 import { HyperframesStudio } from "./HyperframesStudio";
+import { ModelStudio } from "./ModelStudio";
 import { Timeline } from "./Timeline";
 import { EffectsPanel } from "./EffectsPanel";
 import { ReelBuilder } from "./ReelBuilder";
@@ -105,6 +106,7 @@ import {
   Images,
   Palette,
   Code2,
+  Box,
 } from "lucide-react";
 const api = window.cutline;
 /** The left panels. Each has its own icon, so the grid can be scanned. */
@@ -395,6 +397,16 @@ export function App() {
     projectId: string;
     assetId?: string;
   }>();
+  const [modelEditors, setModelEditors] = useState<
+    {
+      projectId: string;
+      assetId?: string;
+      path?: string;
+      name?: string;
+      at: number;
+    }[]
+  >([]);
+  const modelEditor = modelEditors[0];
   const [left, setLeft] = useState("story");
   const [assistantDraft, setAssistantDraft] = useState<{
     id: number;
@@ -926,9 +938,30 @@ export function App() {
     });
   };
   async function importMedia(paths?: string[], kind?: "audio") {
+    const projectId = p?.id;
+    if (!projectId) return;
     setImporting(true);
     try {
-      await api.invoke("import", { paths, kind });
+      const result = await api.invoke("import", { paths, kind });
+      if (snapRef.current?.project.id !== projectId) return;
+      if (result?.modelPaths?.length) {
+        setModelEditors((current) => [
+          ...current.filter((entry) => entry.projectId === projectId),
+          ...result.modelPaths.map((path: string) => ({
+            projectId,
+            path,
+            name: path
+              .split(/[\\/]/)
+              .pop()
+              ?.replace(/\.(glb|gltf)$/i, ""),
+            at: playhead.get(),
+          })),
+        ]);
+      }
+      if (result?.importWarnings?.length)
+        report(
+          `Some media could not be imported:\n${result.importWarnings.join("\n")}`,
+        );
     } catch (e) {
       report(e);
     } finally {
@@ -1422,7 +1455,7 @@ export function App() {
                 )}{" "}
                 {importing ? "Importing…" : "Import media"}
               </button>
-              <div className="scene-actions">
+              <div className="scene-actions scene-actions-models">
                 <button
                   className="control"
                   onClick={() => setSceneEditor({ projectId: p.id })}
@@ -1449,6 +1482,31 @@ export function App() {
                 >
                   <FolderOpen size={13} /> Import scene
                 </button>
+                <button
+                  className="control model-import-button"
+                  disabled={importing}
+                  onClick={async () => {
+                    setImporting(true);
+                    try {
+                      const file = await api.invoke("model3d.pick");
+                      if (file?.path)
+                        setModelEditors([
+                          {
+                            projectId: p.id,
+                            path: file.path,
+                            name: file.name,
+                            at: playhead.get(),
+                          },
+                        ]);
+                    } catch (e) {
+                      report(e);
+                    } finally {
+                      setImporting(false);
+                    }
+                  }}
+                >
+                  <Box size={13} /> Import 3D model
+                </button>
               </div>
               {!p.assets.length ? (
                 <div className="empty-library">
@@ -1457,7 +1515,7 @@ export function App() {
                     <Music2 size={14} />
                   </div>
                   <h3>No media yet</h3>
-                  <p>Drop videos, photos or music here.</p>
+                  <p>Drop videos, photos, music or 3D models here.</p>
                 </div>
               ) : (
                 <>
@@ -1605,13 +1663,36 @@ export function App() {
                             <span title={a.name}>{a.name}</span>
                             <small>
                               {a.composition
-                                ? "HyperFrames scene"
+                                ? a.composition.model3d
+                                  ? "3D scene"
+                                  : "HyperFrames scene"
                                 : kindLabel(a.kind)}
                             </small>
                           </div>
+                          {a.composition?.model3d && (
+                            <button
+                              className="asset-scene"
+                              onClick={() =>
+                                setModelEditors([
+                                  {
+                                    projectId: p.id,
+                                    assetId: a.id,
+                                    at: playhead.get(),
+                                  },
+                                ])
+                              }
+                            >
+                              <Box size={12} /> Edit 3D scene
+                            </button>
+                          )}
                           {a.composition && (
                             <button
                               className="asset-scene"
+                              title={
+                                a.composition.model3d
+                                  ? "Editing HTML converts this model to a custom scene"
+                                  : undefined
+                              }
                               onClick={() =>
                                 setSceneEditor({
                                   projectId: p.id,
@@ -2014,6 +2095,11 @@ export function App() {
                 editScene={(assetId) =>
                   setSceneEditor({ projectId: p.id, assetId })
                 }
+                editModel={(assetId) =>
+                  setModelEditors([
+                    { projectId: p.id, assetId, at: playhead.get() },
+                  ])
+                }
               />
             </div>
             <div
@@ -2033,6 +2119,33 @@ export function App() {
           </aside>
         }
       </main>
+      {modelEditor?.projectId === p.id &&
+        (!modelEditor.assetId ||
+          p.assets.some((a) => a.id === modelEditor.assetId)) && (
+          <ModelStudio
+            key={`${p.id}/${modelEditor.assetId ?? modelEditor.path}`}
+            project={p}
+            asset={p.assets.find((a) => a.id === modelEditor.assetId)}
+            path={modelEditor.path}
+            name={modelEditor.name}
+            at={modelEditor.at}
+            onClose={() => setModelEditors((current) => current.slice(1))}
+            onRendered={(result) => {
+              if (result.clipId) select(result.clipId);
+              if (result.warnings?.length) report(result.warnings.join(" "));
+              if (result.durationSeconds) {
+                const nextFrame =
+                  modelEditor.at + Math.round(result.durationSeconds * p.fps);
+                setModelEditors((current) =>
+                  current.map((entry, index) =>
+                    index > 0 ? { ...entry, at: nextFrame } : entry,
+                  ),
+                );
+              }
+              setLeft("media");
+            }}
+          />
+        )}
       {sceneEditor?.projectId === p.id &&
         (!sceneEditor.assetId ||
           p.assets.some((a) => a.id === sceneEditor.assetId)) && (

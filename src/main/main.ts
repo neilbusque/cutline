@@ -71,6 +71,7 @@ import { agentIoTools, createAgentIO } from "./agent-io";
 import { musicTools, createMusicControl } from "./music-control";
 import { Hyperframes } from "./hyperframes";
 import { createHyperframesControl } from "./agent-hyperframes";
+import { createModel3DControl } from "./agent-model-3d";
 import {
   writeAgentLauncher,
   testAgentConnection,
@@ -211,6 +212,7 @@ let agentIO: ReturnType<typeof createAgentIO>;
 let agentMedia: ReturnType<typeof createAgentMedia>;
 let hyperframes: Hyperframes;
 let hyperframesControl: ReturnType<typeof createHyperframesControl>;
+let model3dControl: ReturnType<typeof createModel3DControl>;
 const uiSceneRequests = new Map<string, string>();
 let references: References;
 let vectorGeneration: AbortController | undefined;
@@ -706,6 +708,7 @@ async function runTool(
   signal?: AbortSignal,
 ): Promise<unknown> {
   if (name === "cutline_hyperframes") return hyperframesControl(args);
+  if (name === "cutline_model3d") return model3dControl(args);
   if (musicTools.some((tool) => tool.name === name)) {
     const result: any = await musicControl(name, args);
     // A sync plan holds a command per clip; keep the reply short.
@@ -1895,6 +1898,46 @@ function register() {
     },
     "hyperframes.read": (args) =>
       hyperframesControl({ ...args, action: "read" }),
+    "model3d.pick": async () => {
+      const selected = await dialog.showOpenDialog(win, {
+        title: "Import a 3D model",
+        properties: ["openFile"],
+        filters: [{ name: "3D models", extensions: ["glb", "gltf"] }],
+      });
+      const file = selected.filePaths[0];
+      return selected.canceled || !file
+        ? null
+        : { path: file, name: path.basename(file, path.extname(file)) };
+    },
+    "model3d.read": (args) => model3dControl({ ...args, action: "read" }),
+    "model3d.render": async (args) => {
+      assertRevision(args);
+      const { requestId: rawRequestId, ...input } = args;
+      const requestId =
+        rawRequestId === undefined
+          ? undefined
+          : z.string().uuid().parse(rawRequestId);
+      if (!requestId) return model3dControl(input);
+      if (uiSceneRequests.has(requestId))
+        throw Error("This scene render is already running.");
+      try {
+        return await jobs.run("agent", "Rendering 3D scene", (job) => {
+          uiSceneRequests.set(requestId, job.id);
+          return model3dControl(input);
+        });
+      } finally {
+        uiSceneRequests.delete(requestId);
+      }
+    },
+    "model3d.cancel": (args) => {
+      const { requestId } = z
+        .object({ requestId: z.string().uuid() })
+        .strict()
+        .parse(args);
+      const parent = uiSceneRequests.get(requestId);
+      if (parent) jobs.cancel(parent);
+      return { cancelled: !!parent };
+    },
     "hyperframes.render": async (args) => {
       assertRevision(args);
       if (args?.action === "import" && !args.path && !args.html) {
@@ -1929,6 +1972,7 @@ function register() {
       return { cancelled: !!parent };
     },
     import: async (args) => {
+      const opening = store.openSession;
       let files: string[] = args?.paths
         ? z.array(z.string()).max(100).parse(args.paths)
         : [];
@@ -1968,6 +2012,8 @@ function register() {
                       "jpeg",
                       "webp",
                       "gif",
+                      "glb",
+                      "gltf",
                     ],
                   },
                 ],
@@ -1975,8 +2021,11 @@ function register() {
         if (d.canceled) return;
         files = d.filePaths;
       }
-      const opening = store.openSession;
+      if (store.openSession !== opening)
+        throw Error("Project changed while choosing media. Import into the current project again.");
       const failures: string[] = [];
+      const modelPaths = files.filter((file) => /\.(?:glb|gltf)$/i.test(file));
+      files = files.filter((file) => !/\.(?:glb|gltf)$/i.test(file));
       for (const file of files) {
         try {
           const asset = await media.import(file);
@@ -1991,11 +2040,15 @@ function register() {
           failures.push(`${path.basename(file)}: ${(error as Error).message}`);
         }
       }
-      if (failures.length)
+      if (failures.length && !modelPaths.length)
         throw Error(
           `${files.length - failures.length} of ${files.length} files imported.\n${failures.join("\n")}`,
         );
-      return store.snapshot();
+      return {
+        ...store.snapshot(),
+        modelPaths,
+        ...(failures.length ? { importWarnings: failures } : {}),
+      };
     },
     relink: async (args) => {
       const a = store.project.assets.find((a) => a.id === args.id);
@@ -2157,6 +2210,7 @@ app.whenReady().then(async () => {
     store,
     renderer: hyperframes,
   });
+  model3dControl = createModel3DControl({ store, renderer: hyperframes });
   // Older versions left raw audio dumps behind (about 115 MB per hour of media),
   // and preview copies of old imports pile up: keep the cache under its cap,
   // never touching what the open project uses.

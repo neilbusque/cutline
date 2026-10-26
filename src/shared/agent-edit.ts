@@ -4,6 +4,7 @@ import { regroupCaptionCommands } from "./caption-grouping";
 import { z } from "zod";
 import { StoryPlanSchema, StorySceneSchema } from "./story-schema";
 import { ExplainerInputSchema } from "./explainer";
+import { Model3DSettingsSchema } from "./model-3d";
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import {
   AssetSchema,
@@ -1434,6 +1435,7 @@ function fieldList(option: ActionOption | CommandOption) {
 
 /** One validator per cutline_editing_schema section. */
 const schemaSections: Record<string, () => z.ZodType> = {
+  model3d: () => Model3DSettingsSchema,
   explainer: () => ExplainerInputSchema,
   story: () => StoryPlanSchema,
   storyScene: () => StorySceneSchema,

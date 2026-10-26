@@ -18,7 +18,7 @@ import {
   uid,
 } from "../shared/model";
 import { type Command } from "../shared/commands";
-import { SlidersHorizontal, Sparkles, Code2 } from "lucide-react";
+import { SlidersHorizontal, Sparkles, Code2, Box } from "lucide-react";
 import { createDraftCommit, timingCommands } from "./edit-gestures";
 import { kindLabel, optionLabel } from "./labels";
 import { usePlayheadFrame, type Playhead } from "./playhead";
@@ -106,6 +106,7 @@ export function Inspector({
   report,
   openPanel,
   editScene,
+  editModel,
 }: {
   project: Project;
   clip?: Clip;
@@ -124,6 +125,7 @@ export function Inspector({
   report: (e: unknown) => void;
   openPanel?: (panel: "captions" | "effects") => void;
   editScene?: (assetId: string) => void;
+  editModel?: (assetId: string) => void;
 }) {
   const [custom, setCustom] = useState(false);
   const [ratioLocked, setRatioLocked] = useState(false);
@@ -211,11 +213,30 @@ export function Inspector({
     <div className="inspector" key={c.id}>
       <div className="section-heading">
         <span>{text ? "Text & motion" : (asset?.name ?? "Clip")}</span>
-        <small>{asset?.composition ? "Scene" : kindLabel(c.kind)}</small>
+        <small>
+          {asset?.composition
+            ? asset.composition.model3d
+              ? "3D scene"
+              : "Scene"
+            : kindLabel(c.kind)}
+        </small>
       </div>
       {asset?.composition && editScene && (
         <div className="scene-properties">
-          <button className="control" onClick={() => editScene(asset.id)}>
+          {asset.composition.model3d && editModel && (
+            <button className="control" onClick={() => editModel(asset.id)}>
+              <Box size={14} /> Edit 3D scene
+            </button>
+          )}
+          <button
+            className="control"
+            title={
+              asset.composition.model3d
+                ? "Editing HTML converts this model to a custom scene"
+                : undefined
+            }
+            onClick={() => editScene(asset.id)}
+          >
             <Code2 size={14} /> Edit scene source
           </button>
         </div>
