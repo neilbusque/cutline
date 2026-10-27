@@ -1524,6 +1524,7 @@ export function agentEditingGuide() {
       motionEasings: [...motionEasings],
       layerTypes: enumOptions(layer.type),
       textAnimations: enumOptions(layer.textAnimation),
+      revealMasks: enumOptions(layer.revealMask),
       loops: enumOptions(layer.loop),
       shapeTypes: [...shapeTypes],
       captionStyles: captionStyles.map(({ id, name, description }) => ({
@@ -1566,7 +1567,8 @@ export function editingSchemaSection(section: string): unknown {
         fieldList(option),
       ]),
     );
-  if (schemaSections[section]) return readableSchema(schemaSections[section]());
+  if (schemaSections[section])
+    return readableSchema(schemaSections[section](), section === "transaction");
   const [kind, type] = section.split(/:(.*)/s);
   const option =
     kind === "action"
@@ -1574,7 +1576,7 @@ export function editingSchemaSection(section: string): unknown {
       : kind === "command"
         ? CommandSchema.options.find((item) => typeOf(item) === type)
         : undefined;
-  if (option) return readableSchema(option);
+  if (option) return readableSchema(option, section === "action:command");
   throw Error(
     `Unknown section "${section}". Use one of ${editingSchemaSections.join(", ")}, action:<type> (${advertisedActions().map(typeOf).join(", ")}) or command:<type>.`,
   );
@@ -1652,8 +1654,8 @@ const ownActions: Record<
   },
   "motion.layer.update": {
     field: "patch",
-    omit: ["keyframes"],
-    note: "Layer fields; animate with motion.keyframe or motion.keyframe.move.",
+    omit: ["keyframes", "vectorTransform", "vectorViewBox"],
+    note: "Layer fields; curves use motion.keyframe. SVG matrices/viewBox: read motionLayerPatch.",
   },
 };
 /** cutline_edit's input schema: every action and field, nested definitions described once. */
@@ -1694,6 +1696,16 @@ export function agentEditInputSchema() {
                 patch.properties.vectorGradient = described(
                   "Linear/radial SVG fill. Read section motionLayerPatch for coordinates and stops.",
                 );
+              if (patch.properties.motionPath)
+                patch.properties.motionPath = {
+                  type: ["object", "null"],
+                  description: "Read motionLayerPatch.",
+                };
+              if (patch.properties.counter)
+                patch.properties.counter = {
+                  type: ["object", "null"],
+                  description: "Read motionLayerPatch.",
+                };
               patch.description = own.note;
             }
             return schema;

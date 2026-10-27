@@ -27,6 +27,41 @@ function resized(p: Project, width: number, height: number) {
 }
 
 describe("atomic canvas resize", () => {
+  it("rescales motion path offsets without changing progress or counter timing", () => {
+    const p = newProject();
+    Object.assign(p, {
+      width: 640,
+      height: 360,
+      motions: [
+        {
+          id: "path",
+          name: "Path",
+          layers: [
+            MotionLayerSchema.parse({
+              type: "text",
+              motionPath: {
+                points: [
+                  { x: 0, y: 0 },
+                  { x: 50, y: 30 },
+                  { x: 100, y: 60 },
+                  { x: 200, y: 80 },
+                ],
+              },
+              counter: { from: 0, to: 20, startFrame: 5, durationFrames: 60 },
+              keyframes: [
+                { frame: 0, pathProgress: 0 },
+                { frame: 60, pathProgress: 1 },
+              ],
+            }),
+          ],
+        },
+      ],
+    });
+    const next = resized(p, 1280, 720).motions[0].layers[0];
+    expect(next.motionPath!.points[3]).toEqual({ x: 400, y: 160 });
+    expect(next.keyframes).toEqual(p.motions[0].layers[0].keyframes);
+    expect(next.counter).toEqual(p.motions[0].layers[0].counter);
+  });
   it("scales the entire 640×360 motion showcase into a 1920×1080 canvas without moving time", () => {
     const p = createMotionDemoProject(640, 360),
       before = structuredClone(p);

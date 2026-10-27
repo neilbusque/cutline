@@ -3,7 +3,12 @@ import { EventEmitter } from "node:events";
 
 const mocks = vi.hoisted(() => ({
   handlers: {} as Record<string, (...args: any[]) => any>,
-  process: { on: vi.fn(), send: vi.fn(), exit: vi.fn() },
+  process: {
+    on: vi.fn(),
+    send: vi.fn(),
+    exit: vi.fn(),
+    env: {} as Record<string, string>,
+  },
   selectComposition: vi.fn(),
   renderMedia: vi.fn(),
   renderStill: vi.fn(),
@@ -29,6 +34,7 @@ vi.mock("@remotion/renderer", () => ({
 beforeEach(async () => {
   vi.resetModules();
   vi.clearAllMocks();
+  mocks.process.env = {};
   mocks.process.on.mockImplementation((name, handler) => {
     mocks.handlers[name] = handler;
   });
@@ -103,6 +109,28 @@ it("uses the reviewed full browser for both composition loading and video render
   expect(mocks.rm).toHaveBeenCalledWith("/output.mp4.video.mp4", {
     force: true,
   });
+});
+
+it.each([
+  ["1", 1],
+  ["2", 2],
+  ["999", 2],
+] as const)("bounds render concurrency for %s", async (value, expected) => {
+  mocks.process.env.CUTLINE_RENDER_CONCURRENCY = value;
+  await mocks.handlers.message({
+    type: "render",
+    serveUrl: "/composition",
+    inputProps: {},
+    browserExecutable: "/reviewed/Chrome",
+    outputLocation: "/output.mp4",
+    ffmpeg: "/ffmpeg",
+  });
+  expect(mocks.renderMedia).toHaveBeenCalledWith(
+    expect.objectContaining({
+      concurrency: expected,
+      offthreadVideoThreads: expected,
+    }),
+  );
 });
 
 it.each([24, 25, 30, 60])(

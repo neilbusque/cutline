@@ -7,6 +7,7 @@ import {
   motionShapePath,
   motionTextTokens,
   motionTextLines,
+  motionLayerClipPath,
   isMotionAccentLayer,
 } from "../shared/motion";
 import { captionTextWidth } from "../shared/caption-layout";
@@ -58,6 +59,7 @@ function MotionText({
         fontStyle: layer.fontStyle,
         fontWeight: layer.fontWeight ?? clip.fontWeight,
         fontSize: layer.fontSize,
+        fontVariantNumeric: layer.counter ? "tabular-nums" : undefined,
         lineHeight: layer.lineHeight ?? 1.18,
         letterSpacing: layer.letterSpacing ?? 0,
         background: layer.background,
@@ -447,6 +449,7 @@ export function MotionGraphicAtFrame({
                 .join(" "),
               transformOrigin: `${layer.anchorX * 100}% ${layer.anchorY * 100}%`,
               filter: filters || undefined,
+              clipPath: motionLayerClipPath(layer),
             }}
           >
             {layer.type === "text" ? (

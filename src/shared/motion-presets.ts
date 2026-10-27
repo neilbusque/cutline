@@ -58,6 +58,15 @@ import {
   creatorStudioSceneLayers,
   type CreatorStudioSceneId,
 } from "./creator-studio-presets";
+import {
+  isPremiumScene,
+  premiumSceneIds,
+  premiumScenes,
+  premiumSceneLayers,
+  premiumClipKeyframes,
+  retimePremiumLayers,
+  type PremiumSceneId,
+} from "./premium-presets";
 export {
   studioSceneIds,
   studioScenes,
@@ -76,6 +85,7 @@ export {
   creatorStudioSceneIds,
   creatorStudioScenes,
 } from "./creator-studio-presets";
+export { premiumSceneIds, premiumScenes } from "./premium-presets";
 
 export const shapeTypes = [
   "rectangle",
@@ -86,6 +96,7 @@ export const shapeTypes = [
 ] as const;
 export type ShapeType = (typeof shapeTypes)[number];
 export const motionSceneIds = [
+  ...premiumSceneIds,
   ...creatorStudioSceneIds,
   ...editorialSceneIds,
   ...promoSceneIds,
@@ -109,6 +120,7 @@ export const motionScenes: ReadonlyArray<{
   category: string;
   color: string;
 }> = [
+  ...premiumScenes,
   ...creatorStudioScenes,
   ...editorialScenes,
   ...promoScenes,
@@ -214,6 +226,7 @@ function sceneLayers(
     | PromoSceneId
     | EditorialSceneId
     | CreatorStudioSceneId
+    | PremiumSceneId
   >,
 ): Layer[] {
   const w = p.width,
@@ -867,7 +880,8 @@ export function packageMotion(
       isLogoScene(source) ||
       isPromoScene(source) ||
       isEditorialScene(source) ||
-      isCreatorStudioScene(source))
+      isCreatorStudioScene(source) ||
+      isPremiumScene(source))
       ? { fontFamily: "Helvetica" as const }
       : {}),
   };
@@ -899,6 +913,13 @@ function seamlessLoop(layer: Layer) {
 
 /** True when nothing about the layer changes between two frames. */
 function stillBetween(layer: Layer, from: number, to: number) {
+  if (
+    layer.counter &&
+    layer.counter.from !== layer.counter.to &&
+    to > layer.counter.startFrame &&
+    from < layer.counter.startFrame + layer.counter.durationFrames
+  )
+    return false;
   const curve = { ...layer, loop: "none" as const };
   const span = to - from;
   const probes = [0.25, 0.5, 0.75, 1].map((share) =>
@@ -924,9 +945,17 @@ function stretchPoint(
   layer: Layer,
   originalFrames: number,
 ): { room: number; split: number } | "even" {
-  const frames = [...new Set(layer.keyframes.map((key) => key.frame))].sort(
-    (a, b) => a - b,
-  );
+  const frames = [
+    ...new Set([
+      ...layer.keyframes.map((key) => key.frame),
+      ...(layer.counter
+        ? [
+            layer.counter.startFrame,
+            layer.counter.startFrame + layer.counter.durationFrames,
+          ]
+        : []),
+    ]),
+  ].sort((a, b) => a - b);
   const segments = [
     ...frames
       .slice(1)
@@ -967,23 +996,29 @@ function stretchPoint(
 
 /** The frame a layer's text reveal finishes, so a shorter scene never cuts it off. */
 function revealEnd(layer: Layer, fps: number) {
-  if (layer.type !== "text" || layer.textAnimation === "none") return 0;
+  const counterEnd = layer.counter
+    ? layer.counter.startFrame + layer.counter.durationFrames
+    : 0;
+  if (layer.type !== "text" || layer.textAnimation === "none")
+    return counterEnd;
   if (layer.textAnimation === "line-reveal")
-    return (
+    return Math.max(
+      counterEnd,
       layer.textRevealStart +
-      layer.textRevealFrames +
-      layer.staggerFrames * (layer.text.split(/\r\n|\r|\n/u).length - 1)
+        layer.textRevealFrames +
+        layer.staggerFrames * (layer.text.split(/\r\n|\r|\n/u).length - 1),
     );
   const tokens =
     layer.textAnimation === "word-rise"
       ? layer.text.split(/\s+/u).filter(Boolean).length
       : Array.from(layer.text).length;
-  return (
+  return Math.max(
+    counterEnd,
     motionRevealStart(layer) +
-    layer.staggerFrames * Math.max(0, tokens - 1) +
-    (layer.textAnimation === "typewriter"
-      ? 1
-      : Math.max(1, Math.round((12 * fps) / 30)))
+      layer.staggerFrames * Math.max(0, tokens - 1) +
+      (layer.textAnimation === "typewriter"
+        ? 1
+        : Math.max(1, Math.round((12 * fps) / 30))),
   );
 }
 
@@ -1023,6 +1058,22 @@ function retimeSceneLayers(
       textRevealFrames: boundedTiming(layer.textRevealFrames, 1800),
       staggerFrames: boundedTiming(layer.staggerFrames, 30),
       loopFrames: boundedTiming(layer.loopFrames, 1800),
+      ...(layer.counter
+        ? {
+            counter: {
+              ...layer.counter,
+              startFrame: Math.min(
+                durationFrames - 2,
+                at(layer.counter.startFrame),
+              ),
+              durationFrames: Math.max(
+                1,
+                at(layer.counter.startFrame + layer.counter.durationFrames) -
+                  Math.min(durationFrames - 2, at(layer.counter.startFrame)),
+              ),
+            },
+          }
+        : {}),
     };
   };
   const plans = layers.map((layer) =>
@@ -1044,13 +1095,24 @@ function retimeSceneLayers(
     // Seamless loops, and loops that repeat inside the scene, keep their speed.
     if (!plan) return layer;
     if (plan === "even") return even(layer);
+    const at = (frame: number) =>
+      frame >= plan.split ? Math.min(durationFrames - 1, frame + extra) : frame;
     return {
       ...layer,
-      keyframes: rekey(layer, (frame) =>
-        frame >= plan.split
-          ? Math.min(durationFrames - 1, frame + extra)
-          : frame,
-      ),
+      keyframes: rekey(layer, at),
+      ...(layer.counter
+        ? {
+            counter: {
+              ...layer.counter,
+              startFrame: at(layer.counter.startFrame),
+              durationFrames: Math.max(
+                1,
+                at(layer.counter.startFrame + layer.counter.durationFrames) -
+                  at(layer.counter.startFrame),
+              ),
+            },
+          }
+        : {}),
       // A scene-long one-shot loop spans the new length, so it never restarts.
       ...(layer.loop === "cycle"
         ? {
@@ -1073,29 +1135,35 @@ export function createMotionScene(
   const frames = options.durationFrames ?? p.fps * 4;
   if (!Number.isInteger(frames) || frames < 2 || frames > 18000)
     throw Error("Choose a scene duration from 2 to 18,000 whole frames.");
-  const layers = isCreatorStudioScene(id)
-    ? creatorStudioSceneLayers(p, id)
-    : isEditorialScene(id)
-      ? editorialSceneLayers(p, id)
-      : isPromoScene(id)
-        ? promoSceneLayers(p, id)
-        : isLogoScene(id)
-          ? logoSceneLayers(p, id)
-          : isSignatureScene(id)
-            ? signatureSceneLayers(p, id)
-            : isStudioScene(id)
-              ? studioSceneLayers(p, id)
-              : sceneLayers(p, id);
+  const layers = isPremiumScene(id)
+    ? premiumSceneLayers(p, id)
+    : isCreatorStudioScene(id)
+      ? creatorStudioSceneLayers(p, id)
+      : isEditorialScene(id)
+        ? editorialSceneLayers(p, id)
+        : isPromoScene(id)
+          ? promoSceneLayers(p, id)
+          : isLogoScene(id)
+            ? logoSceneLayers(p, id)
+            : isSignatureScene(id)
+              ? signatureSceneLayers(p, id)
+              : isStudioScene(id)
+                ? studioSceneLayers(p, id)
+                : sceneLayers(p, id);
   const created = packageMotion(
     p,
     start,
     info.name,
-    retimeSceneLayers(layers, p.fps * 4, frames, p.fps),
+    isPremiumScene(id)
+      ? retimePremiumLayers(layers, p.fps * 4, frames, id)
+      : retimeSceneLayers(layers, p.fps * 4, frames, p.fps),
     frames,
     id,
   );
   if (isPromoScene(id))
     created.clip.keyframes = promoClipKeyframes(p, id, frames);
+  if (isPremiumScene(id))
+    created.clip.keyframes = premiumClipKeyframes(p, id, frames);
   return created;
 }
 

@@ -156,6 +156,8 @@ export const KeyframeSchema = z.object({
   trim: finite.min(0).max(1).optional(),
   strokeWidth: finite.min(0).max(100).optional(),
   fillOpacity: finite.min(0).max(1).optional(),
+  pathProgress: finite.min(0).max(1).optional(),
+  reveal: finite.min(0).max(1).optional(),
   easing: z
     .enum([
       "linear",
@@ -255,6 +257,52 @@ export const MotionLayerSchema = z
     rotateY: finite.min(-85).max(85).default(0),
     /** Perspective distance in authored canvas pixels. */
     perspective: finite.min(200).max(8000).default(1000),
+    /** Cubic Bezier offsets from placement, sampled by distance along the path. */
+    motionPath: z
+      .object({
+        points: z.tuple([
+          z.object({
+            x: finite.min(-4000).max(4000),
+            y: finite.min(-4000).max(4000),
+          }),
+          z.object({
+            x: finite.min(-4000).max(4000),
+            y: finite.min(-4000).max(4000),
+          }),
+          z.object({
+            x: finite.min(-4000).max(4000),
+            y: finite.min(-4000).max(4000),
+          }),
+          z.object({
+            x: finite.min(-4000).max(4000),
+            y: finite.min(-4000).max(4000),
+          }),
+        ]),
+        autoOrient: z.boolean().optional(),
+      })
+      .nullable()
+      .optional(),
+    pathProgress: finite.min(0).max(1).optional(),
+    /** The named direction is the direction in which the reveal opens. */
+    revealMask: z
+      .enum(["none", "wipe-left", "wipe-right", "wipe-up", "wipe-down", "iris"])
+      .optional(),
+    reveal: finite.min(0).max(1).optional(),
+    /** Text computed from the local animation frame, never a wall-clock timer. */
+    counter: z
+      .object({
+        from: finite.min(-1e12).max(1e12),
+        to: finite.min(-1e12).max(1e12),
+        startFrame: frame,
+        durationFrames: finite.int().min(1).max(MAX_FRAME),
+        decimals: finite.int().min(0).max(6).default(0),
+        prefix: z.string().max(64).default(""),
+        suffix: z.string().max(64).default(""),
+        easing: KeyframeSchema.shape.easing.removeDefault().default("ease-out"),
+        bezier: KeyframeSchema.shape.bezier,
+      })
+      .nullable()
+      .optional(),
     stroke: color.default("#ffffff"),
     strokeWidth: finite.min(0).max(100).default(0),
     fillStyle: z.enum(["solid", "gradient"]).default("solid"),
@@ -282,6 +330,12 @@ export const MotionLayerSchema = z
     keyframes: z.array(KeyframeSchema).max(100).default([]),
   })
   .superRefine((layer, ctx) => {
+    if (layer.counter && layer.type !== "text")
+      ctx.addIssue({
+        code: "custom",
+        message: "Counters require a text layer.",
+        path: ["counter"],
+      });
     if (layer.type !== "path") return;
     try {
       if (!layer.vectorPath || !layer.vectorViewBox)

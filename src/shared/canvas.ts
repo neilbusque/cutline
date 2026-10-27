@@ -63,6 +63,17 @@ function motionLayer(
     blur: bounded(layer.blur, styleScale, 0, 100),
     strokeWidth: bounded(layer.strokeWidth, styleScale, 0, 100),
     keyframes: changedKeys ? scaledKeys : layer.keyframes,
+    ...(layer.motionPath
+      ? {
+          motionPath: {
+            ...layer.motionPath,
+            points: layer.motionPath.points.map((point) => ({
+              x: bounded(point.x, sx, -4000, 4000),
+              y: bounded(point.y, sy, -4000, 4000),
+            })) as typeof layer.motionPath.points,
+          },
+        }
+      : {}),
   };
   return Object.entries(patch).some(
     ([name, value]) => value !== layer[name as keyof MotionLayer],

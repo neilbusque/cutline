@@ -27,6 +27,7 @@ import {
   createMotionScene,
   motionSceneIds,
 } from "../src/shared/motion-presets";
+import { isPremiumScene } from "../src/shared/premium-presets";
 import { captionTextWidth } from "../src/shared/caption-layout";
 import {
   animationSpans,
@@ -1015,6 +1016,9 @@ describe("scene timing", () => {
     ]);
     let titles = 0;
     for (const id of motionSceneIds) {
+      // Explainer scenes retime a connected action as one unit. Their linked
+      // reveals, counts, routes and reading holds are covered in premium-presets.
+      if (isPremiumScene(id)) continue;
       for (const fps of [30, 60] as const) {
         const original = scene(id, undefined, fps),
           longer = scene(id, fps * 10, fps);

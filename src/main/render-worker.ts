@@ -90,9 +90,10 @@ process.on("message", async (message: any) => {
       ...browserOptions,
       puppeteerInstance: browser,
       offthreadVideoCacheSizeInBytes: frameCache,
-      offthreadVideoThreads: 2,
+      offthreadVideoThreads:
+        process.env.CUTLINE_RENDER_CONCURRENCY === "1" ? 1 : 2,
       port,
-      concurrency: 2,
+      concurrency: process.env.CUTLINE_RENDER_CONCURRENCY === "1" ? 1 : 2,
       crf: 19,
       pixelFormat: "yuv420p",
       timeoutInMilliseconds: 30000,

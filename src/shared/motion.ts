@@ -1,4 +1,5 @@
 import type { MotionKeyframe, MotionLayer } from "./model";
+import { sampleMotionPath } from "./motion-path";
 
 export const motionProperties = [
   "x",
@@ -13,6 +14,8 @@ export const motionProperties = [
   "trim",
   "strokeWidth",
   "fillOpacity",
+  "pathProgress",
+  "reveal",
 ] as const;
 export type MotionProperty = (typeof motionProperties)[number];
 export const motionPropertyBounds: Record<MotionProperty, [number, number]> = {
@@ -28,6 +31,8 @@ export const motionPropertyBounds: Record<MotionProperty, [number, number]> = {
   trim: [0, 1],
   strokeWidth: [0, 100],
   fillOpacity: [0, 1],
+  pathProgress: [0, 1],
+  reveal: [0, 1],
 };
 export const motionEasings = [
   "linear",
@@ -201,6 +206,8 @@ const motionAmounts = new Set<MotionProperty>([
   "trim",
   "fillOpacity",
   "perspective",
+  "pathProgress",
+  "reveal",
 ]);
 
 /** x/y keys are movement offsets, preserving existing custom motion projects. */
@@ -218,7 +225,8 @@ export function motionValue(
           : property === "opacity" ||
               property === "scale" ||
               property === "trim" ||
-              property === "fillOpacity"
+              property === "fillOpacity" ||
+              property === "reveal"
             ? 1
             : 0));
   const keys = curves(layer).get(property);
@@ -257,11 +265,69 @@ export function evaluatedMotionLayer(
 ): MotionLayer {
   const result = { ...layer };
   for (const property of motionProperties) {
+    if (
+      (property === "pathProgress" || property === "reveal") &&
+      layer[property] === undefined &&
+      !curves(layer).has(property)
+    )
+      continue;
     const value = motionValue(layer, property, frame);
     result[property] =
       property === "x" || property === "y" ? layer[property] + value : value;
   }
+  if (layer.motionPath) {
+    const point = sampleMotionPath(layer.motionPath, result.pathProgress ?? 0);
+    result.x += point.x;
+    result.y += point.y;
+    if (layer.motionPath.autoOrient) result.rotate += point.angle;
+  }
+  if (layer.type === "text" && layer.counter)
+    result.text = motionCounterText(layer, frame);
   return result;
+}
+
+/** Fixed decimal formatting is independent of the machine locale and wall clock. */
+export function motionCounterText(layer: MotionLayer, frame: number): string {
+  const counter = layer.counter;
+  if (!counter) return layer.text;
+  const progress = Math.max(
+    0,
+    Math.min(
+      1,
+      (motionFrame(layer, frame) - counter.startFrame) / counter.durationFrames,
+    ),
+  );
+  const eased = Math.max(
+    0,
+    Math.min(1, propertyEase(progress, counter.easing, counter.bezier, true)),
+  );
+  const value =
+    progress === 1
+      ? counter.to
+      : counter.from + (counter.to - counter.from) * eased;
+  const fixed = value.toFixed(counter.decimals);
+  const formatted = Number(fixed) === 0 ? (0).toFixed(counter.decimals) : fixed;
+  return `${counter.prefix}${formatted}${counter.suffix}`;
+}
+
+/** Geometric masks reveal in local layer coordinates before its transform. */
+export function motionLayerClipPath(layer: MotionLayer): string | undefined {
+  const progress = Math.max(0, Math.min(1, layer.reveal ?? 1));
+  if (!layer.revealMask || layer.revealMask === "none" || progress >= 1)
+    return undefined;
+  const hidden = (1 - progress) * 100;
+  switch (layer.revealMask) {
+    case "wipe-right":
+      return `inset(0 ${hidden}% 0 0)`;
+    case "wipe-left":
+      return `inset(0 0 0 ${hidden}%)`;
+    case "wipe-down":
+      return `inset(0 0 ${hidden}% 0)`;
+    case "wipe-up":
+      return `inset(${hidden}% 0 0 0)`;
+    case "iris":
+      return `circle(${(progress * Math.hypot(layer.width, layer.height)) / 2}px at 50% 50%)`;
+  }
 }
 
 /** Vector geometry remains shared between preview and the exported composition. */

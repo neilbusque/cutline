@@ -19,6 +19,26 @@ const shape = (patch: Partial<z.input<typeof MotionLayerSchema>> = {}) =>
   });
 
 describe("motion layer layout", () => {
+  it("shifts and stretches a counter even when it has no keyframes", () => {
+    const layer = shape({
+      type: "text",
+      counter: { from: 0, to: 20, startFrame: 12, durationFrames: 60 },
+    });
+    const shifted = shiftMotionLayerTiming([layer], [0], 8);
+    expect(shifted.layers![0].counter).toMatchObject({
+      startFrame: 20,
+      durationFrames: 60,
+    });
+    const scaled = scaleMotionLayerTiming([layer], [0], 200);
+    expect(scaled.layers![0].counter).toMatchObject({
+      startFrame: 24,
+      durationFrames: 120,
+    });
+    expect(shiftMotionLayerTiming([layer], [0], -13).error).toMatch(
+      /before frame 0/,
+    );
+    expect(layer.counter?.startFrame).toBe(12);
+  });
   it("measures scaled and rotated boxes around their native anchor", () => {
     const box = motionLayerBounds(
       shape({

@@ -191,7 +191,8 @@ export function orderedMotionLayers(
 function isTimed(layer: MotionLayer) {
   return (
     layer.keyframes.length > 0 ||
-    (layer.type === "text" && layer.textAnimation === "line-reveal")
+    (layer.type === "text" &&
+      (layer.textAnimation === "line-reveal" || Boolean(layer.counter)))
   );
 }
 
@@ -251,9 +252,11 @@ export function shiftMotionLayerTiming(
     const reveal =
       layer.type === "text" && layer.textAnimation === "line-reveal";
     const start = layer.textRevealStart + delta;
+    const counterStart = layer.counter ? layer.counter.startFrame + delta : 0;
     if (
       keys.some((key) => key.frame < 0 || key.frame > lastFrame) ||
-      (reveal && (start < 0 || start > lastFrame))
+      (reveal && (start < 0 || start > lastFrame)) ||
+      (layer.counter && (counterStart < 0 || counterStart > lastFrame))
     )
       return {
         error:
@@ -263,6 +266,9 @@ export function shiftMotionLayerTiming(
       ...layer,
       keyframes: keys,
       ...(reveal ? { textRevealStart: start } : {}),
+      ...(layer.counter
+        ? { counter: { ...layer.counter, startFrame: counterStart } }
+        : {}),
     });
   }
   return { layers: layers.map((layer, i) => changes.get(i) ?? layer) };
@@ -313,9 +319,20 @@ export function scaleMotionLayerTiming(
     const textRevealStart = Math.round(layer.textRevealStart * factor);
     const textRevealFrames = Math.round(layer.textRevealFrames * factor);
     const staggerFrames = Math.round(layer.staggerFrames * factor);
+    const counter = layer.counter
+      ? {
+          ...layer.counter,
+          startFrame: Math.round(layer.counter.startFrame * factor),
+          durationFrames: Math.round(layer.counter.durationFrames * factor),
+        }
+      : undefined;
     if (
       keys.some((key) => key.frame < 0 || key.frame > lastFrame) ||
       (layer.loop !== "none" && (loopFrames < 1 || loopFrames > 1800)) ||
+      (counter &&
+        (counter.startFrame > lastFrame ||
+          counter.durationFrames < 1 ||
+          counter.durationFrames > lastFrame)) ||
       (reveal &&
         (textRevealStart > lastFrame ||
           textRevealFrames < 1 ||
@@ -332,6 +349,7 @@ export function scaleMotionLayerTiming(
       keyframes: keys,
       ...(layer.loop !== "none" ? { loopFrames } : {}),
       ...(reveal ? { textRevealStart, textRevealFrames, staggerFrames } : {}),
+      ...(counter ? { counter } : {}),
     });
   }
   return { layers: layers.map((layer, i) => changes.get(i) ?? layer) };

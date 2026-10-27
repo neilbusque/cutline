@@ -26,6 +26,7 @@ import {
 } from "../shared/model";
 import { createLogoRevealCommands } from "../shared/logo-presets";
 import { VectorEditor } from "./VectorEditor";
+import { PremiumMotionControls } from "./PremiumMotionControls";
 import { MAX_VECTOR_LAYERS } from "../shared/vector-path";
 import {
   motionProperties,
@@ -70,6 +71,8 @@ const names: Record<Property, string> = {
   trim: "Stroke reveal",
   strokeWidth: "Stroke width",
   fillOpacity: "Fill opacity",
+  pathProgress: "Path progress",
+  reveal: "Mask reveal",
 };
 const shapes = [
   "text",
@@ -834,6 +837,7 @@ export function MotionInspector({
           onChange={(e) =>
             update({
               type: e.target.value as Layer["type"],
+              ...(e.target.value !== "text" ? { counter: undefined } : {}),
               ...(e.target.value === "line" && !layer.strokeWidth
                 ? { strokeWidth: 8 }
                 : {}),
@@ -1239,6 +1243,14 @@ export function MotionInspector({
             number("Stroke reveal", "trim", layer.trim, 0, 1, 0.05)}
         </div>
       </details>
+      <PremiumMotionControls
+        layer={layer}
+        duration={clip.duration}
+        width={clip.width}
+        animationOffset={clip.animationOffset}
+        frame={frame - clip.start}
+        update={update}
+      />
       <details open className="motion-curves">
         <summary>Animate layer</summary>
         <label className="field">

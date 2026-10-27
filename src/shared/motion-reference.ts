@@ -1,6 +1,14 @@
 /** Original direction distilled from dated primary references, not creator presets. */
 export const motionReferenceGuide = {
   reviewed: "2026-10-25",
+  update: {
+    reviewed: "2026-10-27",
+    study: "docs/motion-reference-library/shorts-study-2026-10-27.md",
+    evidence:
+      "Eight recent or popular references with refreshed primary metadata; Jack Roberts intro and RickTheEngineer OSI explainer sampled again. Popularity is a snapshot, not a platform-wide trend ranking or proof of effect performance.",
+    native:
+      "The Explainer motion collection adds explainer-signal, explainer-count, explainer-compare, explainer-focus and explainer-reveal. Edit motionPath points and animate pathProgress for curved travel; revealMask plus reveal for wipes/iris; counter for frame-based numbers. Clip keys move a complete scene. Read cutline_effects_guide and motionLayer for fields and limitations.",
+  },
   primaryQualityTarget: {
     creator: "Aasil Khan",
     instruction:
