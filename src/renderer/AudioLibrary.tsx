@@ -5,12 +5,19 @@ import {
   LoaderCircle,
   Mic2,
   Plus,
+  Sparkles,
   Upload,
   X,
 } from "lucide-react";
 import type { Asset, Clip, Job, Project } from "../shared/model";
 import { errorText } from "./controls";
 import { speechVoices, type SpeechVoice, type TtsStatus } from "../shared/tts";
+import {
+  soundAccentDescriptions,
+  soundAccentKinds,
+  soundAccentNames,
+  type SoundAccentKind,
+} from "../shared/sound-accents";
 import "./audio.css";
 
 export function AudioLibrary({
@@ -33,7 +40,10 @@ export function AudioLibrary({
   musicSync?: React.ReactNode;
 }) {
   const api = window.cutline;
-  const [mode, setMode] = useState<"music" | "voice" | "library">("voice");
+  const [mode, setMode] = useState<"music" | "voice" | "accents" | "library">(
+    "voice",
+  );
+  const [addingAccent, setAddingAccent] = useState<SoundAccentKind>();
   const [text, setText] = useState("");
   const [voice, setVoice] = useState<SpeechVoice>("af_heart");
   const [speed, setSpeed] = useState(1.08);
@@ -132,6 +142,21 @@ export function AudioLibrary({
       if (mounted.current && request.current === id) setOperation(undefined);
     }
   }
+  async function addAccent(kind: SoundAccentKind) {
+    if (addingAccent) return;
+    setError("");
+    setAddingAccent(kind);
+    const projectId = project.id;
+    try {
+      const asset: Asset = await api.invoke("sfx.create", { kind });
+      if (!mounted.current || currentProject.current !== projectId) return;
+      addAudio(asset, "sfx");
+    } catch (error) {
+      if (mounted.current) setError(errorText(error));
+    } finally {
+      if (mounted.current) setAddingAccent(undefined);
+    }
+  }
   async function setup() {
     if (disabled || checkingStatus) return;
     const id = ++request.current;
@@ -174,7 +199,15 @@ export function AudioLibrary({
           onClick={() => setMode("voice")}
         >
           <Mic2 size={14} />
-          Text to speech
+          Voice
+        </button>
+        <button
+          className={mode === "accents" ? "active" : ""}
+          aria-pressed={mode === "accents"}
+          onClick={() => setMode("accents")}
+        >
+          <Sparkles size={14} />
+          Accents
         </button>
         <button
           className={mode === "library" ? "active" : ""}
@@ -187,6 +220,43 @@ export function AudioLibrary({
       </div>
       {mode === "music" ? (
         musicSync
+      ) : mode === "accents" ? (
+        <>
+          <div className="audio-intro">
+            <p className="audio-engine-note" role="status">
+              Short sounds for cuts and graphics, made on this Mac. Each lands
+              at the playhead, a hair early, at half volume.
+            </p>
+          </div>
+          <div className="accent-grid">
+            {soundAccentKinds.map((kind) => (
+              <button
+                key={kind}
+                className="control"
+                disabled={addingAccent !== undefined}
+                title={soundAccentDescriptions[kind]}
+                onClick={() => void addAccent(kind)}
+              >
+                {addingAccent === kind ? (
+                  <LoaderCircle size={13} className="spin" />
+                ) : (
+                  <Plus size={13} />
+                )}
+                {soundAccentNames[kind]}
+              </button>
+            ))}
+          </div>
+          <p className="library-note">
+            Whoosh on a whip or slide, impact on a punch or reveal, pop on a
+            word or sticker, click on a cut, riser ending on a reveal, ding on
+            a result. One sound per event reads best.
+          </p>
+          {error && mode === "accents" && (
+            <p className="audio-error" role="alert">
+              {error}
+            </p>
+          )}
+        </>
       ) : mode === "voice" ? (
         <>
           <div className="audio-intro">

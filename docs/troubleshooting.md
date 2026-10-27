@@ -68,7 +68,7 @@ After reversing, freezing or retiming footage, inspect its caption behavior inst
 
 ## Local voiceover does not run
 
-Open **Audio → Text to speech**. If offered, download the model. For a source build, run `npm run setup:speech`, then `npm run build`. Model preparation and compiled workers are separate requirements.
+Open **Audio → Voice**. If offered, download the model. For a source build, run `npm run setup:speech`, then `npm run build`. Model preparation and compiled workers are separate requirements.
 
 Use an English script within the panel's length limit. Generate another take when the script, voice or pace changes; an earlier preview is not automatically regenerated.
 

@@ -1,5 +1,7 @@
 import type { Clip, Project } from "./model";
 import { reelSafeArea } from "./safe-area";
+import { arrivingCaptionStyles } from "./caption-style-ids";
+import { motionEase } from "./motion";
 
 type CaptionPreset = {
   id: Clip["captionStyle"];
@@ -179,6 +181,55 @@ export const captionStyles: CaptionPreset[] = [
       captionTracking: 0,
     },
   },
+  {
+    id: "impact",
+    name: "Impact",
+    description:
+      "Big black-outlined capitals, the spoken word in yellow with a pop: the Hormozi look.",
+    patch: {
+      ...balanced,
+      captionStyle: "impact",
+      captionCase: "upper",
+      fontFamily: "Arial Black",
+      fontWeight: "800",
+      fontSize: 96,
+      accent: "#ffd93d",
+      captionStrokeWidth: 9,
+      captionTracking: -1,
+    },
+  },
+  {
+    id: "bounce",
+    name: "Bounce",
+    description: "Each word springs in as it is spoken and stays.",
+    patch: {
+      ...balanced,
+      captionStyle: "bounce",
+      captionCase: "upper",
+      fontFamily: "Arial Black",
+      fontWeight: "800",
+      fontSize: 84,
+      accent: "#39ff14",
+      captionStrokeWidth: 5,
+      captionTracking: 0,
+    },
+  },
+  {
+    id: "neon",
+    name: "Neon",
+    description: "Glowing type in a cool color, the spoken word lit brightest.",
+    patch: {
+      ...balanced,
+      captionStyle: "neon",
+      fontFamily: "Helvetica",
+      fontWeight: "800",
+      fontSize: 78,
+      color: "#ffffff",
+      accent: "#4df3ff",
+      captionStrokeWidth: 0,
+      captionTracking: 0.5,
+    },
+  },
 ];
 
 /** Shared presets scale to the short canvas edge without moving custom captions. */
@@ -227,6 +278,14 @@ export function captionPlacement(
   };
 }
 
+/**
+ * A bouncing word springs from half size to full in a fifth of a second
+ * after it is spoken, overshooting a little, then stays.
+ */
+export function captionBounceScale(elapsed: number) {
+  return 0.5 + 0.5 * motionEase(Math.min(1, elapsed / 0.2), "spring");
+}
+
 export function captionWordStyle(
   c: Clip,
   index: number,
@@ -235,15 +294,18 @@ export function captionWordStyle(
   const word = c.words[index],
     active = Boolean(word && seconds >= word.start && seconds < word.end);
   const elapsed = word ? Math.max(0, seconds - word.start) : 0;
+  const style = c.captionStyle;
   return {
     active,
-    visible: c.captionStyle !== "typewriter" || !word || seconds >= word.start,
+    visible: !arrivingCaptionStyles.has(style) || !word || seconds >= word.start,
     scale:
-      c.captionStyle === "pop" && active
-        ? 1 +
-          (c.captionLayout === "balanced" ? 0.065 : 0.12) *
-            Math.exp(-elapsed * 12)
-        : 1,
-    filled: c.captionStyle === "karaoke" && active,
+      style === "bounce" && word && seconds >= word.start
+        ? captionBounceScale(elapsed)
+        : (style === "pop" || style === "impact") && active
+          ? 1 +
+            (c.captionLayout === "balanced" ? 0.065 : 0.12) *
+              Math.exp(-elapsed * 12)
+          : 1,
+    filled: style === "karaoke" && active,
   };
 }

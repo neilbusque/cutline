@@ -28,16 +28,19 @@ import {
 } from "../shared/transitions";
 import { reversedPartCovers, reversedRange } from "../shared/timeline";
 import {
-  blackDip,
   clipBoxStyle,
   clipWrapperStyle,
+  finishingEffect,
   mediaStyle,
+  transitionDip,
+  transitionEffect,
   transitionGain,
   transitionGroups,
   type IncomingTransition,
   type OutgoingTransition,
 } from "./compositing";
-import React, { useMemo, useState } from "react";
+import { EffectFilter } from "./EffectFilter";
+import React, { useId, useMemo, useState } from "react";
 import {
   AbsoluteFill,
   Sequence,
@@ -418,10 +421,27 @@ function Layer({
       />
     ) : null;
   if (track?.hidden) return null;
-  const dip =
-    incoming?.kind === "black" ? blackDip(f, incoming.frames).black : 0;
+  const dip = transitionDip(f, incoming);
+  // Whip motion blur and glitch tearing need an SVG filter; a per-instance id
+  // keeps one clip's filter from leaking into another preview of the same clip.
+  const effect = transitionEffect({
+    frame: f,
+    incoming,
+    outgoing,
+    size: Math.min(p.width, p.height),
+  });
+  const ids = useId().replace(/[^a-zA-Z0-9_-]/g, "");
+  const effectId = `transition-${ids}`;
+  // Glitch tearing and halation work on the picture itself, inside the box.
+  const finishing =
+    c.kind === "video" || c.kind === "image"
+      ? finishingEffect(c, f)
+      : undefined;
+  const finishingId = `finish-${ids}`;
   return (
     <>
+      {effect && <EffectFilter id={effectId} effect={effect} />}
+      {finishing && <EffectFilter id={finishingId} effect={finishing} />}
       <div
         style={clipWrapperStyle({
           c,
@@ -429,6 +449,7 @@ function Layer({
           glow: reactive.glow,
           incoming,
           outgoing,
+          filterUrl: effect ? `url(#${effectId})` : undefined,
         })}
       >
         <div style={clipBoxStyle(c, opacityAt(c, f), reactive.scale)}>
@@ -448,6 +469,9 @@ function Layer({
                   width: "100%",
                   height: "100%",
                   ...mediaStyle(c, f, p.fps, span),
+                  ...(finishing
+                    ? { filter: `url(#${finishingId})` }
+                    : {}),
                 }}
               >
                 {c.kind === "video" && a && media?.pending ? (
@@ -496,8 +520,8 @@ function Layer({
           </RgbSplit>
         </div>
       </div>
-      {dip > 0 && (
-        <AbsoluteFill style={{ background: "black", opacity: dip }} />
+      {dip && dip.amount > 0 && (
+        <AbsoluteFill style={{ background: dip.color, opacity: dip.amount }} />
       )}
     </>
   );

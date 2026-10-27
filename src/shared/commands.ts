@@ -1,4 +1,5 @@
-import { activeTransition, setTransition } from "./transitions";
+import { activeTransition, rippleTrack, setTransition } from "./transitions";
+import { speedRampPlan, type SpeedRampSegment } from "./speed-ramp";
 import {
   compatibleTrack,
   flippedSourceIn,
@@ -18,6 +19,7 @@ import {
   uid,
   type Project,
   type Clip,
+  transitionKinds,
   type Track,
 } from "./model";
 // Defaults belong to creation, never to a partial update. Zod 4 otherwise
@@ -55,15 +57,21 @@ export const CommandSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("clip.transition"),
     id: z.string(),
-    kind: z.enum([
-      "none",
-      "crossfade",
-      "black",
-      "slide-left",
-      "slide-right",
-      "wipe",
-    ]),
+    kind: z.enum(["none", ...transitionKinds]),
     frames: z.number().int().min(2).max(600).default(15),
+  }),
+  z.object({
+    type: z.literal("clip.speedRamp"),
+    id: z.string(),
+    segments: z
+      .array(
+        z.object({
+          seconds: z.number().finite().positive().max(36000),
+          speed: z.number().finite().min(0.1).max(8),
+        }),
+      )
+      .min(1)
+      .max(100),
   }),
   z.object({ type: z.literal("clip.add"), clip: ClipSchema }),
   z.object({ type: z.literal("clip.update"), id: z.string(), patch }),
@@ -197,6 +205,80 @@ function transitionOverlaps(p: Project, c: Clip) {
       : 0,
     tail: outgoing ? c.start + c.duration - outgoing.start : 0,
   };
+}
+
+/**
+ * Cuts a clip into pieces that play one after another at different speeds,
+ * contiguous in the source (see speed-ramp.ts). The first piece keeps the
+ * clip's id, fade-in and keys; later pieces are copies with their own ids
+ * and the animation phase carried on, as a split does. Everything after
+ * the clip on its track moves by the change in length, with its captions.
+ * Returns the ids of the pieces in order.
+ */
+export function speedRamp(p: Project, c: Clip, segments: SpeedRampSegment[]) {
+  if (c.kind !== "video" && c.kind !== "audio")
+    throw Error("Speed ramps apply to video and audio clips.");
+  if (c.freeze || c.reverse)
+    throw Error(
+      "Add the speed ramp before reversing or freezing the clip: a ramp plays the source forward.",
+    );
+  if (activeTransition(p, c) || outgoingTransition(p, c))
+    throw Error("Remove the transitions on this clip before adding a speed ramp.");
+  if (
+    p.clips.some(
+      (x) => x.kind === "caption" && x.captionSourceId === c.id,
+    )
+  )
+    throw Error(
+      "This clip has generated captions, which a ramp would pull out of sync. Delete them and add the ramp first, then transcribe again.",
+    );
+  const plan = speedRampPlan(c, segments, p.fps);
+  const end = c.start + c.duration;
+  // Each word keeps its place in the source and lands in the piece that
+  // holds its middle, timed at that piece's speed.
+  const sourceWords = c.words.map((w) => ({
+    text: w.text,
+    start: w.start * c.speed,
+    end: w.end * c.speed,
+  }));
+  const pieces = plan.pieces.map((piece, index) => {
+    const first = index === 0,
+      last = index === plan.pieces.length - 1;
+    const from = piece.sourceIn - c.sourceIn,
+      to = from + piece.sourceSeconds;
+    const words = sourceWords
+      .filter((w) => {
+        const middle = (w.start + w.end) / 2;
+        return middle >= from && (middle < to || (last && middle <= to));
+      })
+      .map((w) => ({
+        text: w.text,
+        start: Math.max(0, (w.start - from) / piece.speed),
+        end: Math.min(piece.duration / p.fps, (w.end - from) / piece.speed),
+      }))
+      .filter((w) => w.end > w.start);
+    const base = first ? c : { ...structuredClone(c), id: uid() };
+    Object.assign(base, {
+      start: c.start + piece.start,
+      duration: piece.duration,
+      sourceIn: piece.sourceIn,
+      speed: piece.speed,
+      animationOffset: c.animationOffset + piece.start,
+      words,
+      fadeIn: first ? c.fadeIn : 0,
+      fadeOut: last ? c.fadeOut : 0,
+      ...(first ? {} : { transition: undefined }),
+    });
+    return base;
+  });
+  if (plan.shift)
+    rippleTrack(p, { trackId: c.trackId, start: end } as Clip, plan.shift);
+  const lastId = pieces[pieces.length - 1].id;
+  for (const next of p.clips)
+    if (next.transition?.fromId === c.id && next.id !== c.id)
+      next.transition.fromId = lastId;
+  p.clips.push(...pieces.slice(1));
+  return pieces.map((piece) => piece.id);
 }
 
 /** A split inside a crossfade would leave one half drawn over the other. */
@@ -437,6 +519,9 @@ export function applyCommands(
         Object.assign(c, withDirection(p, c, op.patch));
         break;
       }
+      case "clip.speedRamp":
+        speedRamp(p, target(p, op.id), op.segments);
+        break;
       case "clip.split": {
         const c = target(p, op.id);
         const offset = op.frame - c.start;

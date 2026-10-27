@@ -22,6 +22,9 @@ export const motionRecipeIds = [
   "callout",
   "end-card",
   "logo-sting",
+  "progress-bar",
+  "notification",
+  "subscribe",
 ] as const;
 export type MotionRecipeId = (typeof motionRecipeIds)[number];
 export const motionRecipeStyles = ["clean", "bold", "minimal"] as const;
@@ -119,6 +122,36 @@ export const motionRecipes: ReadonlyArray<{
     description:
       "A ring draws around a mark holding the text's initial, then the wordmark and tagline reveal beside it (below it on tall canvases). For an SVG logo use cutline_vector_import and motion.logoReveal.",
   },
+  {
+    id: "progress-bar",
+    name: "Progress bar",
+    seconds: 5,
+    position: "bottom",
+    subtitle: "a smaller status line under the label",
+    layers: ["Label", "Status", "Percent", "Track", "Fill"],
+    description:
+      "A thin bar that fills from empty to full over the clip's length, the label above it, an optional status line under the label and a percentage counting to 100. Set durationFrames to the span it should cover (a step, a wait, a whole video).",
+  },
+  {
+    id: "notification",
+    name: "Notification",
+    seconds: 4,
+    position: "top",
+    subtitle: "the message line under the title",
+    layers: ["Panel", "Icon", "Title", "Message"],
+    description:
+      "A phone-style banner drops in from the top edge with a small settle, holds, and slides back out: text is the sender or app name, subtitle the message. Pair with a ding.",
+  },
+  {
+    id: "subscribe",
+    name: "Subscribe button",
+    seconds: 4,
+    position: "bottom",
+    subtitle: "the pressed label (default: Subscribed)",
+    layers: ["Button", "Pressed", "Label", "Pressed label", "Bell"],
+    description:
+      "A red pill pops in with the text (Subscribe), presses after a second, turns dark with the pressed label and a bell that rings in beside it. colors.accent recolors the button.",
+  },
 ];
 
 /** The recipe catalog for cutline_editing_schema section motionRecipes. */
@@ -168,6 +201,9 @@ const natural: Record<MotionRecipeId, number> = {
   callout: 40 + 45 + 13,
   "end-card": 30 + 45 + 13,
   "logo-sting": 40 + 45 + 13,
+  "progress-bar": 15 + 45 + 13,
+  notification: 16 + 45 + 13,
+  subscribe: 20 + 30 + 10 + 45 + 13,
 };
 
 type Timing = {
@@ -1319,12 +1355,430 @@ function captionBand(p: Project, start: number, duration: number) {
   };
 }
 
+const LINEAR: MotionBezier = [0, 0, 1, 1];
+
+/**
+ * A bar across the safe width that fills over the whole clip, a small label
+ * above it and a percentage that counts with the fill. The fill is a line
+ * drawn by trim, so it stays a crisp rectangle at any size.
+ */
+function progressBar(c: Context): MotionLayer[] {
+  const { s, t, style } = c;
+  const bold = style === "bold",
+    minimal = style === "minimal";
+  const width = c.area.right - c.area.left;
+  const bar = Math.max(4, s * (bold ? 0.014 : minimal ? 0.006 : 0.01));
+  const label = fitText(c, c.text, {
+    size: s * (bold ? 0.036 : 0.03),
+    min: s * 0.018,
+    maxWidth: width * 0.7,
+    maxLines: 1,
+    weight: bold ? 800 : minimal ? 500 : 700,
+    tracking: minimal ? 0.04 : -0.01,
+    lineHeight: 1.15,
+  });
+  const status = c.subtitle
+    ? fitText(c, c.subtitle, {
+        size: Math.max(s * 0.02, label.size * 0.7),
+        min: s * 0.016,
+        maxWidth: width * 0.7,
+        maxLines: 2,
+        weight: 400,
+        tracking: 0,
+        lineHeight: 1.2,
+      })
+    : undefined;
+  const gap = label.size * 0.5;
+  const statusGap = status ? label.size * 0.15 : 0;
+  const blockHeight =
+    label.height + statusGap + (status?.height ?? 0) + gap + bar;
+  const at = placeBlock(c, width, blockHeight);
+  const barTop = at.y + label.height + statusGap + (status?.height ?? 0) + gap;
+  // The fill takes the whole clip up to the exit, at a steady pace.
+  const fillEnd = Math.max(1, t.leaveAt(3));
+  const percent = fitText(c, "100%", {
+    size: label.size,
+    min: s * 0.018,
+    maxWidth: width * 0.3,
+    maxLines: 1,
+    weight: label.weight,
+    tracking: 0,
+    lineHeight: 1.15,
+  });
+  const layers: MotionLayer[] = [
+    typeLayer(c, label, {
+      name: "Label",
+      left: at.x,
+      top: at.y,
+      align: "left",
+      color: c.colors.text,
+      title: true,
+      start: 0,
+      leave: t.leaveAt(2),
+    }),
+  ];
+  if (status)
+    layers.push(
+      typeLayer(c, status, {
+        name: "Status",
+        left: at.x,
+        top: at.y + label.height + statusGap,
+        align: "left",
+        color: c.colors.text,
+        opacity: 0.75,
+        title: false,
+        start: t.at(3),
+        leave: t.leaveAt(2),
+      }),
+    );
+  layers.push(
+    layer({
+      type: "text",
+      name: "Percent",
+      text: "0%",
+      x: at.x + width - percent.width - percent.size * 0.1,
+      y: at.y - percent.size * 0.125,
+      width: percent.width + percent.size * 0.2,
+      height: percent.height + percent.size * 0.25,
+      color: c.colors.text,
+      fontSize: clamp(percent.size, 8, 500),
+      fontWeight: percent.weight,
+      align: "right",
+      lineHeight: percent.lineHeight,
+      opacity: 0.82,
+      musicAccent: false,
+      counter: {
+        from: 0,
+        to: 100,
+        startFrame: 0,
+        durationFrames: fillEnd,
+        decimals: 0,
+        prefix: "",
+        suffix: "%",
+        easing: "linear",
+      },
+      keyframes: keys(
+        { opacity: 0.82 },
+        { at: 0, frames: t.len(6), from: { opacity: 0 } },
+        { at: t.leaveAt(2), frames: t.exit, to: { opacity: 0 } },
+      ),
+    }),
+    layer({
+      type: "rectangle",
+      name: "Track",
+      x: at.x,
+      y: barTop,
+      width,
+      height: bar,
+      background: c.colors.panel,
+      fillOpacity: minimal ? 0.35 : 0.6,
+      radius: minimal ? 0 : bar / 2,
+      musicAccent: false,
+      keyframes: keys(
+        {},
+        { at: 0, frames: t.len(6), from: { opacity: 0 } },
+        { at: t.leaveAt(1), frames: t.exit, to: { opacity: 0 } },
+      ),
+    }),
+    layer({
+      type: "line",
+      name: "Fill",
+      x: at.x,
+      y: barTop,
+      width,
+      height: bar,
+      background: "transparent",
+      stroke: c.colors.accent,
+      strokeWidth: bar,
+      musicAccent: false,
+      keyframes: keys(
+        {},
+        { at: 0, frames: fillEnd, from: { trim: 0 }, move: LINEAR },
+        { at: t.leaveAt(0), frames: t.exit, to: { opacity: 0 } },
+      ),
+    }),
+  );
+  return layers;
+}
+
+/**
+ * A phone banner: rounded panel, app tile, title and message. The whole
+ * banner drops in from above the frame with a small settle and leaves the
+ * same way, so every layer shares the one move.
+ */
+function notification(c: Context): MotionLayer[] {
+  const { s, t, style } = c;
+  const bold = style === "bold",
+    minimal = style === "minimal";
+  const safe = c.area.right - c.area.left;
+  const panelWidth = Math.min(safe, s * 0.86);
+  const tile = s * 0.075;
+  const padX = s * 0.028,
+    padY = s * 0.024,
+    gapX = s * 0.022;
+  const textWidth = panelWidth - padX * 2 - tile - gapX;
+  const title = fitText(c, c.text, {
+    size: s * (bold ? 0.036 : 0.032),
+    min: s * 0.02,
+    maxWidth: textWidth,
+    maxLines: 1,
+    weight: bold ? 800 : 700,
+    tracking: -0.01,
+    lineHeight: 1.15,
+  });
+  const message = c.subtitle
+    ? fitText(c, c.subtitle, {
+        size: Math.max(s * 0.022, title.size * 0.88),
+        min: s * 0.018,
+        maxWidth: textWidth,
+        maxLines: 2,
+        weight: 400,
+        tracking: 0,
+        lineHeight: 1.2,
+      })
+    : undefined;
+  const textHeight = title.height + (message ? title.size * 0.12 + message.height : 0);
+  const panelHeight = Math.max(tile, textHeight) + padY * 2;
+  const at = placeBlock(c, panelWidth, panelHeight);
+  const slide = at.y + panelHeight + s * 0.02;
+  const enter = {
+    at: 0,
+    frames: t.len(16),
+    from: { y: -slide, opacity: 0 },
+    move: bold ? SETTLE : ENTER,
+  };
+  const leave = (order: number) => ({
+    at: t.leaveAt(order),
+    frames: t.exit,
+    to: { y: -slide, opacity: 0 },
+  });
+  const textLeft = at.x + padX + tile + gapX;
+  const textTop = at.y + (panelHeight - textHeight) / 2;
+  const textLayer = (
+    f: Fitted,
+    name: string,
+    top: number,
+    opacity: number,
+    order: number,
+  ) =>
+    layer({
+      type: "text",
+      name,
+      text: f.lines.join("\n"),
+      x: textLeft,
+      y: top - f.size * 0.125,
+      width: textWidth + f.size * 0.1,
+      height: f.height + f.size * 0.25,
+      color: c.colors.text,
+      fontSize: clamp(f.size, 8, 500),
+      fontWeight: f.weight,
+      align: "left",
+      letterSpacing: clamp(f.tracking * f.size, -30, 100),
+      lineHeight: f.lineHeight,
+      opacity,
+      musicAccent: false,
+      keyframes: keys({ opacity }, enter, leave(order)),
+    });
+  const layers: MotionLayer[] = [
+    layer({
+      type: "rectangle",
+      name: "Panel",
+      x: at.x,
+      y: at.y,
+      width: panelWidth,
+      height: panelHeight,
+      background: c.colors.panel,
+      fillOpacity: minimal ? 0.8 : 0.94,
+      radius: minimal ? s * 0.012 : s * 0.03,
+      musicAccent: false,
+      keyframes: keys({}, enter, leave(0)),
+    }),
+    layer({
+      type: "rectangle",
+      name: "Icon",
+      x: at.x + padX,
+      y: at.y + (panelHeight - tile) / 2,
+      width: tile,
+      height: tile,
+      background: c.colors.accent,
+      radius: tile * (minimal ? 0.12 : 0.24),
+      musicAccent: false,
+      keyframes: keys({}, enter, leave(1)),
+    }),
+    textLayer(title, "Title", textTop, 1, 2),
+  ];
+  if (message)
+    layers.push(
+      textLayer(
+        message,
+        "Message",
+        textTop + title.height + title.size * 0.12,
+        0.8,
+        3,
+      ),
+    );
+  return layers;
+}
+
+/**
+ * A subscribe pill: pops in red with the label, presses after about a
+ * second (a quick dip in scale), turns dark with the pressed label, and a
+ * bell rings in beside it. Everything after the press is one state change,
+ * not a loop.
+ */
+function subscribe(c: Context): MotionLayer[] {
+  const { s, t, style } = c;
+  const bold = style === "bold",
+    minimal = style === "minimal";
+  const label = fitText(c, c.text, {
+    size: s * (bold ? 0.046 : 0.04),
+    min: s * 0.024,
+    maxWidth: s * 0.5,
+    maxLines: 1,
+    weight: bold ? 800 : 700,
+    tracking: -0.01,
+    lineHeight: 1.1,
+  });
+  const pressedText = c.subtitle ?? "Subscribed";
+  const pressed = fitText(c, pressedText, {
+    size: label.size,
+    min: s * 0.024,
+    maxWidth: s * 0.5,
+    maxLines: 1,
+    weight: label.weight,
+    tracking: -0.01,
+    lineHeight: 1.1,
+  });
+  const padX = label.size * 0.9,
+    padY = label.size * 0.5;
+  const buttonWidth = Math.max(label.width, pressed.width) + padX * 2;
+  const buttonHeight = label.height + padY * 2;
+  const bell = buttonHeight * 0.78;
+  const gap = s * 0.02;
+  const at = placeBlock(c, buttonWidth + gap + bell, buttonHeight);
+  const red = c.colors.accent === defaults.accent ? "#ff0033" : c.colors.accent;
+  const dark = "#272727";
+  const press = t.at(42);
+  const pressFrames = t.len(5);
+  // The pop-in and the press share one scale curve on the button and label.
+  const pressKeys = (rest: Values): MotionKeyframe[] => [
+    ...keys(rest, {
+      at: 0,
+      frames: t.len(14),
+      from: { scale: 0.6, opacity: 0 },
+      move: SETTLE,
+    }),
+    { frame: press, scale: 1, easing: "ease-in" },
+    { frame: press + pressFrames, scale: 0.92, easing: "ease-out" },
+    { frame: press + pressFrames * 2, scale: 1, easing: "linear" },
+    ...keys(rest, undefined, {
+      at: t.leaveAt(1),
+      frames: t.exit,
+      to: { opacity: 0, scale: 0.9 },
+    }).filter((key) => key.frame > press + pressFrames * 2),
+  ];
+  const textLayer = (f: Fitted, name: string, rest: Values, extra: MotionKeyframe[]) =>
+    layer({
+      type: "text",
+      name,
+      text: f.lines.join("\n"),
+      x: at.x,
+      y: at.y + padY - f.size * 0.125,
+      width: buttonWidth,
+      height: f.height + f.size * 0.25,
+      color: c.colors.text,
+      fontSize: clamp(f.size, 8, 500),
+      fontWeight: f.weight,
+      align: "center",
+      letterSpacing: clamp(f.tracking * f.size, -30, 100),
+      lineHeight: f.lineHeight,
+      opacity: rest.opacity ?? 1,
+      musicAccent: false,
+      keyframes: extra,
+    });
+  return [
+    layer({
+      type: "rectangle",
+      name: "Button",
+      x: at.x,
+      y: at.y,
+      width: buttonWidth,
+      height: buttonHeight,
+      background: red,
+      radius: minimal ? buttonHeight * 0.18 : buttonHeight / 2,
+      musicAccent: false,
+      keyframes: pressKeys({}),
+    }),
+    layer({
+      type: "rectangle",
+      name: "Pressed",
+      x: at.x,
+      y: at.y,
+      width: buttonWidth,
+      height: buttonHeight,
+      background: dark,
+      radius: minimal ? buttonHeight * 0.18 : buttonHeight / 2,
+      opacity: 0,
+      musicAccent: false,
+      keyframes: [
+        { frame: 0, opacity: 0, scale: 1, easing: "hold" },
+        { frame: press, opacity: 0, scale: 1, easing: "ease-in" },
+        { frame: press + pressFrames, opacity: 1, scale: 0.92, easing: "ease-out" },
+        { frame: press + pressFrames * 2, scale: 1, easing: "linear" },
+        { frame: t.leaveAt(1), opacity: 1, scale: 1, easing: "cubic-bezier", bezier: [...EXIT] },
+        { frame: t.leaveAt(1) + t.exit, opacity: 0, scale: 0.9, easing: "linear" },
+      ],
+    }),
+    textLayer(label, "Label", {}, [
+      ...keys({}, { at: t.at(3), frames: t.len(12), from: { opacity: 0, y: label.size * 0.2 } }),
+      { frame: press, opacity: 1, easing: "linear" },
+      { frame: press + pressFrames, opacity: 0, easing: "linear" },
+    ]),
+    textLayer(pressed, "Pressed label", { opacity: 0 }, [
+      { frame: 0, opacity: 0, easing: "hold" },
+      { frame: press + pressFrames, opacity: 0, y: pressed.size * 0.15, easing: "cubic-bezier", bezier: [...ENTER] },
+      { frame: press + pressFrames * 2 + t.len(6), opacity: 1, y: 0, easing: "cubic-bezier", bezier: [...EXIT] },
+      { frame: t.leaveAt(0), opacity: 1, easing: "cubic-bezier", bezier: [...EXIT] },
+      { frame: t.leaveAt(0) + t.exit, opacity: 0, easing: "linear" },
+    ]),
+    layer({
+      type: "path",
+      name: "Bell",
+      x: at.x + buttonWidth + gap,
+      y: at.y + (buttonHeight - bell) / 2,
+      width: bell,
+      height: bell,
+      vectorPath:
+        "M12 2a6 6 0 0 0-6 6v4.5L4 16v1h16v-1l-2-3.5V8a6 6 0 0 0-6-6zm-2.5 16a2.5 2.5 0 0 0 5 0z",
+      vectorViewBox: [0, 0, 24, 24],
+      background: c.colors.text,
+      anchorX: 0.5,
+      anchorY: 0.15,
+      opacity: 0,
+      musicAccent: false,
+      keyframes: [
+        { frame: 0, opacity: 0, scale: 0.4, rotate: 0, easing: "hold" },
+        { frame: press + pressFrames, opacity: 0, scale: 0.4, rotate: 0, easing: "cubic-bezier", bezier: [...SETTLE] },
+        { frame: press + pressFrames + t.len(10), opacity: 1, scale: 1, rotate: -14, easing: "ease-in-out" },
+        { frame: press + pressFrames + t.len(16), rotate: 12, easing: "ease-in-out" },
+        { frame: press + pressFrames + t.len(22), rotate: -6, easing: "ease-in-out" },
+        { frame: press + pressFrames + t.len(28), rotate: 0, easing: "linear" },
+        { frame: t.leaveAt(2), opacity: 1, scale: 1, rotate: 0, easing: "cubic-bezier", bezier: [...EXIT] },
+        { frame: t.leaveAt(2) + t.exit, opacity: 0, scale: 0.6, easing: "linear" },
+      ],
+    }),
+  ];
+}
+
 const builders: Record<MotionRecipeId, (c: Context) => MotionLayer[]> = {
   "kinetic-title": kineticTitle,
   "lower-third": lowerThird,
   callout,
   "end-card": endCard,
   "logo-sting": logoSting,
+  "progress-bar": progressBar,
+  notification,
+  subscribe,
 };
 
 /**
@@ -1342,7 +1796,8 @@ export function createMotionRecipe(
     throw Error(
       "point applies only to the callout recipe; place other recipes with position.",
     );
-  const text = options.text.trim();
+  const text =
+    options.text.trim() || (options.recipe === "subscribe" ? "Subscribe" : "");
   if (!text) throw Error("A motion recipe needs text.");
   const duration = options.durationFrames ?? Math.round(info.seconds * p.fps);
   if (!Number.isInteger(duration) || duration < 12 || duration > 18000)

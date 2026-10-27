@@ -35,8 +35,48 @@ export const cameraMoves = [
   "handheld",
   "slow-orbit",
   "punch-in",
+  "punch-out",
+  "pop-in",
+  "shake",
   "breathe",
 ] as const;
+/** Finishing overlays: what each adds, for the Effects panel and the assistant guide. */
+export const overlayNames = {
+  none: "None",
+  "film-grain": "Film grain",
+  "light-leak": "Light leak",
+  vhs: "VHS scan",
+  halftone: "Halftone",
+  letterbox: "Letterbox",
+  "flash-in": "Flash cut",
+  glitch: "Glitch",
+  halation: "Halation",
+} as const;
+export const overlayDescriptions: Record<keyof typeof overlayNames, string> = {
+  none: "The picture as shot.",
+  "film-grain": "Fine moving grain, like film stock.",
+  "light-leak": "A warm drifting glow from one edge.",
+  vhs: "Scan lines and a rolling band, like a worn tape.",
+  halftone: "A print-like dot pattern.",
+  letterbox: "Black bars top and bottom for a cinematic frame.",
+  "flash-in": "A white pop on the clip's first frames: hides a hard cut without a transition.",
+  glitch: "Short bursts of digital tearing and color separation.",
+  halation: "A soft warm glow bleeding from the highlights.",
+};
+export const cameraMoveDescriptions: Record<(typeof cameraMoves)[number], string> = {
+  none: "Holds still.",
+  "zoom-in": "A slow push in over the shot.",
+  "zoom-out": "A slow pull back over the shot.",
+  "pan-left": "Drifts left while slightly zoomed.",
+  "pan-right": "Drifts right while slightly zoomed.",
+  handheld: "A gentle continuous handheld sway.",
+  "slow-orbit": "A slow tilt and drift, like orbiting the subject.",
+  "punch-in": "Snaps 18% tighter in a fifth of a second: the jump-cut punch.",
+  "punch-out": "Starts tight and snaps back to full frame.",
+  "pop-in": "Springs up from 82% to full size, for screenshots and inserts.",
+  shake: "A camera knock on the first frames that settles within half a second.",
+  breathe: "A slow in-and-out breath of scale.",
+};
 export const textAnimations = [
   { preset: "spring", label: "Make it pop", group: "Essential" },
   { preset: "slide", label: "Slide in", group: "Essential" },
@@ -128,6 +168,24 @@ export function cameraTransform(
     case "punch-in": {
       const snap = Math.max(1, Math.round(fps * 0.2));
       return `scale(${1 + 0.18 * motionEase(at / snap, "cubic-bezier", settleBezier)})`;
+    }
+    case "punch-out": {
+      const snap = Math.max(1, Math.round(fps * 0.2));
+      return `scale(${1.18 - 0.18 * motionEase(at / snap, "cubic-bezier", settleBezier)})`;
+    }
+    case "pop-in": {
+      const frames = Math.max(1, Math.round(fps * 0.4));
+      return `scale(${0.82 + 0.18 * motionEase(Math.min(1, at / frames), "spring")})`;
+    }
+    case "shake": {
+      // A knock at the cut: about 10 Hz (a 15 Hz shake would alias to a
+      // left-right flicker at 30 fps), gone within half a second, the same
+      // at any frame rate. A little zoom keeps the edges covered.
+      const seconds = at / fps;
+      const amount = Math.exp(-seconds * 7);
+      if (amount < 0.01) return "scale(1.05)";
+      const s = seconds * 30;
+      return `scale(1.05) translate(${(Math.sin(s * 2.1 + 0.9) * 14 * amount).toFixed(2)}px,${(Math.cos(s * 2.7) * 9 * amount).toFixed(2)}px) rotate(${(Math.sin(s * 1.7 + 0.4) * 0.7 * amount).toFixed(3)}deg)`;
     }
     case "breathe":
       return `scale(${1.06 + 0.04 * Math.sin(t * Math.PI * 2)})`;

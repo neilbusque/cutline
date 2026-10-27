@@ -1,6 +1,6 @@
 # Local text to speech
 
-Open **Audio → Text to speech**. Paste a script, choose a voice and pace, then select **Generate voiceover**. Listen to the preview before adding it to the timeline or saving a WAV. The Audio panel opens here by default; Music sync and My audio remain available.
+Open **Audio → Voice**. Paste a script, choose a voice and pace, then select **Generate voiceover**. Listen to the preview before adding it to the timeline or saving a WAV. The Audio panel opens here by default; Music sync, Accents and My audio remain available.
 
 Cutline uses the Kokoro 82M v1.0 model and eight English voices. Speech synthesis runs on this Mac with no API key, credit balance or per-use charge. [Source setup](development.md#prepare-local-voiceover) downloads the model, and private local builds can include it. If a development install lacks the model, Download Kokoro performs a one-time download; generation then works offline. Broken bundled voice files require repairing the app, rather than downloading the model again.
 
@@ -20,4 +20,4 @@ Kokoro's source and model weights use Apache 2.0 licensing. Notices remain bundl
 
 Verification command: `CUTLINE_QA_OFFLINE=1 CUTLINE_QA_ACTIVE_CANCEL=1 one-at-a-time npm run qa:audio`.
 
-For an installed app, additionally set `CUTLINE_PACKAGED=1` and `CUTLINE_APP_EXECUTABLE=/Applications/Cutline.app/Contents/MacOS/Cutline`. QA uses an isolated project and profile. Its test-only network guard runs inside the synthesis worker and fails external network attempts while allowing the editor's local bridge. Screenshots cover the desktop and the Text to speech panel at 390px; the whole Mac editor retains its desktop minimum width.
+For an installed app, additionally set `CUTLINE_PACKAGED=1` and `CUTLINE_APP_EXECUTABLE=/Applications/Cutline.app/Contents/MacOS/Cutline`. QA uses an isolated project and profile. Its test-only network guard runs inside the synthesis worker and fails external network attempts while allowing the editor's local bridge. Screenshots cover the desktop and the Voice panel at 390px; the whole Mac editor retains its desktop minimum width.

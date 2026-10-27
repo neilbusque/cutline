@@ -1,12 +1,71 @@
-import type { Clip, Project } from "./model";
-export const transitionNames = {
+import { transitionKinds, type Clip, type Project } from "./model";
+export type TransitionKind = (typeof transitionKinds)[number];
+export const transitionNames: Record<TransitionKind, string> = {
   crossfade: "Crossfade",
-  black: "Fade through black",
+  black: "Dip to black",
+  flash: "Flash",
+  blur: "Blur dissolve",
+  "zoom-in": "Zoom in",
+  "zoom-out": "Zoom out",
+  "whip-left": "Whip left",
+  "whip-right": "Whip right",
   "slide-left": "Slide left",
   "slide-right": "Slide right",
+  "push-up": "Push up",
+  "push-down": "Push down",
   wipe: "Wipe",
-} as const;
-export type TransitionKind = keyof typeof transitionNames;
+  spin: "Spin",
+  shake: "Shake",
+  glitch: "Glitch",
+};
+/** What each transition looks like, for the inspector and the assistant guide. */
+export const transitionDescriptions: Record<TransitionKind, string> = {
+  crossfade: "The shots dissolve into each other.",
+  black: "Dips through black in the middle of the overlap.",
+  flash: "A white pop hides the cut: bright at the cut, clear within a few frames.",
+  blur: "The outgoing shot softens as the next one sharpens.",
+  "zoom-in":
+    "Pushes into the outgoing shot with motion blur; the next shot settles from large to full frame.",
+  "zoom-out":
+    "The outgoing shot shrinks away over the next one, which settles into place.",
+  "whip-left": "Both shots whip left with motion blur, like a fast pan.",
+  "whip-right": "Both shots whip right with motion blur.",
+  "slide-left": "The next shot slides in from the right.",
+  "slide-right": "The next shot slides in from the left.",
+  "push-up": "The next shot pushes the outgoing one up.",
+  "push-down": "The next shot pushes the outgoing one down.",
+  wipe: "A soft edge wipes across from left to right.",
+  spin: "The outgoing shot spins and zooms away; the next spins into place.",
+  shake: "A hard cut in the middle with a camera jolt that settles.",
+  glitch: "Digital tearing and color separation build to a hard cut, then clear.",
+};
+/**
+ * How long each transition takes by default, in seconds. Whips, flashes and
+ * glitches are quick cuts; dissolves and zooms get about half a second.
+ */
+export function transitionDefaultSeconds(kind: TransitionKind) {
+  switch (kind) {
+    case "flash":
+      return 0.2;
+    case "whip-left":
+    case "whip-right":
+    case "glitch":
+      return 0.3;
+    case "shake":
+    case "push-up":
+    case "push-down":
+    case "slide-left":
+    case "slide-right":
+    case "spin":
+      return 0.4;
+    default:
+      return 0.5;
+  }
+}
+/** Transitions that are a hard cut in the middle dressed with an effect. */
+export function cutsInTheMiddle(kind: TransitionKind) {
+  return kind === "black" || kind === "flash" || kind === "shake" || kind === "glitch";
+}
 const visual = (c: Clip) => c.kind === "video" || c.kind === "image";
 export function previousClip(p: Project, c: Clip) {
   let previous: Clip | undefined;
@@ -31,7 +90,7 @@ export function activeTransition(p: Project, c: Clip) {
   return { ...t, frames: Math.min(t.frames, overlap), previous };
 }
 /** Moves this clip and everything after it on its track, with their generated captions. */
-function rippleTrack(p: Project, c: Clip, shift: number) {
+export function rippleTrack(p: Project, c: Clip, shift: number) {
   const start = c.start,
     moved = new Set<string>();
   for (const x of p.clips)

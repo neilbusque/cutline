@@ -37,11 +37,11 @@ SRT import and export carry subtitle text and timing, without animated word high
 
 ## Add voiceover and music
 
-Open **Audio → Text to speech**, paste your script, choose a voice and pace, then select **Generate voiceover**. Listen before adding it to the timeline. If the model is missing, use the offered download or follow [source setup](development.md).
+Open **Audio → Voice**, paste your script, choose a voice and pace, then select **Generate voiceover**. Listen before adding it to the timeline. If the model is missing, use the offered download or follow [source setup](development.md).
 
-Kokoro runs locally and currently provides English voices. A script entered directly into Text to speech stays in local processing. A script sent through assistant chat is also shared with that assistant provider. [Voiceover details](kokoro-tts.md).
+Kokoro runs locally and currently provides English voices. A script entered directly into Voice stays in local processing. A script sent through assistant chat is also shared with that assistant provider. [Voiceover details](kokoro-tts.md).
 
-Use **Audio → My audio** for imported or generated audio. **Music sync** provides beat analysis and timing controls. Lower music under narration and check the mix with sound.
+Use **Audio → My audio** for imported or generated audio, **Accents** for built-in whoosh, impact, pop, click, riser and ding sounds. **Music sync** provides beat analysis and timing controls. Lower music under narration and check the mix with sound.
 
 ## Save, move and reopen projects
 

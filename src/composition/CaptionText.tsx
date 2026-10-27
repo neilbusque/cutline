@@ -14,6 +14,8 @@ import {
   captionTextWidth,
   type CaptionToken,
 } from "../shared/caption-layout";
+import { captionBounceScale } from "../shared/caption-styles";
+import { arrivingCaptionStyles } from "../shared/caption-style-ids";
 
 /** Pure frame-driven component shared by the canvas, export, and style previews. */
 export function CaptionText({
@@ -110,12 +112,17 @@ export function CaptionText({
       ? "none"
       : style === "minimal"
         ? "0 1px 5px #000b"
-        : `0 ${Math.max(1, layout.fontSize * 0.035)}px ${Math.max(3, layout.fontSize * 0.1)}px #000b`;
+        : style === "neon"
+          ? `0 0 ${Math.max(2, layout.fontSize * 0.06)}px #fff9, 0 0 ${Math.max(6, layout.fontSize * 0.22)}px ${c.accent}, 0 2px ${Math.max(3, layout.fontSize * 0.08)}px #0009`
+          : `0 ${Math.max(1, layout.fontSize * 0.035)}px ${Math.max(3, layout.fontSize * 0.1)}px #000b`;
+  // The lit word of a neon caption glows wider and brighter in the accent.
+  const neonActiveShadow = `0 0 ${Math.max(3, layout.fontSize * 0.1)}px #fff, 0 0 ${Math.max(8, layout.fontSize * 0.3)}px ${c.accent}, 0 0 ${Math.max(14, layout.fontSize * 0.55)}px ${c.accent}`;
   const renderWord = (token: CaptionToken, index: number) => {
     const isActive = c.highlight && active === token.wordIndex,
       word = c.words[token.wordIndex];
     const elapsed = Math.max(0, seconds - (word?.start ?? 0));
-    const visible = style !== "typewriter" || !word || seconds >= word.start;
+    const visible =
+      !arrivingCaptionStyles.has(style) || !word || seconds >= word.start;
     const filled = style === "karaoke" && isActive;
     // A long word gets the same small amount of movement as a short one.
     // Fixed expansion room avoids wide spaces and never pushes its neighbors.
@@ -124,9 +131,11 @@ export function CaptionText({
       token.width / token.contentWidth,
     );
     const scale =
-      style === "pop" && isActive
-        ? 1 + (popScale - 1) * Math.exp(-elapsed * 15)
-        : 1;
+      style === "bounce" && word && seconds >= word.start
+        ? Math.min(popScale, captionBounceScale(elapsed))
+        : (style === "pop" || style === "impact") && isActive
+          ? 1 + (popScale - 1) * Math.exp(-elapsed * 15)
+          : 1;
     return (
       <span
         key={`${token.wordIndex}:${index}`}
@@ -162,7 +171,11 @@ export function CaptionText({
               ? "0px transparent"
               : `${stroke}px #101511`,
             paintOrder: "stroke fill",
-            textShadow: filled ? "none" : textShadow,
+            textShadow: filled
+              ? "none"
+              : style === "neon" && isActive
+                ? neonActiveShadow
+                : textShadow,
           }}
         >
           {filled && (

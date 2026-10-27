@@ -16,6 +16,7 @@ Cutline turns footage, screenshots and scripts into videos you can keep editing.
 - **Explainers:** choose Kinetic type, Product focus, Sketch flow or Editorial collage, turn your script into an editable outline, then create local narration, captions and a timeline sequence. [Make an explainer](docs/explainer-guide.md) and [choose a style](docs/explainer-styles.md).
 - **Product videos:** plan scenes, use imported screenshots or recordings, add narration, and build an editable sequence. Product layouts and motion scenes render locally.
 - **Motion graphics:** animate text, shapes and imported SVG paths with editable layers, keyframes, easing and timing. [Motion controls](docs/motion-controls.md) and [explainer motion](docs/premium-motion.md).
+- **Trending effects:** whip, zoom, flash, spin, shake and glitch transitions, punch and shake camera moves, letterbox and halation, Hormozi-style captions, speed ramps, progress bars, notification banners, a subscribe button and built-in sound accents. [Trending effects](docs/trending-effects.md).
 - **Custom animated scenes:** import HyperFrames HTML or start with titles, charts and Three.js scenes. Edit the source in Cutline, render locally, and keep earlier versions in Undo. [Editable HTML scenes](docs/hyperframes.md).
 - **3D models:** drop a GLB or glTF file into Media, choose the camera and animation, and render it as an editable scene. Models, textures and embedded animation stay together. Claude and Codex can import and update these scenes directly. [3D model workflow](docs/model-3d.md).
 - **Voiceover and music:** generate English narration locally with Kokoro, import audio, compose an instrumental bed, and lower music under speech. [Voiceover](docs/kokoro-tts.md) and [music sync](docs/music-sync.md).
@@ -78,7 +79,8 @@ Adding media to a local project does not submit it for cloud generation. Review 
 | Resolve a problem                                          | [Troubleshooting](docs/troubleshooting.md)                                                                                |
 | Import and animate a 3D model                              | [3D models](docs/model-3d.md)                                                                                             |
 | Review sound and caption timing                            | [Listening review](docs/listening-review.md)                                                                              |
-| Review the current source release                          | [Changes in 0.38](docs/release-0.38.md)                                                                                   |
+| Add trending transitions, looks, ramps and sound accents   | [Trending effects](docs/trending-effects.md)                                                                              |
+| Review the current source release                          | [Changes in 0.39](docs/release-0.39.md)                                                                                   |
 
 ## Contribute
 

@@ -3,11 +3,18 @@ import { KeyframeInspector } from "./KeyframeInspector";
 import {
   activeTransition,
   previousClip,
+  transitionDefaultSeconds,
+  transitionDescriptions,
   transitionNames,
   type TransitionKind,
 } from "../shared/transitions";
 import React, { useEffect, useRef, useState } from "react";
 import { compatibleTrack } from "../shared/timeline";
+import {
+  speedRampPresetSegments,
+  speedRampPresets,
+  type SpeedRampPresetId,
+} from "../shared/speed-ramp";
 import { retimedClipCommands } from "../shared/linked-captions";
 import { MotionInspector } from "./MotionInspector";
 import {
@@ -166,9 +173,18 @@ export function Inspector({
   const canTransition =
     !!transition ||
     (!!previous && previous.start + previous.duration === c.start);
+  // A new kind starts at its own usual length (a whip is quick, a dissolve
+  // is not); changing only the length keeps the kind.
   const changeTransition = (
     kind: TransitionKind | "none",
-    frames = transition?.frames ?? Math.round(p.fps * 0.5),
+    frames = transition?.kind === kind
+      ? transition.frames
+      : Math.max(
+          2,
+          Math.round(
+            p.fps * (kind === "none" ? 0.5 : transitionDefaultSeconds(kind)),
+          ),
+        ),
   ) =>
     edit("Change transition", [
       { type: "clip.transition", id: c.id, kind, frames },
@@ -372,6 +388,41 @@ export function Inspector({
               }
             />
           </div>
+        )}
+        {asset && asset.kind !== "image" && !c.freeze && !c.reverse && (
+          <label className="field">
+            <span>Speed ramp</span>
+            <select
+              aria-label="Speed ramp"
+              value=""
+              onChange={(e) => {
+                const id = e.target.value as SpeedRampPresetId | "";
+                if (!id) return;
+                const preset = speedRampPresets.find((item) => item.id === id);
+                edit(`Speed ramp: ${preset?.name ?? id}`, [
+                  {
+                    type: "clip.speedRamp",
+                    id: c.id,
+                    segments: speedRampPresetSegments(
+                      id,
+                      (c.duration * c.speed) / p.fps,
+                    ),
+                  },
+                ]);
+              }}
+            >
+              <option value="">Add a ramp…</option>
+              {speedRampPresets.map((preset) => (
+                <option
+                  key={preset.id}
+                  value={preset.id}
+                  title={preset.description}
+                >
+                  {preset.name}
+                </option>
+              ))}
+            </select>
+          </label>
         )}
         {asset && asset.kind !== "image" && (
           <div className="two-col">
@@ -874,15 +925,15 @@ export function Inspector({
               }
             />
           )}
-          {!transition && (
-            <p className="hint">
-              {c.transition
+          <p className="hint">
+            {transition
+              ? transitionDescriptions[transition.kind]
+              : c.transition
                 ? "Transition is off because the clips no longer overlap."
                 : canTransition
                   ? "Overlaps the previous clip and moves later clips on this track."
                   : "Place this clip right after another video or photo on its track."}
-            </p>
-          )}
+          </p>
         </section>
       )}
       {c.kind !== "audio" && (

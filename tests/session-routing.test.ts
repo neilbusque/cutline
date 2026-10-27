@@ -447,8 +447,11 @@ describe("explicit session routing", () => {
     // Measure the public tools/list response, including the session wrapper.
     // The raw built-in definitions alone miss the external client's overhead.
     // 52,000 since cutline_reference and cutline_style_reel (0.30, 0.31);
-    // trim descriptions before raising again.
-    expect(JSON.stringify({ tools }).length).toBeLessThan(52_000);
+    // 54,000 since 0.39: the transition, overlay, camera and caption value
+    // lists grew and clip.speedRamp and cutline_sound_accent arrived. The
+    // prose inside cutline_edit is only 1.4k of its 21k; the rest is schema,
+    // so trim value lists or merge actions before raising again.
+    expect(JSON.stringify({ tools }).length).toBeLessThan(54_000);
     for (const [index, tool] of cutlineTools.entries()) {
       const { sessionId, ...properties } =
         tools[index + 1].inputSchema.properties!;

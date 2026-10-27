@@ -161,13 +161,38 @@ function wipeMask(progress: number, outgoing: boolean) {
   return { maskImage: image, WebkitMaskImage: image };
 }
 
+const round = (n: number, digits = 4) => Number(n.toFixed(digits));
+/**
+ * A camera jolt: a few off-axis sine waves at different speeds read as a
+ * handheld knock rather than a mechanical wobble. `amount` is 0 to 1 and the
+ * offsets are shares of the frame, so the same shake fits any canvas.
+ */
+export function shakeTransform(frame: number, amount: number) {
+  if (amount <= 0) return "";
+  const x = Math.sin(frame * 12.9) * 3.2 * amount,
+    y = Math.cos(frame * 9.7) * 2.1 * amount,
+    tilt = Math.sin(frame * 7.3) * 0.9 * amount;
+  // A little zoom keeps the frame edges covered while it moves.
+  return `translate(${round(x, 3)}%, ${round(y, 3)}%) rotate(${round(tilt, 3)}deg) scale(${round(1 + 0.07 * amount)})`;
+}
+/** Horizontal slips for a glitch, changing every two frames. */
+export function glitchSlip(frame: number, amount: number) {
+  const step = Math.floor(frame / 2);
+  const slip = Math.sin(step * 4.71 + 1.3) * Math.cos(step * 2.37);
+  return round(slip * 2.4 * amount, 3);
+}
+
 /**
  * Styles for the full-frame wrapper of a clip taking part in a transition.
- * Slides push the outgoing shot out as the new one comes in. When the pair is
- * isolated (rendered together in its own group), a crossfade or wipe also
- * fades the outgoing shot and adds the two with plus-lighter, so areas the
- * incoming shot does not cover (letterboxing, picture in picture, masks)
- * dissolve too instead of cutting at the end.
+ * Slides and pushes move the outgoing shot out as the new one comes in; whips
+ * add motion blur (see transitionEffect). Flash, shake and glitch are a hard
+ * cut in the middle of the overlap, dressed on both sides. Zooms and spins
+ * put the outgoing shot on top (zIndex, inside the pair's own group) so it
+ * can grow, shrink or turn away over the next shot settling behind it.
+ * When the pair is isolated (rendered together in its own group), a
+ * crossfade, blur or wipe also fades the outgoing shot and adds the two with
+ * plus-lighter, so areas the incoming shot does not cover (letterboxing,
+ * picture in picture, masks) dissolve too instead of cutting at the end.
  */
 export function transitionStyle({
   frame,
@@ -181,15 +206,52 @@ export function transitionStyle({
   const style: React.CSSProperties = {};
   let opacity = 1;
   const transforms: string[] = [];
+  const filters: string[] = [];
+  const blur = (px: number) => {
+    if (px > 0.05) filters.push(`blur(${round(px, 2)}px)`);
+  };
   if (incoming && frame < incoming.frames) {
-    const p = transitionProgress(frame, incoming.frames);
+    const n = incoming.frames;
+    const p = transitionProgress(frame, n);
+    const dip = blackDip(frame, n);
     switch (incoming.kind) {
       case "crossfade":
         opacity *= p;
         if (incoming.isolated) style.mixBlendMode = "plus-lighter";
         break;
       case "black":
-        if (!blackDip(frame, incoming.frames).incomingVisible) opacity = 0;
+      case "flash":
+        if (!dip.incomingVisible) opacity = 0;
+        break;
+      case "blur":
+        opacity *= p;
+        blur((1 - p) * 22);
+        transforms.push(`scale(${round(1 + 0.06 * (1 - p))})`);
+        if (incoming.isolated) style.mixBlendMode = "plus-lighter";
+        break;
+      case "zoom-in":
+      case "zoom-out":
+        // Settles from larger than the frame, behind the outgoing shot.
+        transforms.push(`scale(${round(1 + 0.3 * (1 - p))})`);
+        blur((1 - p) * 8);
+        if (!incoming.isolated) opacity *= p;
+        break;
+      case "spin":
+        transforms.push(
+          `rotate(${round(-(1 - p) * 90, 2)}deg) scale(${round(1 + 0.7 * (1 - p))})`,
+        );
+        blur((1 - p) * 6);
+        if (!incoming.isolated) opacity *= p;
+        break;
+      case "whip-left":
+        transforms.push(
+          `translateX(${round((1 - p) * 100, 3)}%) scale(${round(1 + 0.12 * Math.sin(Math.PI * p))})`,
+        );
+        break;
+      case "whip-right":
+        transforms.push(
+          `translateX(${round(-(1 - p) * 100, 3)}%) scale(${round(1 + 0.12 * Math.sin(Math.PI * p))})`,
+        );
         break;
       case "slide-left":
         transforms.push(`translateX(${(1 - p) * 100}%)`);
@@ -197,21 +259,82 @@ export function transitionStyle({
       case "slide-right":
         transforms.push(`translateX(${-(1 - p) * 100}%)`);
         break;
+      case "push-up":
+        transforms.push(`translateY(${(1 - p) * 100}%)`);
+        break;
+      case "push-down":
+        transforms.push(`translateY(${-(1 - p) * 100}%)`);
+        break;
       case "wipe":
         Object.assign(style, wipeMask(p, false));
         if (incoming.isolated) style.mixBlendMode = "plus-lighter";
+        break;
+      case "shake":
+        if (!dip.incomingVisible) opacity = 0;
+        else if (dip.black > 0) transforms.push(shakeTransform(frame, dip.black));
+        break;
+      case "glitch":
+        if (!dip.incomingVisible) opacity = 0;
+        else if (dip.black > 0)
+          transforms.push(
+            `translateX(${glitchSlip(frame, dip.black)}%) scale(${round(1 + 0.04 * dip.black)})`,
+          );
         break;
     }
   }
   if (outgoing && frame >= outgoing.start) {
     const local = frame - outgoing.start;
-    const p = transitionProgress(local, outgoing.frames);
+    const n = outgoing.frames;
+    const p = transitionProgress(local, n);
+    const dip = blackDip(local, n);
     switch (outgoing.kind) {
       case "crossfade":
         if (outgoing.isolated) opacity *= 1 - p;
         break;
       case "black":
-        if (blackDip(local, outgoing.frames).incomingVisible) opacity = 0;
+      case "flash":
+        if (dip.incomingVisible) opacity = 0;
+        break;
+      case "blur":
+        if (outgoing.isolated) opacity *= 1 - p;
+        blur(p * 22);
+        transforms.push(`scale(${round(1 + 0.06 * p)})`);
+        break;
+      case "zoom-in":
+        if (outgoing.isolated) {
+          style.zIndex = 1;
+          opacity *= 1 - p;
+        }
+        transforms.push(`scale(${round(1 + 0.9 * p)})`);
+        blur(p * 14);
+        break;
+      case "zoom-out":
+        if (outgoing.isolated) {
+          style.zIndex = 1;
+          opacity *= 1 - p;
+        }
+        transforms.push(`scale(${round(1 - 0.45 * p)})`);
+        blur(p * 10);
+        break;
+      case "spin":
+        if (outgoing.isolated) {
+          style.zIndex = 1;
+          opacity *= 1 - p;
+        }
+        transforms.push(
+          `rotate(${round(p * 90, 2)}deg) scale(${round(1 + 0.7 * p)})`,
+        );
+        blur(p * 6);
+        break;
+      case "whip-left":
+        transforms.push(
+          `translateX(${round(-p * 100, 3)}%) scale(${round(1 + 0.12 * Math.sin(Math.PI * p))})`,
+        );
+        break;
+      case "whip-right":
+        transforms.push(
+          `translateX(${round(p * 100, 3)}%) scale(${round(1 + 0.12 * Math.sin(Math.PI * p))})`,
+        );
         break;
       case "slide-left":
         transforms.push(`translateX(${-p * 100}%)`);
@@ -219,14 +342,153 @@ export function transitionStyle({
       case "slide-right":
         transforms.push(`translateX(${p * 100}%)`);
         break;
+      case "push-up":
+        transforms.push(`translateY(${-p * 100}%)`);
+        break;
+      case "push-down":
+        transforms.push(`translateY(${p * 100}%)`);
+        break;
       case "wipe":
         if (outgoing.isolated) Object.assign(style, wipeMask(p, true));
+        break;
+      case "shake":
+        if (dip.incomingVisible) opacity = 0;
+        else if (dip.black > 0) transforms.push(shakeTransform(local, dip.black));
+        break;
+      case "glitch":
+        if (dip.incomingVisible) opacity = 0;
+        else if (dip.black > 0)
+          transforms.push(
+            `translateX(${glitchSlip(local, dip.black)}%) scale(${round(1 + 0.04 * dip.black)})`,
+          );
         break;
     }
   }
   if (opacity !== 1) style.opacity = opacity;
   if (transforms.length) style.transform = transforms.join(" ");
+  if (filters.length) style.filter = filters.join(" ");
   return style;
+}
+
+/**
+ * The parts of a transition CSS cannot draw: directional motion blur for
+ * whips and the tearing and color separation of a glitch. Rendered as one
+ * SVG filter on the clip's full-frame wrapper (see TransitionFilter).
+ * Amounts are in frame pixels, scaled from `size`, the canvas's short edge.
+ */
+export type SvgEffect = {
+  blurX: number;
+  blurY: number;
+  displace: number;
+  rgb: number;
+  seed: number;
+  /** Halation strength (0 to 1) and blur radius in pixels. */
+  bloom: number;
+  bloomRadius: number;
+};
+const noEffect = (): SvgEffect => ({
+  blurX: 0,
+  blurY: 0,
+  displace: 0,
+  rgb: 0,
+  seed: 0,
+  bloom: 0,
+  bloomRadius: 0,
+});
+const someEffect = (effect: SvgEffect) =>
+  effect.blurX || effect.blurY || effect.displace || effect.rgb || effect.bloom
+    ? effect
+    : undefined;
+export function transitionEffect({
+  frame,
+  incoming,
+  outgoing,
+  size,
+}: {
+  frame: number;
+  incoming?: IncomingTransition;
+  outgoing?: OutgoingTransition;
+  size: number;
+}): SvgEffect | undefined {
+  const effect = noEffect();
+  const side = (
+    kind: TransitionKind,
+    local: number,
+    frames: number,
+    salt: number,
+  ) => {
+    const p = transitionProgress(local, frames);
+    if (kind === "whip-left" || kind === "whip-right")
+      effect.blurX = Math.max(
+        effect.blurX,
+        size * 0.03 * Math.sin(Math.PI * p),
+      );
+    else if (kind === "push-up" || kind === "push-down")
+      effect.blurY = Math.max(
+        effect.blurY,
+        size * 0.012 * Math.sin(Math.PI * p),
+      );
+    else if (kind === "glitch") {
+      const amount = blackDip(local, frames).black;
+      effect.displace = Math.max(effect.displace, size * 0.05 * amount);
+      effect.rgb = Math.max(effect.rgb, size * 0.012 * amount);
+      effect.seed = Math.floor(local / 2) + salt;
+    }
+  };
+  if (incoming && frame < incoming.frames)
+    side(incoming.kind, frame, incoming.frames, 100);
+  if (outgoing && frame >= outgoing.start)
+    side(outgoing.kind, frame - outgoing.start, outgoing.frames, 0);
+  for (const key of ["blurX", "blurY", "displace", "rgb"] as const)
+    effect[key] = round(effect[key], 2);
+  return someEffect(effect);
+}
+
+/**
+ * Finishing overlays that work on the picture itself rather than over it: a
+ * glitch tears the footage in short bursts (about a quarter of the time, in
+ * three-frame blocks, never two bursts alike), and halation makes the
+ * highlights glow. Sized from the clip's short edge so it reads the same at
+ * any canvas size.
+ */
+export function finishingEffect(
+  c: Pick<Clip, "overlay" | "overlayAmount" | "width" | "height">,
+  frame: number,
+): SvgEffect | undefined {
+  const amount = c.overlayAmount,
+    size = Math.max(1, Math.min(c.width, c.height));
+  if (amount <= 0) return undefined;
+  if (c.overlay === "glitch") {
+    const block = Math.floor(frame / 3);
+    // A fixed scramble of the block number decides which blocks burst.
+    const burst = (block * 7919 + 13) % 11 < 3;
+    if (!burst) return undefined;
+    const effect = noEffect();
+    effect.displace = round(size * 0.06 * amount, 2);
+    effect.rgb = round(size * 0.012 * amount, 2);
+    effect.seed = block % 1000;
+    return effect;
+  }
+  if (c.overlay === "halation") {
+    const effect = noEffect();
+    effect.bloom = round(0.35 + 0.65 * amount, 3);
+    effect.bloomRadius = round(size * (0.012 + 0.03 * amount), 2);
+    return effect;
+  }
+  return undefined;
+}
+
+/** The color a mid-cut transition dips through, and how deep, at a frame of the incoming clip. */
+export function transitionDip(
+  frame: number,
+  incoming?: IncomingTransition,
+): { color: string; amount: number } | undefined {
+  if (!incoming || frame >= incoming.frames) return undefined;
+  if (incoming.kind === "black")
+    return { color: "black", amount: blackDip(frame, incoming.frames).black };
+  if (incoming.kind === "flash")
+    return { color: "white", amount: blackDip(frame, incoming.frames).black };
+  return undefined;
 }
 
 /**
@@ -240,14 +502,20 @@ export function clipWrapperStyle({
   glow = 0,
   incoming,
   outgoing,
+  filterUrl,
 }: {
   c: Clip;
   frame: number;
   glow?: number;
   incoming?: IncomingTransition;
   outgoing?: OutgoingTransition;
+  /** An SVG filter reference (`url(#id)`) for the transition's motion blur or glitch. */
+  filterUrl?: string;
 }): React.CSSProperties {
+  const transition = transitionStyle({ frame, incoming, outgoing });
   const filters = [
+    filterUrl ?? "",
+    transition.filter ?? "",
     c.shadowBlur
       ? `drop-shadow(${c.shadowX}px ${c.shadowY}px ${c.shadowBlur}px ${c.shadowColor})`
       : "",
@@ -257,8 +525,8 @@ export function clipWrapperStyle({
     position: "absolute",
     inset: 0,
     mixBlendMode: c.blendMode,
+    ...transition,
     filter: filters.length ? filters.join(" ") : undefined,
-    ...transitionStyle({ frame, incoming, outgoing }),
   };
 }
 

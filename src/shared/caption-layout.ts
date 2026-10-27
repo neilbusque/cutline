@@ -1,5 +1,6 @@
 import type { Clip } from "./model";
 import { captionFontMetrics } from "./caption-font-metrics";
+import { growingCaptionStyles } from "./caption-style-ids";
 
 export type CaptionToken = {
   text: string;
@@ -114,14 +115,18 @@ export function captionLayout(clip: LayoutClip): CaptionLayout {
     paddingY = Math.min(16, Math.max(2, clip.height * 0.07));
   const availableWidth = Math.max(1, clip.width - paddingX * 2),
     availableHeight = Math.max(1, clip.height - paddingY * 2);
-  const maxScale = clip.captionStyle === "pop" ? 1.06 : 1;
+  const grows = growingCaptionStyles.has(clip.captionStyle);
+  const maxScale = clip.captionStyle === "bounce" ? 1.1 : grows ? 1.06 : 1;
   const build = (fontSize: number) => {
     const stroke = ((clip.captionStrokeWidth ?? 2) * fontSize) / clip.fontSize,
       tracking = ((clip.captionTracking ?? 0) * fontSize) / clip.fontSize;
     // Highlight decoration sits outside the text advance. Reserving pill
     // padding on every word used to make ordinary spaces almost twice as wide.
     const wordPadding = clip.captionStyle === "karaoke" ? fontSize * 0.065 : 0;
-    const popRoom = clip.captionStyle === "pop" ? fontSize * 0.08 : 0;
+    // Pop and Impact grow 6%; a bouncing word overshoots further.
+    const popRoom = grows
+      ? fontSize * (clip.captionStyle === "bounce" ? 0.14 : 0.08)
+      : 0;
     const naturalSpace = captionTextWidth(
       " ",
       fontSize,

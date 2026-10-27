@@ -290,7 +290,7 @@ try {
         await libraryTab("Audio").click();
         await page
           .locator(".audio-modes button")
-          .filter({ hasText: /^Text to speech$/ })
+          .filter({ hasText: /^Voice$/ })
           .click();
       },
     ],
@@ -301,6 +301,16 @@ try {
         await page
           .locator(".audio-modes button")
           .filter({ hasText: "My audio" })
+          .click();
+      },
+    ],
+    [
+      "audio-accents",
+      async () => {
+        await libraryTab("Audio").click();
+        await page
+          .locator(".audio-modes button")
+          .filter({ hasText: "Accents" })
           .click();
       },
     ],
@@ -322,10 +332,42 @@ try {
       },
     ],
     [
+      "effects-transitions",
+      async () => {
+        await selectClip("video");
+        await libraryTab("Effects").click();
+        await page
+          .getByText("Transition from previous clip", { exact: true })
+          .first()
+          .scrollIntoViewIfNeeded();
+      },
+    ],
+    [
+      "effects-overlays",
+      async () => {
+        await selectClip("video");
+        await libraryTab("Effects").click();
+        await page
+          .getByText("Apply this look to all video & photos", { exact: true })
+          .first()
+          .scrollIntoViewIfNeeded();
+      },
+    ],
+    [
       "captions-style",
       async () => {
         await libraryTab("Captions").click();
         await page.locator("#caption-style-tab").click();
+      },
+    ],
+    [
+      "captions-looks",
+      async () => {
+        await libraryTab("Captions").click();
+        await page.locator("#caption-style-tab").click();
+        await page
+          .getByRole("button", { name: "Preview Neon caption style" })
+          .scrollIntoViewIfNeeded();
       },
     ],
     [

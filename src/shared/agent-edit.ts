@@ -25,7 +25,9 @@ import {
   type MotionLayer,
   type Project,
   type Track,
+  transitionKinds,
 } from "./model";
+import { transitionDefaultSeconds } from "./transitions";
 import {
   CommandSchema,
   TransactionSchema,
@@ -288,17 +290,25 @@ export const AgentActionSchema = z.discriminatedUnion("type", [
       "A keyframe value is required unless removing.",
     ),
   z.strictObject({
+    type: z.literal("clip.speedRamp"),
+    clipId: id,
+    /** Source seconds and speed per piece, in order; the rest keeps the clip's speed. */
+    segments: z
+      .array(
+        z.strictObject({
+          seconds: z.number().finite().positive().max(36000),
+          speed: z.number().finite().min(0.1).max(8),
+        }),
+      )
+      .min(1)
+      .max(100),
+  }),
+  z.strictObject({
     type: z.literal("clip.transition"),
     clipId: id,
-    kind: z.enum([
-      "none",
-      "crossfade",
-      "black",
-      "slide-left",
-      "slide-right",
-      "wipe",
-    ]),
-    frames: z.number().int().min(2).max(600).default(15),
+    kind: z.enum(["none", ...transitionKinds]),
+    /** Left out, each kind gets its usual length: quick whips, half-second dissolves. */
+    frames: z.number().int().min(2).max(600).optional(),
   }),
   z.strictObject({
     type: z.literal("motion.scene"),
@@ -901,13 +911,31 @@ function prepareAgentEdit(project: Project, raw: unknown, checkEach: boolean) {
           ]);
           break;
         }
+        case "clip.speedRamp":
+          run([
+            {
+              type: "clip.speedRamp",
+              id: clip(action.clipId).id,
+              segments: action.segments,
+            },
+          ]);
+          break;
         case "clip.transition":
           run([
             {
               type: "clip.transition",
               id: clip(action.clipId).id,
               kind: action.kind,
-              frames: action.frames,
+              frames:
+                action.frames ??
+                (action.kind === "none"
+                  ? 2
+                  : Math.max(
+                      2,
+                      Math.round(
+                        transitionDefaultSeconds(action.kind) * working.fps,
+                      ),
+                    )),
             },
           ]);
           break;
@@ -1489,8 +1517,10 @@ export function agentEditingGuide() {
       references:
         "Creation ref aliases are used as $name in later IDs. motion.scene/shape/recipe creates $name for its clip and $name.motion for its motion. clip.split rightRef names its right-hand clip. References are scoped to one transaction; the result lists the IDs they became, and a created motion with named layers lists their names by index.",
     },
+    trending:
+      "0.39: clip.transition kinds add flash, blur, zoom-in/out, whip-left/right, push-up/down, spin, shake, glitch (omit frames for the usual length); camera moves punch-out, pop-in, shake; overlays letterbox, flash-in (hard-cut pop, no overlap), glitch, halation; clip.speedRamp {clipId, segments [{seconds, speed}]} = velocity edit in source seconds (not on captioned clips); caption styles impact, bounce, neon; cutline_sound_accent {kind, at} = whoosh|impact|pop|click|riser|ding, 2 frames early, one per event. Details: cutline_effects_guide.",
     recipes:
-      "motion.recipe builds a finished, editable graphic in one action: kinetic-title, lower-third, callout, end-card or logo-sting. text is the main line and subtitle the second (role, detail, call to action or tagline). Entrances ease out with 2 to 4 frame staggers, text holds at least 1.5 seconds at the default length and exits ease in on the last frames. style clean (default), bold or minimal; position is one of nine anchors; callout takes point {x, y} in canvas pixels; colors {text, accent, panel, background}; durationFrames stretches the hold. Tweak the named layers afterwards with motion.layer.update and motion.keyframe on $ref.motion. Section motionRecipes lists each recipe's layers and defaults.",
+      "motion.recipe builds a finished, editable graphic in one action: kinetic-title, lower-third, callout, end-card, logo-sting, progress-bar (fills over durationFrames, label + percent counter), notification (phone banner: text = app or sender, subtitle = message) or subscribe (red pill that presses and turns dark; text defaults to Subscribe). text is the main line and subtitle the second (role, detail, call to action, message or tagline). Entrances ease out with 2 to 4 frame staggers, text holds at least 1.5 seconds at the default length and exits ease in on the last frames. style clean (default), bold or minimal; position is one of nine anchors; callout takes point {x, y} in canvas pixels; colors {text, accent, panel, background}; durationFrames stretches the hold. Tweak the named layers afterwards with motion.layer.update and motion.keyframe on $ref.motion. Section motionRecipes lists each recipe's layers and defaults.",
     media:
       "Media tools work beside cutline_edit, each as one undoable edit that needs the current projectId and revision: cutline_stock_import {id, provider?, kind?, at?, duration?, trackId?} downloads a cutline_stock_search result with its credits and, with at, places muted B-roll; cutline_voiceover {text, voice?, speed?, name?, at?, trackId?} makes Kokoro narration on this Mac; cutline_auto_edit {assetId or path, options?} replaces the timeline with an automatic Reel; cutline_relink {assetId, path} fixes moved media. Use the assetId or clipId they return in later actions, for example audio.duck with the voiceover's clipId.",
     audio:

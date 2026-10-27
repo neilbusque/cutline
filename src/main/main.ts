@@ -65,6 +65,8 @@ import { contentSecurityPolicy } from "./csp";
 import { confirmReplace, type UnsavedChoice } from "./project-guard";
 import { agentIoTools, createAgentIO } from "./agent-io";
 import { musicTools, createMusicControl } from "./music-control";
+import { createSoundAccent } from "./sfx";
+import { soundAccentKinds } from "../shared/sound-accents";
 import { Hyperframes } from "./hyperframes";
 import { createHyperframesControl } from "./agent-hyperframes";
 import { createModel3DControl } from "./agent-model-3d";
@@ -1611,6 +1613,21 @@ function register() {
     },
     "tts.status": () => speech.status(),
     "tts.setup": () => speech.setup(),
+    "sfx.create": async (args) => {
+      const kind = z.enum(soundAccentKinds).parse(args?.kind);
+      const asset = await createSoundAccent({
+        kind,
+        folder: path.join(data, "generated-media", "sound-accents"),
+        media,
+      });
+      const existing = store.project.assets.find((a) => a.id === asset.id);
+      if (!existing)
+        store.commit(
+          { ...store.project, assets: [...store.project.assets, asset] },
+          `Add ${asset.name.toLowerCase()}`,
+        );
+      return existing ?? asset;
+    },
     "tts.generate": async (args) => {
       const opening = store.openSession;
       return jobs.run("voiceover", "Creating your narration", async (job) => {
@@ -2509,6 +2526,12 @@ app
       jobs,
       stock,
       speech,
+      soundAccent: (kind) =>
+        createSoundAccent({
+          kind,
+          folder: path.join(data, "generated-media", "sound-accents"),
+          media,
+        }),
       autoEdit: autoEditForAgent,
       relink: (assetId, file) => relinkMedia({ store, media }, assetId, file),
       draw: async (description, style, signal) => {

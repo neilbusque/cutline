@@ -8,13 +8,17 @@ import {
 } from "./vector-path";
 import { StoryPlanSchema } from "./story-schema";
 import { Model3DMetadataSchema } from "./model-3d";
+import { captionStyleIds } from "./caption-style-ids";
 export const uid = () => crypto.randomUUID();
 export const fontFamilies = [
   "Arial",
   "Helvetica",
   "Georgia",
   "Courier New",
+  "Arial Black",
+  "Impact",
 ] as const;
+export { captionStyleIds } from "./caption-style-ids";
 const finite = z.number().finite();
 /** The last timeline frame: 8 hours at 30 fps, 4 hours at 60. */
 export const MAX_FRAME = 30 * 60 * 60 * 8;
@@ -27,6 +31,29 @@ const color = z
     /^(#(?:[0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})|transparent)$/,
     "Use a hex color with 3, 4, 6 or 8 digits, or transparent.",
   );
+/**
+ * Ways one shot gives way to the next. Dissolves and wipes mix the two
+ * shots; whips, pushes and slides move them; flash, shake and glitch hide a
+ * hard cut in the middle of the overlap.
+ */
+export const transitionKinds = [
+  "crossfade",
+  "black",
+  "flash",
+  "blur",
+  "zoom-in",
+  "zoom-out",
+  "whip-left",
+  "whip-right",
+  "slide-left",
+  "slide-right",
+  "push-up",
+  "push-down",
+  "wipe",
+  "spin",
+  "shake",
+  "glitch",
+] as const;
 export const presets = [
   "none",
   "fade",
@@ -421,7 +448,7 @@ export const ClipSchema = z.object({
   audioRole: z.enum(["voice", "music", "sfx", "mixed"]).optional(),
   transition: z
     .object({
-      kind: z.enum(["crossfade", "black", "slide-left", "slide-right", "wipe"]),
+      kind: z.enum(transitionKinds),
       frames: frame.min(2),
       fromId: z.string(),
     })
@@ -455,21 +482,7 @@ export const ClipSchema = z.object({
   motionId: z.string().optional(),
   words: z.array(WordSchema).default([]),
   highlight: z.boolean().default(true),
-  captionStyle: z
-    .enum([
-      "standard",
-      "karaoke",
-      "pop",
-      "box",
-      "typewriter",
-      "outline",
-      "focus",
-      "minimal",
-      "pill",
-      "clean",
-      "heavy",
-    ])
-    .default("standard"),
+  captionStyle: z.enum(captionStyleIds).default("standard"),
   captionLayout: z.enum(["legacy", "balanced"]).default("legacy"),
   captionCase: z.enum(["original", "upper"]).default("original"),
   captionMaxLines: z.union([z.literal(1), z.literal(2)]).default(2),
@@ -477,7 +490,17 @@ export const ClipSchema = z.object({
   captionTracking: finite.min(-5).max(20).default(0),
   captionSourceId: z.string().optional(),
   overlay: z
-    .enum(["none", "film-grain", "light-leak", "vhs", "halftone"])
+    .enum([
+      "none",
+      "film-grain",
+      "light-leak",
+      "vhs",
+      "halftone",
+      "letterbox",
+      "flash-in",
+      "glitch",
+      "halation",
+    ])
     .default("none"),
   overlayAmount: finite.min(0).max(1).default(0.5),
   look: z
@@ -519,6 +542,9 @@ export const ClipSchema = z.object({
       "handheld",
       "slow-orbit",
       "punch-in",
+      "punch-out",
+      "pop-in",
+      "shake",
       "breathe",
     ])
     .default("none"),

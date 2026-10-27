@@ -608,6 +608,17 @@ button.full.subtle.stack-layers {
   border-color: transparent;
   font-weight: 600;
 }
+.transition-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 8px;
+}
+.transition-grid button {
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Stock (shared bits; stock-library panel has its own file section) */
 .stock-search {

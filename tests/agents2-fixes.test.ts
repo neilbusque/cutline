@@ -472,7 +472,16 @@ const recipeText: Record<string, { text: string; subtitle: string }> = {
   callout: { text: "New export panel", subtitle: "One click to share" },
   "end-card": { text: "Thanks for watching", subtitle: "Subscribe for more" },
   "logo-sting": { text: "Northwind", subtitle: "Built to last" },
+  "progress-bar": { text: "Morning routine", subtitle: "Loading" },
+  notification: { text: "Messages", subtitle: "Your order has shipped" },
+  subscribe: { text: "Subscribe", subtitle: "Subscribed" },
 };
+// The title recipes follow the house timing (ease-out in, 2 to 4 frame
+// staggers, 1.5 s hold, ease-in out). The overlay recipes of 0.39 have their
+// own motion: a linear fill, a press, a banner slide; see trending-tools.
+const titleRecipes = motionRecipeIds.filter(
+  (id) => !["progress-bar", "notification", "subscribe"].includes(id),
+);
 function canvas(width: number, height: number, fps: Project["fps"] = 30) {
   return validateProject({ ...newProject(), width, height, fps });
 }
@@ -615,7 +624,7 @@ describe("motion.recipe builds professional graphics in one call", () => {
         expect(result.summary.warnings).toEqual([]);
       });
 
-  for (const id of motionRecipeIds)
+  for (const id of titleRecipes)
     for (const style of motionRecipeStyles)
       it(`${id} (${style}) eases out on entrances, in on exits, staggers and holds long enough to read`, () => {
         const p = canvas(1920, 1080);
@@ -968,7 +977,8 @@ describe("the editing schema documents audio.duck and motion.recipe", () => {
     // The long hex pattern is replaced by a short description.
     expect(text).not.toContain("[0-9a-fA-F]{8}");
     expect(size(editTool)).toBeLessThan(24_000);
-    expect(size({ tools: cutlineTools })).toBeLessThan(50_000);
+    // 52,000 since 0.39 (see agents-fixes: value lists and two new actions).
+    expect(size({ tools: cutlineTools })).toBeLessThan(52_000);
   });
 
   it("points agents at the new tools and actions", () => {
@@ -1431,7 +1441,7 @@ describe("cutline_voiceover makes local narration and can place it", () => {
     await expect(
       call("cutline_voiceover", { ...guard(), text: "Hello there." }),
     ).rejects.toThrow(
-      /voice engine.*Audio, choose Text to speech.*Download Kokoro/,
+      /voice engine.*Audio, choose Voice.*Download Kokoro/,
     );
     expect(generate).not.toHaveBeenCalled();
   });

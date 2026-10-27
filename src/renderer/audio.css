@@ -291,8 +291,10 @@
   gap: 4px;
   padding-inline: 4px;
 }
-.audio-modes > button:nth-child(2) {
-  flex: 1.3;
+.audio-modes > button {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
 }
 .audio-modes > button svg {
   flex-shrink: 0;
@@ -377,4 +379,20 @@
   .audio-library .audio-result {
     animation: none;
   }
+}
+
+/* Sound accents: six one-tap sounds */
+.accent-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin: 4px 0 10px;
+}
+.accent-grid button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  font-size: 12px;
 }

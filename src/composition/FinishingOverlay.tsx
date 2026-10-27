@@ -62,6 +62,44 @@ export function FinishingOverlay({
           />
         </>
       );
+    case "letterbox": {
+      // Half strength is the classic 2.39:1 band on a 16:9 frame (about 13%
+      // of the height each); full strength is a tighter cinema crop.
+      const bar = `${Number((amount * 26).toFixed(2))}%`;
+      return (
+        <>
+          <div style={{ ...shared, bottom: "auto", height: bar, background: "#000" }} />
+          <div style={{ ...shared, top: "auto", height: bar, background: "#000" }} />
+        </>
+      );
+    }
+    case "flash-in": {
+      // White on the first frame, clear by the sixth: a pop that hides a hard cut.
+      const fade = Math.max(0, 1 - frame / 6);
+      if (fade <= 0) return null;
+      return (
+        <div
+          style={{
+            ...shared,
+            background: "#fff",
+            opacity: Math.min(1, amount * 2) * fade * fade,
+          }}
+        />
+      );
+    }
+    case "glitch":
+      // The tearing itself is a filter on the picture (finishingEffect);
+      // faint scan lines sit over it.
+      return (
+        <div
+          style={{
+            ...shared,
+            opacity: amount * 0.18,
+            background:
+              "repeating-linear-gradient(0deg, transparent 0px, transparent 2px, #000 2px, #000 3px)",
+          }}
+        />
+      );
     case "halftone":
       return (
         <div

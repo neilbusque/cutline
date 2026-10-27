@@ -110,7 +110,7 @@ try {
   const panel = page.locator(".audio-library");
   assert.equal(
     await panel
-      .getByRole("button", { name: "Text to speech", exact: true })
+      .getByRole("button", { name: "Voice", exact: true })
       .getAttribute("aria-pressed"),
     "true",
   );

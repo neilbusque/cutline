@@ -5,9 +5,20 @@ import type { Command } from "../shared/commands";
 import {
   videoLooks,
   cameraMoves,
+  cameraMoveDescriptions,
   filterFor,
   lookStrength,
+  overlayNames,
+  overlayDescriptions,
 } from "../shared/effects";
+import {
+  activeTransition,
+  previousClip,
+  transitionDefaultSeconds,
+  transitionDescriptions,
+  transitionNames,
+  type TransitionKind,
+} from "../shared/transitions";
 import { optionLabel } from "./labels";
 import { assetMediaVersion } from "../composition/Video";
 export function EffectSlider({
@@ -69,6 +80,32 @@ export function EffectsPanel({
   const asset = p.assets.find((a) => a.id === clip?.assetId);
   const patch = (value: Partial<Clip>, label = "Adjust effect") => {
     if (clip) edit(label, [{ type: "clip.update", id: clip.id, patch: value }]);
+  };
+  const transition = valid ? activeTransition(p, clip) : undefined;
+  const previous = valid ? previousClip(p, clip) : undefined;
+  const canTransition =
+    !!transition ||
+    (!!previous && previous.start + previous.duration === clip!.start);
+  const changeTransition = (kind: TransitionKind | "none", frames?: number) => {
+    if (!clip) return;
+    edit(kind === "none" ? "Remove transition" : "Change transition", [
+      {
+        type: "clip.transition",
+        id: clip.id,
+        kind,
+        frames:
+          frames ??
+          (transition?.kind === kind
+            ? transition.frames
+            : Math.max(
+                2,
+                Math.round(
+                  p.fps *
+                    (kind === "none" ? 0.5 : transitionDefaultSeconds(kind)),
+                ),
+              )),
+      },
+    ]);
   };
   return (
     <div className="library-content effects-library">
@@ -172,6 +209,7 @@ export function EffectsPanel({
                 key={m}
                 aria-pressed={clip.cameraMotion === m}
                 className={clip.cameraMotion === m ? "selected" : ""}
+                title={cameraMoveDescriptions[m]}
                 onClick={() => patch({ cameraMotion: m }, "Camera motion")}
               >
                 {m === "none" ? "Still" : optionLabel(m)}
@@ -179,23 +217,76 @@ export function EffectsPanel({
             ))}
           </div>
           <div className="section-heading effect-heading">
+            <span>Transition from previous clip</span>
+          </div>
+          <div className="camera-grid transition-grid">
+            <button
+              aria-pressed={!transition}
+              className={!transition ? "selected" : ""}
+              disabled={!transition}
+              onClick={() => changeTransition("none")}
+            >
+              Hard cut
+            </button>
+            {(
+              Object.entries(transitionNames) as [TransitionKind, string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                aria-pressed={transition?.kind === value}
+                className={transition?.kind === value ? "selected" : ""}
+                disabled={!canTransition}
+                title={transitionDescriptions[value]}
+                onClick={() => changeTransition(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {transition ? (
+            <EffectSlider
+              key={clip.id + "transition" + transition.frames}
+              label="Transition length (s)"
+              value={Math.round((transition.frames / p.fps) * 100) / 100}
+              min={2 / p.fps}
+              max={
+                Math.min(clip.duration, transition.previous.duration) /
+                2 /
+                p.fps
+              }
+              step={1 / p.fps}
+              onCommit={(seconds) =>
+                changeTransition(
+                  transition.kind,
+                  Math.max(2, Math.min(600, Math.round(seconds * p.fps))),
+                )
+              }
+            />
+          ) : (
+            <p className="library-note">
+              {canTransition
+                ? "Overlaps the previous clip and moves later clips on this track."
+                : "Place this clip right after another video or photo on its track."}
+            </p>
+          )}
+          <div className="section-heading effect-heading">
             <span>Finishing overlays</span>
           </div>
           <div className="camera-grid">
             {(
-              [
-                ["none", "None"],
-                ["film-grain", "Film grain"],
-                ["light-leak", "Light leak"],
-                ["vhs", "VHS scan"],
-                ["halftone", "Halftone"],
-              ] as const
+              Object.entries(overlayNames) as [Clip["overlay"], string][]
             ).map(([value, label]) => (
               <button
                 key={value}
                 aria-pressed={clip.overlay === value}
                 className={clip.overlay === value ? "selected" : ""}
-                onClick={() => patch({ overlay: value }, `Add ${label}`)}
+                title={overlayDescriptions[value]}
+                onClick={() =>
+                  patch(
+                    { overlay: value },
+                    value === "none" ? "Remove overlay" : `Add ${label}`,
+                  )
+                }
               >
                 {label}
               </button>

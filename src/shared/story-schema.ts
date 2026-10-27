@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { SpeechInputSchema } from "./tts";
+import { captionStyleIds } from "./caption-style-ids";
 
 export const STORY_SCENE_LIMIT = 60;
 export const STORY_REFERENCE_LIMIT = 9;
@@ -82,19 +83,7 @@ export const StoryPlanSchema = z
     speed: SpeechInputSchema.shape.speed,
     captions: z.boolean().default(true),
     captionStyle: z
-      .enum([
-        "standard",
-        "karaoke",
-        "pop",
-        "box",
-        "typewriter",
-        "outline",
-        "focus",
-        "minimal",
-        "pill",
-        "clean",
-        "heavy",
-      ])
+      .enum(captionStyleIds)
       .default("standard"),
     musicAssetId: id.optional(),
     referenceAssetIds,

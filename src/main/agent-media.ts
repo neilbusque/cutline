@@ -25,6 +25,12 @@ import {
   type Track,
 } from "../shared/model";
 import { SpeechInputSchema, speechVoices } from "../shared/tts";
+import {
+  soundAccentKinds,
+  soundAccentLeadFrames,
+  soundAccentNames,
+  type SoundAccentKind,
+} from "../shared/sound-accents";
 import type { StockKind, StockProvider } from "../shared/stock";
 import type { BrandLogo } from "./vector-studio";
 import { parseEditableSvg } from "../shared/vector-path";
@@ -157,12 +163,21 @@ export const RelinkArgsSchema = z.strictObject({
   assetId: id,
   path: file,
 });
+export const SoundAccentArgsSchema = z.strictObject({
+  ...guard,
+  kind: z.enum(soundAccentKinds),
+  /** The event's frame or second; the sound starts 2 frames earlier. Omit to import only. */
+  at: AgentTimeSchema.optional(),
+  volume: z.number().min(0).max(2).optional(),
+  trackId: id.optional(),
+});
 
 const schemas = {
   cutline_stock_import: StockImportArgsSchema,
   cutline_voiceover: VoiceoverArgsSchema,
   cutline_auto_edit: AutoEditArgsSchema,
   cutline_relink: RelinkArgsSchema,
+  cutline_sound_accent: SoundAccentArgsSchema,
   cutline_reference: ReferenceArgsSchema,
   cutline_style_reel: StyleReelArgsSchema,
   cutline_graphic: GraphicArgsSchema,
@@ -176,6 +191,8 @@ const descriptions: Record<keyof typeof schemas, string> = {
     "Auto-edit assetId/path: speech cuts/captions, optional B-roll/music. Replaces timeline at 1080x1920. Undoable job.",
   cutline_relink:
     "Relink asset and missing neighbors. Absolute path; keeps credits, timing data only if lengths match. Undoable.",
+  cutline_sound_accent:
+    "Made-on-this-Mac whoosh/impact/pop/click/riser/ding. at = the event; placed 2 frames early at half volume on a Sound effects track. Undoable.",
   cutline_reference:
     "Fetch real logo (product/domain) or screenshot (URL, selector, phone). at places; omit at to inspect only.",
   cutline_style_reel:
@@ -191,6 +208,7 @@ const hints: Record<
   cutline_voiceover: { destructive: false, network: false },
   cutline_auto_edit: { destructive: true, network: true },
   cutline_relink: { destructive: false, network: false },
+  cutline_sound_accent: { destructive: false, network: false },
   cutline_reference: { destructive: false, network: true },
   cutline_style_reel: { destructive: true, network: true },
   cutline_graphic: { destructive: false, network: true },
@@ -238,6 +256,8 @@ export type AgentMediaDeps = {
     status: () => Promise<{ ready: boolean; downloadMB?: number }>;
     generate: (input: unknown) => Promise<{ path: string; duration: number }>;
   };
+  /** Makes (once) and imports one of the built-in sound accents. */
+  soundAccent: (kind: SoundAccentKind) => Promise<Asset>;
   /** The Auto edit button's work for a given video, sharing its busy flag. */
   autoEdit: (args: {
     projectId: string;
@@ -556,7 +576,7 @@ export function createAgentMedia(deps: AgentMediaDeps) {
     const status = await deps.speech.status();
     if (!status.ready)
       throw Error(
-        `The Kokoro voice engine is not set up on this Mac. Ask the user to open Audio, choose Text to speech and press Download Kokoro${status.downloadMB ? ` (a one-time ${status.downloadMB} MB download)` : ""}, then try again.`,
+        `The Kokoro voice engine is not set up on this Mac. Ask the user to open Audio, choose Voice and press Download Kokoro${status.downloadMB ? ` (a one-time ${status.downloadMB} MB download)` : ""}, then try again.`,
       );
     const voice = speechVoices.find((item) => item.id === args.voice)!;
     const name = args.name ?? `${voice.name} voiceover`;
@@ -605,6 +625,46 @@ export function createAgentMedia(deps: AgentMediaDeps) {
         };
       },
     );
+  }
+
+  async function soundAccent(raw: unknown) {
+    const args = SoundAccentArgsSchema.parse(raw ?? {});
+    assertRevision(args);
+    if (args.trackId) checkTrack(store.project, args.trackId, "audio");
+    const opening = store.openSession;
+    const asset = await deps.soundAccent(args.kind);
+    if (store.openSession !== opening)
+      throw Error(
+        "A different project was opened while the sound was being made. Inspect the project and try again.",
+      );
+    const at = args.at;
+    const landed = land(
+      asset,
+      at ? `Add ${soundAccentNames[args.kind].toLowerCase()}` : "Import sound accent",
+      at
+        ? (project) => {
+            // Lands a hair before the event, so sound and picture meet.
+            const frame = Math.max(
+              0,
+              toFrame(at, project.fps) - soundAccentLeadFrames,
+            );
+            const placed = placement(
+              project,
+              asset,
+              { at: { frame }, trackId: args.trackId },
+              "sfx",
+            );
+            if (args.volume !== undefined) placed.clip.volume = args.volume;
+            return placed;
+          }
+        : undefined,
+    );
+    return {
+      ...landed,
+      name: asset.name,
+      kind: args.kind,
+      durationSeconds: Math.round(asset.duration * 100) / 100,
+    };
   }
 
   async function autoEdit(raw: unknown) {
@@ -1112,6 +1172,8 @@ export function createAgentMedia(deps: AgentMediaDeps) {
         return stockImport(raw);
       case "cutline_voiceover":
         return voiceover(raw);
+      case "cutline_sound_accent":
+        return soundAccent(raw);
       case "cutline_auto_edit":
         return autoEdit(raw);
       case "cutline_relink":
